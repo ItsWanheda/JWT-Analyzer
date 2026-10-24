@@ -149,7 +149,9 @@ class Assessment:
             "assessed_at": self.assessed_at,
             "verification_status": self.verification_status.value,
             "signature_present": self.signature_present,
-            "verification": _json_value(self.verification) if self.verification is not None else None,
+            "verification": (
+                _json_value(self.verification) if self.verification is not None else None
+            ),
             "header": _json_value(self.header),
             "claims": _json_value(self.claims),
             "findings": [finding.to_dict() for finding in self.findings],
