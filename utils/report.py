@@ -39,8 +39,7 @@ th {{ background: #34495e; color: white; }}
 <p>Decoded JWT claims are untrusted unless signature and claim validation succeeded.</p>
 </main></body></html>"""
 
-_SENSITIVE_MARKERS = ("token", "secret", "password", "passwd", "authorization",
-                      "cookie", "private_key", "privatekey", "api_key", "apikey", "credential")
+_SENSITIVE_MARKERS = ("token", "secret", "password", "passwd", "authorization", "cookie", "private_key", "privatekey", "api_key", "apikey", "credential", "email", "phone", "address", "ssn", "date_of_birth", "dob")
 
 
 def _redact(value: Any, key: str = "") -> Any:
@@ -53,6 +52,11 @@ def _redact(value: Any, key: str = "") -> Any:
     if isinstance(value, str) and value.count(".") == 2 and len(value) > 40:
         return "[REDACTED: JWT-like value]"
     return value
+
+
+def redact_sensitive_data(value: Any) -> Any:
+    """Public redaction helper shared by HTML and JSON report writers."""
+    return _redact(value)
 
 
 def _json_text(value: Any) -> str:
