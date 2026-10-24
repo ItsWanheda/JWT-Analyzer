@@ -40,8 +40,8 @@ def inspect_token(token: str) -> Assessment:
                 id="jwt.algorithm.none_declared",
                 title="Unsigned algorithm declared",
                 description=(
-                    "The token header declares alg=none. This confirms the header value, "
-                    "not that any server accepts unsigned tokens or is vulnerable to a bypass."
+                    "The token header declares alg=none. This confirms the header value; it does not establish "
+                    "that any server accepts unsigned tokens or is vulnerable to a bypass."
                 ),
                 severity=Severity.MEDIUM,
                 confidence=Confidence.HIGH,
