@@ -13,3 +13,5 @@ Final formatting follow-up: remove extra trailing blank line reported by Ruff fo
 Type-check follow-up: pin mypy to version 1.x for the declared Python 3.9 support and annotate the verification error tuple.
 
 Service/dashboard validation trigger after latest Host allowlist, remote-bind, and optional service test changes.
+
+Service compatibility rerun after pinning Starlette below 1.0, and after rate-limiter state-cap regression coverage.
