@@ -16,6 +16,10 @@ from core.parser import MAX_TOKEN_LENGTH
 from jwt_analyzer.service import create_app, main
 
 
+def _client(app):
+    return TestClient(app, base_url="http://127.0.0.1")
+
+
 def _segment(value):
     raw = json.dumps(value, separators=(",", ":")).encode("utf-8")
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
@@ -41,7 +45,7 @@ def _rsa_key_pair():
 
 
 def test_health_endpoint_and_security_headers():
-    client = TestClient(create_app())
+    client = _client(create_app())
     response = client.get("/api/v1/health")
 
     assert response.status_code == 200
@@ -53,7 +57,7 @@ def test_health_endpoint_and_security_headers():
 
 
 def test_inspect_endpoint_returns_structured_assessment_without_original_token():
-    client = TestClient(create_app())
+    client = _client(create_app())
     token = _token()
     response = client.post("/api/v1/inspect", json={"token": token})
 
@@ -68,7 +72,7 @@ def test_inspect_endpoint_returns_structured_assessment_without_original_token()
 
 def test_authentication_is_required_when_token_is_configured():
     token = "t" * 40
-    client = TestClient(create_app(api_token=token))
+    client = _client(create_app(api_token=token))
     payload = {"token": _token()}
 
     assert client.post("/api/v1/inspect", json=payload).status_code == 401
@@ -97,7 +101,7 @@ def test_verify_endpoint_uses_explicit_key_and_asymmetric_allowlist():
         private_key,
         algorithm="RS256",
     )
-    client = TestClient(create_app())
+    client = _client(create_app())
     response = client.post(
         "/api/v1/verify",
         json={
@@ -143,7 +147,7 @@ def test_request_rate_limit_is_applied_to_assessment_routes():
 
 
 def test_untrusted_host_header_is_rejected():
-    client = TestClient(create_app())
+    client = _client(create_app())
     response = client.post(
         "/api/v1/inspect",
         json={"token": _token()},
@@ -155,7 +159,7 @@ def test_untrusted_host_header_is_rejected():
 
 
 def test_dashboard_uses_nonce_csp_and_text_only_result_rendering():
-    client = TestClient(create_app())
+    client = _client(create_app())
     response = client.get("/dashboard")
 
     assert response.status_code == 200
@@ -168,7 +172,7 @@ def test_dashboard_uses_nonce_csp_and_text_only_result_rendering():
 
 
 def test_large_jwt_is_rejected_even_when_json_body_is_under_request_cap():
-    client = TestClient(create_app())
+    client = _client(create_app())
     response = client.post(
         "/api/v1/inspect",
         json={"token": "a" * (MAX_TOKEN_LENGTH + 1)},
@@ -190,6 +194,18 @@ def test_remote_bind_requires_explicit_opt_in_bearer_secret_and_host_allowlist()
                 "--allow-remote",
                 "--api-token",
                 "t" * 40,
+            ]
+        )
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--host",
+                "0.0.0.0",
+                "--allow-remote",
+                "--api-token",
+                "t" * 40,
+                "--allowed-host",
+                "*",
             ]
         )
 
