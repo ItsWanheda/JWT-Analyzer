@@ -21,3 +21,5 @@ Validation trigger after scoped service lint exceptions and bounded rate-limiter
 Validation trigger after fixing import grouping and service lint boundary.
 
 Final current-head validation trigger after explicit package imports and test-client Host header fix.
+
+Rerun trigger after service import spacing fix and explicit Host header in service test client.
