@@ -25,3 +25,5 @@ Final current-head validation trigger after explicit package imports and test-cl
 Rerun trigger after service import spacing fix and explicit Host header in service test client.
 
 Validation rerun after applying the Host allowlist to body/rate-limit tests and fixing module docstring spacing.
+
+Final rerun trigger after pinning AnyIO 3.x for Python 3.9 mypy compatibility and fixing every service test's default Host header.
