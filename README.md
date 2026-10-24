@@ -6,10 +6,12 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.1-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0.dev0--unreleased-orange.svg)](CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
 
 ---
+
+> **v2 development status:** `v2.0.0.dev0` is pre-release work on the `v2.0.0` branch. It is not the stable release, and this branch must not be used as a production upgrade until the release gates pass.
 
 ## ⚡ Quick Start
 
@@ -18,10 +20,10 @@
 pip install jwt-analyzer
 jwt-analyzer audit --token-file token.txt
 
-# Option 2: from source
-git clone https://github.com/ItsWanheda/jwt-analyzer.git
+# Option 2: from the v2 development branch (not a release)
+git clone --branch v2.0.0 https://github.com/ItsWanheda/jwt-analyzer.git
 cd jwt-analyzer
-pip install -r requirements.txt
+pip install -e ".[dev]"
 python main.py audit --token-file sample_token.txt
 
 # Option 3: Docker (best for CI/CD)
@@ -39,8 +41,8 @@ Most JWT tools just decode the base64. This one actually **looks for problems**:
 
 | Check | What it finds |
 |-------|---------------|
-| `none` algorithm detection | Servers that accept unsigned tokens (CVE-2015-9235) |
-| Algorithm confusion | RS256 tokens that could be forged as HS256 |
+| `none` algorithm indicator | Flags a header declaring `alg=none`; target acceptance must be verified separately |
+| Algorithm/key policy | Flags policy-review indicators; token-only inspection does not prove algorithm confusion |
 | `kid` header injection | SQLi / path traversal / command injection via the `kid` claim |
 | PII / secret scanning | Credit cards, SSNs, AWS keys, passwords leaking through payloads |
 | Brute-force attack | Cracks HS256 secrets using wordlists (multi-threaded) |
@@ -207,10 +209,9 @@ python main.py verify-rsa --token-file token.txt --public-key key.jwk
 python main.py verify-jwks --token-file token.txt \
     --jwks-url https://auth.example.com/.well-known/jwks.json
 
-# Skip TLS verification (debug only)
+# TLS verification is always enabled; use a valid certificate and trust store.
 python main.py verify-jwks --token-file token.txt \
-    --jwks-url https://localhost:8443/jwks \
-    --no-verify-ssl
+    --jwks-url https://auth.example.com/.well-known/jwks.json \
 ```
 
 #### `forge` — create a custom token
@@ -232,6 +233,9 @@ The `--yes` flag exists because we want you to think twice.
 
 ```
 jwt-analyzer/
+├── jwt_analyzer/                 # Public v2 Python API and normalized assessment models
+│   ├── api.py                     # Conservative token inspection API
+│   └── models.py                  # Assessment and finding schema
 ├── main.py                       # CLI entry point
 ├── config.py                     # Configuration & env vars
 ├── Dockerfile                    # Production container
