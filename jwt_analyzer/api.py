@@ -113,6 +113,7 @@ def inspect_token(token: str) -> Assessment:
     return Assessment(
         header=header,
         claims=claims,
+        signature_present=parsed["signature_present"],
         findings=tuple(findings),
         verification_status=VerificationStatus.NOT_ATTEMPTED,
         warnings=tuple(warnings),
