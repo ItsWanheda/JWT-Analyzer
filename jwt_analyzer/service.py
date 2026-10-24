@@ -198,11 +198,14 @@ class _WindowRateLimiter:
     def allow(self, client_key: str) -> bool:
         window = int(time.monotonic() // self.window_seconds)
         with self._lock:
-            if len(self._counts) > 4096:
+            current = self._counts.get(client_key)
+            if current is None and len(self._counts) >= 4096:
                 self._counts = {
                     key: value for key, value in self._counts.items() if value[0] >= window
                 }
-            current = self._counts.get(client_key)
+                if len(self._counts) >= 4096:
+                    return False
+                current = self._counts.get(client_key)
             if current is None or current[0] != window:
                 self._counts[client_key] = (window, 1)
                 return True
