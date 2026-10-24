@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, Optional
+from typing import Any
 
 from core.parser import parse_jwt
 from core.security import check_kid_injection
@@ -128,28 +128,16 @@ def inspect_token(token: str) -> Assessment:
     )
 
 
-def verify_with_public_key(
-    token: str,
-    key_content: str,
-    *,
+def _validate_verification_options(
     algorithms: Sequence[str],
-    issuer: Optional[str] = None,
-    audience: Optional[str] = None,
-    leeway: int = 0,
-) -> Assessment:
-    """Verify a compact JWT using an explicit public key and algorithm allowlist.
-
-    A VERIFIED result means the signature and the configured PyJWT claim checks
-    succeeded. It does not imply that application-specific authorization,
-    tenant, scope, or business-policy checks have passed. If issuer or audience
-    is omitted, that claim is not checked by this operation.
-
-    Malformed tokens and invalid API arguments raise ValueError. Key-loading or
-    verification failures are represented in the returned Assessment, and
-    decoded claims remain untrusted unless verification succeeds.
-    """
+    key_content: str,
+    issuer: str | None,
+    audience: str | None,
+    leeway: int,
+) -> tuple[str, ...]:
+    """Validate user-supplied verification constraints before parsing or crypto."""
     if isinstance(algorithms, (str, bytes)) or not isinstance(algorithms, Sequence):
-        raise ValueError("algorithms must be a non-empty sequence of allowed algorithm names")
+        raise TypeError("algorithms must be a sequence of allowed algorithm names")
     algorithm_list = tuple(algorithms)
     if not algorithm_list or any(
         not isinstance(alg, str) or not alg.strip() for alg in algorithm_list
@@ -165,6 +153,32 @@ def verify_with_public_key(
         raise ValueError("audience must be a non-empty string when provided")
     if isinstance(leeway, bool) or not isinstance(leeway, int) or leeway < 0:
         raise ValueError("leeway must be a non-negative integer number of seconds")
+    return algorithm_list
+
+
+def verify_with_public_key(
+    token: str,
+    key_content: str,
+    *,
+    algorithms: Sequence[str],
+    issuer: str | None = None,
+    audience: str | None = None,
+    leeway: int = 0,
+) -> Assessment:
+    """Verify a compact JWT using an explicit public key and algorithm allowlist.
+
+    A VERIFIED result means the signature and the configured PyJWT claim checks
+    succeeded. It does not imply that application-specific authorization,
+    tenant, scope, or business-policy checks have passed. If issuer or audience
+    is omitted, that claim is not checked by this operation.
+
+    Malformed tokens and invalid API arguments raise ValueError. Key-loading or
+    verification failures are represented in the returned Assessment, and
+    decoded claims remain untrusted unless verification succeeds.
+    """
+    algorithm_list = _validate_verification_options(
+        algorithms, key_content, issuer, audience, leeway
+    )
 
     parsed = parse_jwt(token)
     raw_result = _verify_with_public_key(
