@@ -18,12 +18,11 @@ LABEL org.opencontainers.image.title="jwt-analyzer" \
       org.opencontainers.image.source="https://github.com/ItsWanheda/jwt-analyzer"
 
 # ca-certificates are required for HTTPS JWKS fetching.
-# curl/git are retained here for the controlled build-time wordlist fetch and build tooling.
+# curl is used only to retrieve the build-time wordlist.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
-        curl \
-        git && \
+        curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Create non-root user before we copy anything
