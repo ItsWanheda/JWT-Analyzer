@@ -261,7 +261,7 @@ jwt-analyzer/
 │   ├── io.py                     # File reading helpers
 │   ├── report.py                 # HTML report generation
 │   └── wordlists/
-│       └── common_secrets.txt    # Bundled wordlist (~10k secrets)
+│       └── common_secrets.txt    # Small starter list; add an authorized wordlist for deeper checks
 │
 ├── plugins/                      # Custom check plugins (optional)
 │   └── README.md                 # How to write plugins
