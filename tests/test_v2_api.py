@@ -60,6 +60,20 @@ def test_missing_expiry_is_reported_without_claiming_server_acceptance():
     assert "verifier" in finding.description.lower()
 
 
+
+def test_suspicious_kid_is_only_a_low_confidence_indicator():
+    assessment = inspect_token(_token(header={"alg": "HS256", "kid": "../../etc/passwd"}))
+    finding = next(
+        item
+        for item in assessment.findings
+        if item.id == "jwt.header.kid_suspicious_indicator"
+    )
+
+    assert finding.severity is Severity.LOW
+    assert finding.confidence is Confidence.LOW
+    assert "does not prove" in finding.description.lower()
+
+
 def test_malformed_token_is_rejected():
     with pytest.raises(ValueError):
         inspect_token("not-a-jwt")
