@@ -79,6 +79,8 @@ Issues:
 
 ### M5 — Optional HTTP service
 
+**Initial implementation on branch `v2.0.0`:** an opt-in FastAPI/Uvicorn extra now exposes `/api/v1/health`, `/api/v1/inspect`, and `/api/v1/verify`, plus a same-origin `/dashboard`. It defaults to loopback, can require bearer authentication, checks Host values, caps body size, rate-limits assessment routes, adds security headers/CSP, and does not persist request bodies. See [HTTP service documentation](HTTP_SERVICE.md). This is a first slice, not completion of the milestone.
+
 Issues:
 - [ ] **M5-01 — Versioned service contract**: optional install extra, `/api/v1` health and assessment routes, request/response schemas and OpenAPI docs.
 - [ ] **M5-02 — Secure service defaults**: bind to loopback by default; require explicit opt-in to expose remotely; auth, rate limits, body size, timeout and concurrency limits; no persistent token storage by default.
@@ -89,6 +91,8 @@ Issues:
 **Acceptance:** service is optional and absent from the default CLI dependency path; safe default bind; authenticated/authorized remote use; rate/size/time caps and abuse tests pass; raw tokens are not persisted or logged.
 
 ### M6 — Graphical dashboard and extension ecosystem
+
+**Initial implementation on branch `v2.0.0`:** a responsive same-origin dashboard supports token inspection with per-response CSP nonce and text-only result rendering; it does not persist input or output. Verification controls, assessment comparison, export/redaction workflows, plugin loading and full E2E/accessibility coverage remain open.
 
 Issues:
 - [ ] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
