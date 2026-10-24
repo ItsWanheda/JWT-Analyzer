@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Optional
 
 from core.parser import parse_jwt
 from core.security import check_kid_injection
+from core.verification import verify_with_public_key as _verify_with_public_key
 
 from .models import Assessment, Confidence, Finding, Severity, VerificationStatus
 
@@ -124,3 +126,94 @@ def inspect_token(token: str) -> Assessment:
         verification_status=VerificationStatus.NOT_ATTEMPTED,
         warnings=tuple(warnings),
     )
+
+def verify_with_public_key(
+    token: str,
+    key_content: str,
+    *,
+    algorithms: Sequence[str],
+    issuer: Optional[str] = None,
+    audience: Optional[str] = None,
+    leeway: int = 0,
+) -> Assessment:
+    """Verify a compact JWT using an explicit public key and algorithm allowlist.
+
+    A VERIFIED result means the signature and the configured PyJWT claim checks
+    succeeded. It does not imply that application-specific authorization,
+    tenant, scope, or business-policy checks have passed. If issuer or audience
+    is omitted, that claim is not checked by this operation.
+
+    Malformed tokens and invalid API arguments raise ValueError. Key-loading or
+    verification failures are represented in the returned Assessment, and
+    decoded claims remain untrusted unless verification succeeds.
+    """
+    if isinstance(algorithms, (str, bytes)) or not isinstance(algorithms, Sequence):
+        raise ValueError("algorithms must be a non-empty sequence of allowed algorithm names")
+    algorithm_list = tuple(algorithms)
+    if not algorithm_list or any(not isinstance(alg, str) or not alg.strip() for alg in algorithm_list):
+        raise ValueError("algorithms must be a non-empty sequence of allowed algorithm names")
+    if len(set(algorithm_list)) != len(algorithm_list):
+        raise ValueError("algorithms must not contain duplicates")
+    if not isinstance(key_content, str) or not key_content.strip():
+        raise ValueError("key_content must contain a PEM public key or public JWK")
+    if issuer is not None and (not isinstance(issuer, str) or not issuer):
+        raise ValueError("issuer must be a non-empty string when provided")
+    if audience is not None and (not isinstance(audience, str) or not audience):
+        raise ValueError("audience must be a non-empty string when provided")
+    if isinstance(leeway, bool) or not isinstance(leeway, int) or leeway < 0:
+        raise ValueError("leeway must be a non-negative integer number of seconds")
+
+    parsed = parse_jwt(token)
+    raw_result = _verify_with_public_key(
+        token,
+        key_content,
+        algorithms=list(algorithm_list),
+        issuer=issuer,
+        audience=audience,
+        leeway=leeway,
+    )
+    raw_status = raw_result.get("status")
+    if raw_status == "valid" and raw_result.get("verified") is True:
+        status = VerificationStatus.VERIFIED
+        validated_claims = raw_result.get("payload")
+        if not isinstance(validated_claims, dict):
+            status = VerificationStatus.ERROR
+            claims = parsed["payload"]
+            errors = ("Verifier returned an unexpected payload type.",)
+        else:
+            claims = validated_claims
+            errors = ()
+    elif raw_status == "invalid":
+        status = VerificationStatus.INVALID
+        claims = parsed["payload"]
+        errors = (str(raw_result.get("error") or "Signature or claim validation failed."),)
+    else:
+        status = VerificationStatus.ERROR
+        claims = parsed["payload"]
+        errors = (str(raw_result.get("error") or "Verification could not be completed."),)
+
+    if status is VerificationStatus.VERIFIED:
+        warnings = (
+            "Signature and configured claim checks passed; apply application-specific authorization policy before trusting the identity.",
+        )
+    else:
+        warnings = (parsed["warning"],)
+
+    verification = {
+        "status": status.value,
+        "algorithms": list(algorithm_list),
+        "issuer": issuer,
+        "audience": audience,
+        "leeway_seconds": leeway,
+        "verified": status is VerificationStatus.VERIFIED,
+    }
+    return Assessment(
+        header=parsed["header"],
+        claims=claims,
+        signature_present=parsed["signature_present"],
+        verification=verification,
+        verification_status=status,
+        warnings=warnings,
+        errors=errors,
+    )
+
