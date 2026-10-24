@@ -4,6 +4,7 @@ The models deliberately distinguish observed token properties from verified
 security conclusions. A finding's confidence describes confidence in the
 observation itself, not proof that a remote verifier is vulnerable.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
