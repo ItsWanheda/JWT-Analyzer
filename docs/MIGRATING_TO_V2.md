@@ -33,6 +33,7 @@ The list below is the migration checklist; entries will be replaced with exact o
 | JWKS flags | Older examples may reference disabling TLS verification | TLS verification remains enabled | Remove `--no-verify-ssl` usage; fix trust roots/certificates instead |
 | Plugins | Legacy `plugins/` loader and implicit `register()` discovery | Explicitly enabled, versioned plugin interface | Do not rely on auto-discovery semantics; review each plugin's trust boundary |
 | Configuration | Existing YAML/environment keys | Validated, documented policy/config schema | Validate and migrate config before rollout |
+| HTTP service | Not part of the v1 CLI-only contract | Optional `jwt-analyzer[service]` extra; loopback-first API and dashboard | Install the extra explicitly; review bearer auth, Host allowlist, request caps and reverse-proxy/TLS configuration before enabling network access |
 
 ## Before production cutover
 
