@@ -129,7 +129,7 @@ def test_verify_endpoint_uses_explicit_key_and_asymmetric_allowlist():
 
 
 def test_request_body_limit_applies_before_json_parsing():
-    client = TestClient(create_app(max_request_bytes=96))
+    client = _client(create_app(max_request_bytes=96))
     response = client.post(
         "/api/v1/inspect",
         content=json.dumps({"token": "x" * 200}),
@@ -141,7 +141,7 @@ def test_request_body_limit_applies_before_json_parsing():
 
 
 def test_request_rate_limit_is_applied_to_assessment_routes():
-    client = TestClient(create_app(requests_per_minute=1))
+    client = _client(create_app(requests_per_minute=1))
     first = client.post("/api/v1/inspect", json={"token": _token()})
     second = client.post("/api/v1/inspect", json={"token": _token()})
 
