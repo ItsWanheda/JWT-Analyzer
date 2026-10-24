@@ -19,3 +19,5 @@ Service compatibility rerun after pinning Starlette below 1.0, and after rate-li
 Validation trigger after scoped service lint exceptions and bounded rate-limiter state fixes.
 
 Validation trigger after fixing import grouping and service lint boundary.
+
+Final current-head validation trigger after explicit package imports and test-client Host header fix.
