@@ -52,6 +52,24 @@ Most JWT tools just decode the base64. This one actually **looks for problems**:
 
 ---
 
+## 🐍 v2 Python API (development)
+
+The v2 public import surface is `jwt_analyzer`. The API below performs structural inspection only:
+
+```python
+from jwt_analyzer import inspect_token
+
+assessment = inspect_token(compact_jwt)
+print(assessment.to_dict())
+assert assessment.verification_status.value == "not_attempted"
+```
+
+Decoded claims are untrusted until signature verification and your application's claim policy both succeed. An `alg=none` or suspicious `kid` value is an indicator, not proof that a target accepts an attack. The assessment does not store the original compact token, but its decoded claims can still contain sensitive data; redact them before logging or sharing reports.
+
+This API is part of the unreleased `2.0.0.dev0` branch and may change until the v2 release gates pass.
+
+---
+
 ## 📦 Installation
 
 ### From source (recommended for development)
