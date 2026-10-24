@@ -1,90 +1,97 @@
-"""Parallel brute force using threads.
-
-For small wordlists (<1k) sequential is actually faster due to thread overhead.
-Switch to this for 5k+ secrets. Default 8 workers works well on most boxes.
-"""
+"""Bounded parallel HMAC secret testing for authorized assessments."""
+import logging
+import time
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from threading import Event
+from typing import List, Optional
 
 import jwt
-import time
-import logging
-from typing import Optional, List
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from config import Config
 
 logger = logging.getLogger(__name__)
 
 
-def brute_force_parallel(token: str, wordlist: List[str],
-                         workers: int = 8,
+def brute_force_parallel(token: str, wordlist: List[str], workers: int = 8,
                          algorithms: Optional[List[str]] = None,
                          timeout: int = 300) -> Optional[str]:
-    """Brute force using a thread pool. Returns secret or None.
-
-    Args:
-        token: target JWT
-        wordlist: list of candidate secrets
-        workers: thread count (default 8)
-        algorithms: which algs to try (default: all symmetric)
-        timeout: give up after N seconds
-
-    Returns:
-        the matching secret, or None
-    """
+    """Return a matching secret or None without submitting an unbounded queue."""
+    if not wordlist or timeout <= 0:
+        return None
     if algorithms is None:
         algorithms = Config.SUPPORTED_SYMMETRIC_ALGORITHMS
-
-    if not wordlist:
-        logger.warning("Empty wordlist")
+    allowed = set(Config.SUPPORTED_SYMMETRIC_ALGORITHMS)
+    algorithms = [alg for alg in algorithms if alg in allowed]
+    if not algorithms:
         return None
-
-    # If wordlist is tiny, don't bother with threads
+    workers = max(1, min(int(workers), 32))
     if len(wordlist) < 100:
         workers = 1
-
-    found_secret = None
-    start = time.time()
+    deadline = time.monotonic() + timeout
+    stop_event = Event()
     attempts = 0
-    stop_flag = [False]  # mutable flag for workers to check
 
-    def try_one(secret: str) -> Optional[str]:
-        nonlocal attempts
-        if stop_flag:
-            return None
+    def try_one(secret: str):
+        if stop_event.is_set() or time.monotonic() >= deadline:
+            return None, 0
+        count = 0
         for alg in algorithms:
-            attempts += 1
+            if stop_event.is_set() or time.monotonic() >= deadline:
+                break
+            count += 1
             try:
                 jwt.decode(token, secret, algorithms=[alg])
-                return secret
+                return secret, count
             except jwt.InvalidTokenError:
                 continue
-            except Exception:
-                continue
-        return None
+        return None, count
 
-    # Using 'with' so threads get cleaned up on exception
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(try_one, s): s for s in wordlist}
+    iterator = iter(wordlist)
+    pending = {}
+    found = None
+    pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="jwt-audit")
+    try:
+        for _ in range(workers):
+            try:
+                candidate = next(iterator)
+            except StopIteration:
+                break
+            pending[pool.submit(try_one, candidate)] = candidate
 
-        try:
-            for future in as_completed(futures):
-                if time.time() - start > timeout:
-                    logger.warning(f"Timeout after {attempts} attempts")
-                    stop_flag = True
+        while pending and time.monotonic() < deadline and not stop_event.is_set():
+            done, _ = wait(pending, timeout=max(0, deadline - time.monotonic()),
+                           return_when=FIRST_COMPLETED)
+            if not done:
+                break
+            for future in done:
+                pending.pop(future, None)
+                secret, count = future.result()
+                attempts += count
+                if secret is not None:
+                    found = secret
+                    stop_event.set()
                     break
+                if time.monotonic() < deadline and not stop_event.is_set():
+                    try:
+                        candidate = next(iterator)
+                    except StopIteration:
+                        continue
+                    pending[pool.submit(try_one, candidate)] = candidate
+            if found is not None:
+                break
+    except KeyboardInterrupt:
+        stop_event.set()
+        for future in pending:
+            future.cancel()
+        raise
+    finally:
+        stop_event.set()
+        for future in pending:
+            future.cancel()
+        # An in-flight cryptographic verification cannot be force-killed safely.
+        pool.shutdown(wait=True, cancel_futures=True)
 
-                result = future.result()
-                if result:
-                    found_secret = result
-                    elapsed = time.time() - start
-                    logger.info(
-                        f"Cracked '{result}' in {attempts} attempts "
-                        f"({elapsed:.1f}s, {attempts/elapsed:.0f}/s)"
-                    )
-                    stop_flag = True
-                    break  # pool shutdown via 'with' block
-        except KeyboardInterrupt:
-            logger.info("Interrupted by user")
-            stop_flag = True
-            raise
-
-    return found_secret
+    if found is not None:
+        logger.info("Matching secret found after at least %d attempts", attempts)
+    elif time.monotonic() >= deadline:
+        logger.warning("Brute force timed out after at least %d attempts", attempts)
+    return found
