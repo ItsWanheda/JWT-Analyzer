@@ -11,3 +11,5 @@ Import ordering follow-up trigger after ruff flagged a duplicate-module import b
 Final formatting follow-up: remove extra trailing blank line reported by Ruff format.
 
 Type-check follow-up: pin mypy to version 1.x for the declared Python 3.9 support and annotate the verification error tuple.
+
+Service/dashboard validation trigger after latest Host allowlist, remote-bind, and optional service test changes.
