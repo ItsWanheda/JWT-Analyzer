@@ -7,3 +7,5 @@ Validation trigger updated after the current public-key verification, strict sig
 Rerun trigger: current public-key verification now rejects symmetric algorithms and the remaining lint warning was fixed.
 
 Import ordering follow-up trigger after ruff flagged a duplicate-module import block.
+
+Final formatting follow-up: remove extra trailing blank line reported by Ruff format.
