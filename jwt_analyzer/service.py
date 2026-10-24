@@ -3,6 +3,7 @@
 Install the ``service`` extra to use this module. Request tokens and decoded claims
 are processed in memory only; the service does not persist assessments or log bodies.
 """
+
 from __future__ import annotations
 
 import argparse
