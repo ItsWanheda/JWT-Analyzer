@@ -50,7 +50,7 @@ dev = [
     "responses>=0.23.0",
     "freezegun>=1.2.0",
     "ruff>=0.1.0",
-    "mypy>=1.5.0",
+    "mypy>=1.5.0,<2.0.0",
     "bandit>=1.7.0",
     "pre-commit>=3.4.0",
     "tox>=4.0.0",
@@ -181,7 +181,7 @@ deps = ["pytest>=7.4.0", "pytest-cov>=4.1.0"]
 commands = [["pytest", { replace = "posargs", extend = true }]]
 
 [tool.tox.env.lint]
-deps = ["ruff>=0.1.0", "mypy>=1.5.0"]
+deps = ["ruff>=0.1.0", "mypy>=1.5.0,<2.0.0"]
 commands = [
     ["ruff", "check", "jwt_analyzer"],
     ["ruff", "format", "--check", "jwt_analyzer"],
