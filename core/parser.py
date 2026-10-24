@@ -39,7 +39,7 @@ def parse_jwt(token: str) -> dict[str, Any]:
     if len(token) > MAX_TOKEN_LENGTH:
         raise ValueError(f"JWT exceeds maximum length of {MAX_TOKEN_LENGTH} characters")
     parts = token.split(".")
-    if len(parts) != 3 or not all(parts):
+    if len(parts) != 3 or not parts[0] or not parts[1]:
         raise ValueError("Invalid JWT format: expected three non-empty segments")
 
     header = _json_object(parts[0], "header")
