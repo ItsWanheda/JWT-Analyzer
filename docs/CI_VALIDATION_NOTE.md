@@ -5,3 +5,5 @@ This file is isolated to the `v2.0.0-ci-validation` branch and exists only to tr
 Validation trigger updated after the current public-key verification, strict signature parsing, and lint fixes. Keep this file outside the release branch.
 
 Rerun trigger: current public-key verification now rejects symmetric algorithms and the remaining lint warning was fixed.
+
+Import ordering follow-up trigger after ruff flagged a duplicate-module import block.
