@@ -97,23 +97,25 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
                 })
 
             confusion = check_algorithm_confusion(token)
-            if confusion.get('vulnerable_to_confusion'):
+            if confusion.get('status') == 'observed':
                 findings.append({
-                    'severity': 'HIGH',
-                    'type': 'algorithm_confusion',
-                    'title': 'Algorithm confusion risk',
-                    'description': f"alg={confusion['algorithm']}. Server might accept HS256 token signed with the public key.",
-                    'remediation': 'Validate that algorithm matches expected type. Never pass user-controlled alg to jwt.decode().'
+                    'severity': 'LOW',
+                    'type': 'algorithm_policy_review',
+                    'title': 'Review JWT algorithm policy',
+                    'description': confusion.get('finding', 'Review the declared algorithm.')
+                    + ' This token-only check does not confirm a vulnerability.',
+                    'remediation': 'Pin an explicit algorithm allowlist and ensure key type matches the configured algorithm.'
                 })
 
             kid_check = check_kid_injection(token)
-            if kid_check.get('vulnerable'):
+            if kid_check.get('status') == 'suspicious_input':
                 findings.append({
-                    'severity': 'CRITICAL',
-                    'type': 'kid_injection',
-                    'title': 'kid header injection',
-                    'description': f"kid is vulnerable to: {', '.join(kid_check['vulnerability_types'])}",
-                    'remediation': 'Sanitize kid. Use strict allowlist or DB lookup with parameterized queries.'
+                    'severity': 'MEDIUM',
+                    'type': 'kid_suspicious_input',
+                    'title': 'Suspicious kid header value',
+                    'description': f"Suspicious patterns: {', '.join(kid_check['vulnerability_types'])}. "
+                    + 'This is an indicator, not proof of injection.',
+                    'remediation': 'Treat kid only as an opaque key identifier; use a fixed trusted key set and never interpolate it into commands, paths, or SQL.'
                 })
 
             # expiry
@@ -155,7 +157,7 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
                             'severity': 'CRITICAL',
                             'type': 'weak_secret',
                             'title': 'Weak secret found',
-                            'description': f"Secret: '{found}'",
+                            'description': 'A matching signing secret was found. Secret value is intentionally omitted.',
                             'remediation': 'Rotate immediately. Use ≥256 bits of entropy (e.g., openssl rand -base64 32).'
                         })
                     progress.update(t, completed=True)
@@ -254,7 +256,7 @@ def brute_force(token_file, wordlist, workers):
 
         found = brute_force_parallel(token, secrets, workers=workers)
         if found:
-            console.print(f"[bold green]✓ Secret found: '{found}'[/bold green]")
+            console.print("[bold green]✓ Matching secret found (value redacted)[/bold green]")
         else:
             console.print("[red]✗ Not in wordlist[/red]")
             sys.exit(1)
