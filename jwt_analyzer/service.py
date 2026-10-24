@@ -328,7 +328,7 @@ def create_app(
         raise ValueError("requests_per_minute must be a positive integer")
 
     if allowed_hosts is None:
-        host_allowlist = ["127.0.0.1", "localhost", "testserver", "[::1]"]
+        host_allowlist = ["127.0.0.1", "localhost", "[::1]"]
     else:
         if isinstance(allowed_hosts, (str, bytes)) or not allowed_hosts:
             raise ValueError("allowed_hosts must be a non-empty sequence of host names")
@@ -485,6 +485,8 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("Non-loopback binds require a bearer token at least 32 characters long.")
     if not loopback and not args.allowed_host:
         parser.error("Non-loopback binds require at least one explicit --allowed-host.")
+    if any("*" in host for host in args.allowed_host):
+        parser.error("Wildcard Host allowlists are not permitted.")
     if args.api_token is not None and not args.api_token.strip():
         parser.error("--api-token must not be empty.")
 
