@@ -104,6 +104,7 @@ class Assessment:
 
     header: Mapping[str, Any]
     claims: Mapping[str, Any]
+    signature_present: bool
     findings: tuple[Finding, ...] = ()
     verification_status: VerificationStatus = VerificationStatus.NOT_ATTEMPTED
     warnings: tuple[str, ...] = ()
@@ -114,6 +115,8 @@ class Assessment:
     def __post_init__(self) -> None:
         if not isinstance(self.header, Mapping) or not isinstance(self.claims, Mapping):
             raise TypeError("header and claims must be mappings")
+        if not isinstance(self.signature_present, bool):
+            raise TypeError("signature_present must be a boolean")
         object.__setattr__(self, "header", dict(self.header))
         object.__setattr__(self, "claims", dict(self.claims))
         object.__setattr__(self, "findings", tuple(self.findings))
@@ -134,6 +137,7 @@ class Assessment:
             "schema_version": self.schema_version,
             "assessed_at": self.assessed_at,
             "verification_status": self.verification_status.value,
+            "signature_present": self.signature_present,
             "header": _json_value(self.header),
             "claims": _json_value(self.claims),
             "findings": [finding.to_dict() for finding in self.findings],
