@@ -12,13 +12,14 @@ import json
 import os
 import secrets
 import time
+from collections.abc import Callable
 from threading import Lock
 from typing import Any
 
 try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse
-    from starlette.types import ASGIApp, Receive, Scope, Send
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 except ImportError as exc:  # pragma: no cover - depends on optional install extra
     raise ImportError(
         "The JWT Analyzer HTTP service is optional; install it with `pip install jwt-analyzer[service]`."
@@ -162,7 +163,7 @@ class MaxRequestBodyMiddleware:
         received_bytes = 0
         response_started = False
 
-        async def limited_receive() -> dict[str, Any]:
+        async def limited_receive() -> Message:
             nonlocal received_bytes
             message = await receive()
             if message.get("type") == "http.request":
@@ -171,7 +172,7 @@ class MaxRequestBodyMiddleware:
                     raise _BodyTooLarge
             return message
 
-        async def tracked_send(message: dict[str, Any]) -> None:
+        async def tracked_send(message: Message) -> None:
             nonlocal response_started
             if message.get("type") == "http.response.start":
                 response_started = True
@@ -225,7 +226,11 @@ class RequestRateLimitMiddleware:
                 client = scope.get("client")
                 client_key = client[0] if client else "unknown"
                 if not self.limiter.allow(client_key):
-                    await _send_json_error(send, 429, "Request rate limit exceeded; retry in a later window.")
+                    await _send_json_error(
+                        send,
+                        429,
+                        "Request rate limit exceeded; retry in a later window.",
+                    )
                     return
         await self.app(scope, receive, send)
 
@@ -237,7 +242,7 @@ class SecurityHeadersMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        async def secure_send(message: dict[str, Any]) -> None:
+        async def secure_send(message: Message) -> None:
             if message.get("type") == "http.response.start":
                 headers = list(message.get("headers", []))
                 existing = {name.lower() for name, _ in headers}
@@ -245,7 +250,13 @@ class SecurityHeadersMiddleware:
                     (b"cache-control", b"no-store"),
                     (b"x-content-type-options", b"nosniff"),
                     (b"referrer-policy", b"no-referrer"),
-                    (b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'none'"),
+                    (
+                        b"content-security-policy",
+                        (
+                            b"default-src 'none'; frame-ancestors 'none'; "
+                            b"object-src 'none'; base-uri 'none'"
+                        ),
+                    ),
                 ]
                 headers.extend((name, value) for name, value in defaults if name not in existing)
                 message = {**message, "headers": headers}
@@ -254,7 +265,7 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, secure_send)
 
 
-def _auth_dependency(api_token: str | None):
+def _auth_dependency(api_token: str | None) -> Callable[..., Any]:
     async def require_bearer_token(
         authorization: str | None = Header(default=None),
     ) -> None:
@@ -280,7 +291,7 @@ def _auth_dependency(api_token: str | None):
 async def _read_json_object(request: Request) -> dict[str, Any]:
     try:
         body = await request.json()
-    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+    except (UnicodeDecodeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail="Request body must be valid JSON.") from exc
     if not isinstance(body, dict):
         raise HTTPException(status_code=400, detail="Request body must be a JSON object.")
@@ -301,9 +312,17 @@ def create_app(
     """
     if api_token is not None and not api_token.strip():
         raise ValueError("api_token must not be empty when supplied")
-    if isinstance(max_request_bytes, bool) or not isinstance(max_request_bytes, int) or max_request_bytes < 1:
+    if (
+        isinstance(max_request_bytes, bool)
+        or not isinstance(max_request_bytes, int)
+        or max_request_bytes < 1
+    ):
         raise ValueError("max_request_bytes must be a positive integer")
-    if isinstance(requests_per_minute, bool) or not isinstance(requests_per_minute, int) or requests_per_minute < 1:
+    if (
+        isinstance(requests_per_minute, bool)
+        or not isinstance(requests_per_minute, int)
+        or requests_per_minute < 1
+    ):
         raise ValueError("requests_per_minute must be a positive integer")
 
     app = FastAPI(
@@ -332,11 +351,17 @@ def create_app(
         if not isinstance(token, str) or not token.strip():
             raise HTTPException(status_code=422, detail="token must be a non-empty string.")
         if len(token) > MAX_TOKEN_LENGTH:
-            raise HTTPException(status_code=413, detail="JWT exceeds the configured token-size limit.")
+            raise HTTPException(
+                status_code=413,
+                detail="JWT exceeds the configured token-size limit.",
+            )
         try:
             assessment = inspect_token(token)
         except ValueError as exc:
-            raise HTTPException(status_code=422, detail="JWT structure or claims are invalid.") from exc
+            raise HTTPException(
+                status_code=422,
+                detail="JWT structure or claims are invalid.",
+            ) from exc
         return JSONResponse(assessment.to_dict())
 
     @app.post("/api/v1/verify")
@@ -351,11 +376,20 @@ def create_app(
         if not isinstance(token, str) or not token.strip():
             raise HTTPException(status_code=422, detail="token must be a non-empty string.")
         if len(token) > MAX_TOKEN_LENGTH:
-            raise HTTPException(status_code=413, detail="JWT exceeds the configured token-size limit.")
+            raise HTTPException(
+                status_code=413,
+                detail="JWT exceeds the configured token-size limit.",
+            )
         if not isinstance(key_content, str) or not key_content.strip():
-            raise HTTPException(status_code=422, detail="public_key must contain a trusted PEM public key or public JWK.")
+            raise HTTPException(
+                status_code=422,
+                detail="public_key must contain a trusted PEM public key or public JWK.",
+            )
         if not isinstance(algorithms, list):
-            raise HTTPException(status_code=422, detail="algorithms must be a JSON array of allowed asymmetric algorithms.")
+            raise HTTPException(
+                status_code=422,
+                detail="algorithms must be a JSON array of allowed asymmetric algorithms.",
+            )
         try:
             assessment = verify_with_public_key(
                 token,
@@ -366,7 +400,10 @@ def create_app(
                 leeway=body.get("leeway", 0),
             )
         except (TypeError, ValueError) as exc:
-            raise HTTPException(status_code=422, detail="Invalid token or verification options.") from exc
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid token or verification options.",
+            ) from exc
         return JSONResponse(assessment.to_dict())
 
     @app.get("/dashboard", response_class=HTMLResponse)
@@ -380,7 +417,10 @@ def create_app(
             "connect-src 'self'; img-src 'self'; "
             "frame-ancestors 'none'; object-src 'none'; base-uri 'none'"
         )
-        return HTMLResponse(html, headers={"Content-Security-Policy": csp, "Cache-Control": "no-store"})
+        return HTMLResponse(
+            html,
+            headers={"Content-Security-Policy": csp, "Cache-Control": "no-store"},
+        )
 
     return app
 
@@ -423,7 +463,9 @@ def main(argv: list[str] | None = None) -> None:
     try:
         import uvicorn
     except ImportError as exc:  # pragma: no cover - depends on optional install extra
-        parser.error("Install the optional service dependencies with `pip install jwt-analyzer[service]`.")
+        parser.error(
+            "Install the optional service dependencies with `pip install jwt-analyzer[service]`."
+        )
         raise SystemExit(2) from exc
     uvicorn.run(
         create_app(api_token=args.api_token),
