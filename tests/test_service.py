@@ -141,6 +141,19 @@ def test_request_rate_limit_is_applied_to_assessment_routes():
     assert second.status_code == 429
 
 
+
+def test_untrusted_host_header_is_rejected():
+    client = TestClient(create_app())
+    response = client.post(
+        "/api/v1/inspect",
+        json={"token": _token()},
+        headers={"Host": "attacker.example"},
+    )
+
+    assert response.status_code == 400
+
+
+
 def test_dashboard_uses_nonce_csp_and_text_only_result_rendering():
     client = TestClient(create_app())
     response = client.get("/dashboard")
@@ -164,11 +177,21 @@ def test_large_jwt_is_rejected_even_when_json_body_is_under_request_cap():
     assert response.status_code == 413
 
 
-def test_remote_bind_requires_explicit_opt_in_and_bearer_secret(monkeypatch):
+def test_remote_bind_requires_explicit_opt_in_bearer_secret_and_host_allowlist():
     with pytest.raises(SystemExit):
         main(["--host", "0.0.0.0"])
     with pytest.raises(SystemExit):
         main(["--host", "0.0.0.0", "--allow-remote"])
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--host",
+                "0.0.0.0",
+                "--allow-remote",
+                "--api-token",
+                "t" * 40,
+            ]
+        )
 
 
 def test_empty_auth_token_is_rejected():
