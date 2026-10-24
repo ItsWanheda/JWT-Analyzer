@@ -3,6 +3,7 @@
 Inspection decodes untrusted data only. Call a verification operation and
 apply an application-specific claim policy before trusting token claims.
 """
+
 from .api import inspect_token
 from .models import Assessment, Confidence, Finding, Severity, VerificationStatus
 
