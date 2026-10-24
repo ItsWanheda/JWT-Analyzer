@@ -30,7 +30,6 @@ from core.parser import MAX_TOKEN_LENGTH
 from jwt_analyzer import __version__
 from jwt_analyzer.api import inspect_token, verify_with_public_key
 
-
 DEFAULT_MAX_REQUEST_BYTES = (2 * MAX_TOKEN_LENGTH) + 65_536
 _DEFAULT_RATE_PER_MINUTE = 60
 _MAX_RATE_LIMITER_CLIENTS = 4096
