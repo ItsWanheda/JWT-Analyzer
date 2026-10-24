@@ -7,7 +7,10 @@ from typing import Any
 
 from core.parser import parse_jwt
 from core.security import check_kid_injection
-from core.verification import verify_with_public_key as _verify_with_public_key
+from core.verification import (
+    DEFAULT_ASYMMETRIC_ALGORITHMS,
+    verify_with_public_key as _verify_with_public_key,
+)
 
 from .models import Assessment, Confidence, Finding, Severity, VerificationStatus
 
@@ -145,6 +148,12 @@ def _validate_verification_options(
         raise ValueError("algorithms must be a non-empty sequence of allowed algorithm names")
     if len(set(algorithm_list)) != len(algorithm_list):
         raise ValueError("algorithms must not contain duplicates")
+    unsupported = sorted(set(algorithm_list).difference(DEFAULT_ASYMMETRIC_ALGORITHMS))
+    if unsupported:
+        raise ValueError(
+            "algorithms must be supported asymmetric algorithms; unsupported: "
+            + ", ".join(unsupported)
+        )
     if not isinstance(key_content, str) or not key_content.strip():
         raise ValueError("key_content must contain a PEM public key or public JWK")
     if issuer is not None and (not isinstance(issuer, str) or not issuer):
@@ -211,8 +220,10 @@ def verify_with_public_key(
 
     if status is VerificationStatus.VERIFIED:
         warnings = (
-            "Signature and configured claim checks passed; apply application-specific "
-            "authorization policy before trusting the identity.",
+            (
+                "Signature and configured claim checks passed; apply application-specific "
+                "authorization policy before trusting the identity."
+            ),
         )
     else:
         warnings = (parsed["warning"],)
