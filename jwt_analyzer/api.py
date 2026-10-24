@@ -127,6 +127,7 @@ def inspect_token(token: str) -> Assessment:
         warnings=tuple(warnings),
     )
 
+
 def verify_with_public_key(
     token: str,
     key_content: str,
@@ -150,7 +151,9 @@ def verify_with_public_key(
     if isinstance(algorithms, (str, bytes)) or not isinstance(algorithms, Sequence):
         raise ValueError("algorithms must be a non-empty sequence of allowed algorithm names")
     algorithm_list = tuple(algorithms)
-    if not algorithm_list or any(not isinstance(alg, str) or not alg.strip() for alg in algorithm_list):
+    if not algorithm_list or any(
+        not isinstance(alg, str) or not alg.strip() for alg in algorithm_list
+    ):
         raise ValueError("algorithms must be a non-empty sequence of allowed algorithm names")
     if len(set(algorithm_list)) != len(algorithm_list):
         raise ValueError("algorithms must not contain duplicates")
@@ -194,7 +197,8 @@ def verify_with_public_key(
 
     if status is VerificationStatus.VERIFIED:
         warnings = (
-            "Signature and configured claim checks passed; apply application-specific authorization policy before trusting the identity.",
+            "Signature and configured claim checks passed; apply application-specific "
+            "authorization policy before trusting the identity.",
         )
     else:
         warnings = (parsed["warning"],)
