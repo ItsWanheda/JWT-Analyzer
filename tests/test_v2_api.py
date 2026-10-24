@@ -3,7 +3,9 @@ import base64
 import json
 
 import pytest
+from click.testing import CliRunner
 
+from main import cli
 from jwt_analyzer import (
     Assessment,
     Confidence,
@@ -91,6 +93,65 @@ def test_finding_serializes_enums_and_rejects_empty_id():
     assert finding.to_dict()["confidence"] == "medium"
     with pytest.raises(ValueError):
         Finding(id="", title="Example", description="Bad", severity=Severity.LOW)
+
+
+
+def test_cli_reports_alg_none_as_medium_indicator_not_confirmed_bypass(tmp_path):
+    token_path = tmp_path / "unsigned.jwt"
+    token_path.write_text(
+        _token(
+            header={"alg": "none", "typ": "JWT"},
+            claims={"sub": "test-subject"},
+            signature="",
+        ),
+        encoding="utf-8",
+    )
+    output = tmp_path / "assessment"
+    result = CliRunner().invoke(
+        cli,
+        [
+            "audit",
+            "--token-file",
+            str(token_path),
+            "--skip-bruteforce",
+            "--output",
+            str(output),
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    report = json.loads((tmp_path / "assessment.json").read_text(encoding="utf-8"))
+    finding = next(item for item in report["findings"] if item["type"] == "none_algorithm_indicator")
+    assert finding["severity"] == "MEDIUM"
+    assert "does not establish" in finding["description"]
+
+
+def test_cli_does_not_treat_exp_zero_as_a_missing_claim(tmp_path):
+    token_path = tmp_path / "expired.jwt"
+    token_path.write_text(
+        _token(claims={"sub": "test-subject", "exp": 0}),
+        encoding="utf-8",
+    )
+    output = tmp_path / "assessment"
+    result = CliRunner().invoke(
+        cli,
+        [
+            "audit",
+            "--token-file",
+            str(token_path),
+            "--skip-bruteforce",
+            "--output",
+            str(output),
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    report = json.loads((tmp_path / "assessment.json").read_text(encoding="utf-8"))
+    assert not any(item["type"] == "no_expiry" for item in report["findings"])
 
 
 def test_assessment_rejects_non_mapping_claims():
