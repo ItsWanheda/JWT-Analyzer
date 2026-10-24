@@ -197,6 +197,7 @@ def verify_with_public_key(
         leeway=leeway,
     )
     raw_status = raw_result.get("status")
+    errors: tuple[str, ...] = ()
     if raw_status == "valid" and raw_result.get("verified") is True:
         status = VerificationStatus.VERIFIED
         validated_claims = raw_result.get("payload")
