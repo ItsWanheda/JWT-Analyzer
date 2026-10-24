@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from main import cli
+from core.verification import _load_public_key
 from utils.report import redact_sensitive_data
 from jwt_analyzer import (
     Assessment,
@@ -238,6 +239,19 @@ def test_public_key_verification_enforces_requested_issuer():
 
     assert assessment.verification_status is VerificationStatus.INVALID
     assert assessment.errors
+
+
+
+@pytest.mark.parametrize(
+    "private_member",
+    ["d", "p", "q", "dp", "dq", "qi", "oth", "k"],
+)
+def test_public_key_loader_rejects_private_jwk_members(private_member):
+    jwk = {"kty": "RSA", "n": "AQAB", "e": "AQAB", private_member: "private-material"}
+
+    with pytest.raises(ValueError, match="Private or symmetric JWK material"):
+        _load_public_key(json.dumps(jwk))
+
 
 
 def test_public_key_verification_rejects_implicit_or_malformed_allowlists():
