@@ -39,6 +39,10 @@ class VerificationStatus(str, Enum):
     ERROR = "error"
 
 
+def _utc_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 def _json_value(value: Any) -> Any:
     """Convert nested model values to plain JSON-compatible containers."""
     if isinstance(value, Enum):
@@ -105,7 +109,7 @@ class Assessment:
     warnings: tuple[str, ...] = ()
     errors: tuple[str, ...] = ()
     schema_version: str = "1.0"
-    assessed_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+    assessed_at: str = field(default_factory=_utc_timestamp)
 
     def __post_init__(self) -> None:
         if not isinstance(self.header, Mapping) or not isinstance(self.claims, Mapping):
