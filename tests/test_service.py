@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
 from core.parser import MAX_TOKEN_LENGTH
-from jwt_analyzer.service import create_app, main
+from jwt_analyzer.service import _WindowRateLimiter, create_app, main
 
 
 def _client(app):
@@ -208,6 +208,18 @@ def test_remote_bind_requires_explicit_opt_in_bearer_secret_and_host_allowlist()
                 "*",
             ]
         )
+
+
+
+def test_rate_limiter_caps_client_state():
+    limiter = _WindowRateLimiter(limit=1)
+    for index in range(4096):
+        assert limiter.allow(f"client-{index}") is True
+
+    assert len(limiter._counts) == 4096
+    assert limiter.allow("new-client") is False
+    assert len(limiter._counts) == 4096
+
 
 
 def test_empty_auth_token_is_rejected():
