@@ -14,6 +14,6 @@ __all__ = [
     "Finding",
     "Severity",
     "VerificationStatus",
-    "inspect_token",
     "__version__",
+    "inspect_token",
 ]
