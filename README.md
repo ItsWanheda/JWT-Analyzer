@@ -66,6 +66,28 @@ assert assessment.verification_status.value == "not_attempted"
 
 Decoded claims are untrusted until signature verification and your application's claim policy both succeed. An `alg=none` or suspicious `kid` value is an indicator, not proof that a target accepts an attack. The assessment does not store the original compact token, but its decoded claims can still contain sensitive data; redact them before logging or sharing reports.
 
+### Explicit public-key verification
+
+Signature verification is a separate call and requires an explicit, non-empty algorithm allowlist:
+
+```python
+from pathlib import Path
+from jwt_analyzer import verify_with_public_key
+
+assessment = verify_with_public_key(
+    compact_jwt,
+    Path("public.pem").read_text(encoding="utf-8"),
+    algorithms=["RS256"],
+    issuer="https://issuer.example",
+    audience="jwt-api",
+)
+
+if assessment.verification_status.value != "verified":
+    raise ValueError(f"JWT was not verified: {assessment.errors}")
+```
+
+Use a trusted PEM public key or public JWK obtained from a trusted source. If issuer or audience is omitted, that claim is not validated by this call. A verified signature is not an authorization decision; still enforce application-specific scope, tenant, role and access-control rules.
+
 This API is part of the unreleased `2.0.0.dev0` branch and may change until the v2 release gates pass.
 
 ---
