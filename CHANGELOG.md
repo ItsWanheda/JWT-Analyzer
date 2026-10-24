@@ -10,6 +10,17 @@ All notable changes to this project will be documented in this file.
 
 Patch release — fixes discovered during first-run validation on Python 3.14 / Windows.
 
+
+#### Security hardening
+
+- Distinguish token-header indicators from confirmed server-side JWT vulnerabilities; report suspicious patterns as indicators rather than proof.
+- Validate JWT Base64URL segments, JSON object types, expiration claim types, and maximum token length.
+- Add explicit RSA, EC, and OKP JWK handling for public-key verification, with optional issuer and audience validation.
+- Harden JWKS retrieval with HTTPS enforcement, public-address checks, redirects disabled, response-size limits, and JWK compatibility checks.
+- Bound parallel HMAC candidate scheduling and use thread-safe cancellation signals.
+- Escape dynamic HTML report fields, redact credential-like values by default, and avoid printing discovered signing secrets.
+- Add regression tests for malformed tokens, heuristic finding semantics, JWKS URL restrictions, and report escaping/redaction.
+
 #### Fixed
 
 - **`forge` command crashed with `bytes-like object` error**: `forgery.py` was passing `parts` (a list of 3 strings) to `_base64url_decode` instead of `parts`. Resulted in `argument should be a bytes-like object or ASCII string, not 'list'`.

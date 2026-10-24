@@ -12,7 +12,7 @@ build-backend = "hatchling.build"
 # ──────────────────────────────────────────────────────────────────────────────
 [project]
 name = "jwt-analyzer"
-version = "1.2.0"
+version = "1.2.1"
 description = "Professional JWT security analysis CLI"
 readme = "README.md"
 requires-python = ">=3.9"

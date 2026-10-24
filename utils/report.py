@@ -1,158 +1,118 @@
-# utils/report.py
-import json
+"""Safe HTML report generation for JWT analysis."""
 import html
-from datetime import datetime
+import json
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict
-
+from typing import Any, Dict
 
 HTML_TEMPLATE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JWT Security Analysis Report</title>
 <style>
-  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-         margin: 40px; background: #f5f5f5; }}
-  .container {{ max-width: 1200px; margin: 0 auto; background: white;
-               padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-  h1 {{ color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }}
-  h2 {{ color: #34495e; margin-top: 30px; }}
-  .critical {{ background: #e74c3c; color: white; padding: 4px 12px; border-radius: 4px; }}
-  .high {{ background: #e67e22; color: white; padding: 4px 12px; border-radius: 4px; }}
-  .medium {{ background: #f39c12; color: white; padding: 4px 12px; border-radius: 4px; }}
-  .low {{ background: #3498db; color: white; padding: 4px 12px; border-radius: 4px; }}
-  .ok {{ background: #27ae60; color: white; padding: 4px 12px; border-radius: 4px; }}
-  pre {{ background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px;
-        overflow-x: auto; font-size: 13px; }}
-  .metadata {{ background: #ecf0f1; padding: 15px; border-radius: 4px;
-              margin-bottom: 20px; }}
-  table {{ border-collapse: collapse; width: 100%; margin-top: 10px; }}
-  th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
-  th {{ background: #34495e; color: white; }}
-  .summary-card {{ display: inline-block; padding: 20px; margin: 10px;
-                  background: #ecf0f1; border-radius: 8px; min-width: 150px;
-                  text-align: center; }}
-  .summary-card .number {{ font-size: 36px; font-weight: bold; color: #2c3e50; }}
-</style>
-</head>
-<body>
-<div class="container">
-<h1>🔐 JWT Security Analysis Report</h1>
-<div class="metadata">
-  <strong>Generated:</strong> {timestamp}<br>
-  <strong>Tool:</strong> JWT Analyzer v1.1<br>
-  <strong>Analyst:</strong> {analyst}
-</div>
+body {{ font-family: system-ui, sans-serif; margin: 2rem; background: #f5f5f5; color: #222; }}
+.container {{ max-width: 1100px; margin: auto; background: white; padding: 2rem; border-radius: 8px; }}
+h1 {{ border-bottom: 3px solid #3498db; padding-bottom: .5rem; }}
+.metadata, .summary-card {{ background: #ecf0f1; padding: 1rem; border-radius: 6px; }}
+.summary-card {{ display: inline-block; margin: .4rem; min-width: 90px; text-align: center; }}
+.number {{ font-size: 1.8rem; font-weight: bold; }}
+pre {{ background: #202b36; color: white; padding: 1rem; overflow-wrap: anywhere; white-space: pre-wrap; }}
+table {{ border-collapse: collapse; width: 100%; margin-top: 1rem; }}
+th, td {{ padding: .7rem; text-align: left; border-bottom: 1px solid #ddd; overflow-wrap: anywhere; }}
+th {{ background: #34495e; color: white; }}
+.critical {{ background: #b42318; color: white; }} .high {{ background: #c65d0a; color: white; }}
+.medium {{ background: #946200; color: white; }} .low {{ background: #175cd3; color: white; }}
+.ok {{ background: #067647; color: white; padding: .5rem; }}
+</style></head><body><main class="container">
+<h1>JWT Security Analysis Report</h1>
+<div class="metadata"><strong>Generated (UTC):</strong> {timestamp}<br>
+<strong>Tool:</strong> JWT Analyzer<br><strong>Analyst:</strong> {analyst}</div>
+<section aria-label="Severity summary">
+<div class="summary-card"><div class="number">{critical_count}</div>Critical</div>
+<div class="summary-card"><div class="number">{high_count}</div>High</div>
+<div class="summary-card"><div class="number">{medium_count}</div>Medium</div>
+<div class="summary-card"><div class="number">{low_count}</div>Low</div></section>
+<h2>Token Information</h2><pre>{token_info}</pre>
+<h2>Security Findings</h2>{findings_html}
+<h2>Recommendations</h2>{recommendations_html}
+<h2>Payload Analysis (redacted)</h2><pre>{payload_json}</pre>
+<p>Decoded JWT claims are untrusted unless signature and claim validation succeeded.</p>
+</main></body></html>"""
 
-<div>
-  <div class="summary-card">
-    <div class="number">{critical_count}</div>
-    <div>Critical</div>
-  </div>
-  <div class="summary-card">
-    <div class="number">{high_count}</div>
-    <div>High</div>
-  </div>
-  <div class="summary-card">
-    <div class="number">{medium_count}</div>
-    <div>Medium</div>
-  </div>
-  <div class="summary-card">
-    <div class="number">{low_count}</div>
-    <div>Low</div>
-  </div>
-</div>
+_SENSITIVE_MARKERS = ("token", "secret", "password", "passwd", "authorization", "cookie", "private_key", "privatekey", "api_key", "apikey", "credential", "email", "phone", "address", "ssn", "date_of_birth", "dob")
 
-<h2>📋 Token Information</h2>
-<pre>{token_info}</pre>
 
-<h2>🔍 Security Findings</h2>
-{findings_html}
+def _redact(value: Any, key: str = "") -> Any:
+    if any(marker in key.lower() for marker in _SENSITIVE_MARKERS):
+        return "[REDACTED]"
+    if isinstance(value, dict):
+        return {str(k): _redact(v, str(k)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact(item, key) for item in value]
+    if isinstance(value, str) and value.count(".") == 2 and len(value) > 40:
+        return "[REDACTED: JWT-like value]"
+    return value
 
-<h2>💡 Recommendations</h2>
-{recommendations_html}
 
-<h2>📊 Payload Analysis</h2>
-<pre>{payload_json}</pre>
+def redact_sensitive_data(value: Any) -> Any:
+    """Public redaction helper shared by HTML and JSON report writers."""
+    return _redact(value)
 
-</div>
-</body>
-</html>
-"""
+
+def _json_text(value: Any) -> str:
+    return json.dumps(_redact(value), indent=2, ensure_ascii=False, default=str)
 
 
 def generate_html_report(analysis_data: Dict, output_path: str,
                          analyst: str = "Security Team") -> str:
-    """Generate a professional HTML security report."""
-    
-    findings = analysis_data.get('findings', [])
-    critical = sum(1 for f in findings if f.get('severity') == 'CRITICAL')
-    high = sum(1 for f in findings if f.get('severity') == 'HIGH')
-    medium = sum(1 for f in findings if f.get('severity') == 'MEDIUM')
-    low = sum(1 for f in findings if f.get('severity') == 'LOW')
-    
-    findings_html = _render_findings(findings)
-    recommendations = _generate_recommendations(findings)
-    
+    """Generate an HTML report with escaped values and default redaction."""
+    findings = analysis_data.get("findings", [])
+    count = lambda level: sum(1 for f in findings if str(f.get("severity", "")).upper() == level)
     html_content = HTML_TEMPLATE.format(
-        timestamp=datetime.utcnow().isoformat() + 'Z',
-        analyst=html.escape(analyst),
-        critical_count=critical,
-        high_count=high,
-        medium_count=medium,
-        low_count=low,
-        token_info=html.escape(json.dumps(analysis_data.get('token_info', {}), indent=2)),
-        findings_html=findings_html,
-        recommendations_html=recommendations,
-        payload_json=html.escape(json.dumps(analysis_data.get('payload', {}), indent=2))
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        analyst=html.escape(str(analyst)),
+        critical_count=count("CRITICAL"), high_count=count("HIGH"),
+        medium_count=count("MEDIUM"), low_count=count("LOW"),
+        token_info=html.escape(_json_text(analysis_data.get("token_info", {}))),
+        findings_html=_render_findings(findings),
+        recommendations_html=_generate_recommendations(findings),
+        payload_json=html.escape(_json_text(analysis_data.get("payload", {}))),
     )
-    
-    Path(output_path).write_text(html_content)
+    Path(output_path).write_text(html_content, encoding="utf-8")
     return output_path
 
 
 def _render_findings(findings: list) -> str:
     if not findings:
-        return '<p class="ok">✅ No security issues found</p>'
-    
+        return '<p class="ok">No findings were reported by the configured checks.</p>'
     rows = []
+    allowed = {"critical", "high", "medium", "low"}
     for finding in findings:
-        severity = finding.get('severity', 'INFO').lower()
-        rows.append(f"""
-        <tr>
-          <td><span class="{severity}">{finding.get('severity', 'INFO')}</span></td>
-          <td>{html.escape(finding.get('title', ''))}</td>
-          <td>{html.escape(finding.get('description', ''))}</td>
-          <td>{html.escape(finding.get('remediation', ''))}</td>
-        </tr>
-        """)
-    
-    return f"""
-    <table>
-      <tr><th>Severity</th><th>Finding</th><th>Description</th><th>Remediation</th></tr>
-      {''.join(rows)}
-    </table>
-    """
+        severity = str(finding.get("severity", "INFO")).upper()
+        css_class = severity.lower() if severity.lower() in allowed else ""
+        rows.append(
+            "<tr>"
+            f'<td><span class="{css_class}">{html.escape(severity)}</span></td>'
+            f"<td>{html.escape(str(finding.get('title', '')))}</td>"
+            f"<td>{html.escape(str(finding.get('description', '')))}</td>"
+            f"<td>{html.escape(str(finding.get('remediation', '')))}</td>"
+            "</tr>"
+        )
+    return ("<table><thead><tr><th>Severity</th><th>Finding</th><th>Description</th>"
+            "<th>Remediation</th></tr></thead><tbody>" + "".join(rows) + "</tbody></table>")
 
 
 def _generate_recommendations(findings: list) -> str:
-    """Generate remediation recommendations based on findings."""
+    types = {str(f.get("type", "")) for f in findings}
     recs = []
-    
-    if any(f.get('type') == 'none_algorithm' for f in findings):
-        recs.append("🔴 Reject tokens with 'none' algorithm. Enforce explicit algorithm allowlist.")
-    
-    if any(f.get('type') == 'weak_secret' for f in findings):
-        recs.append("🔴 Use cryptographically random secrets ≥256 bits. Rotate immediately.")
-    
-    if any(f.get('type') == 'no_expiry' for f in findings):
-        recs.append("🟠 Always set 'exp' claim. Use short-lived tokens (15-60 min) with refresh tokens.")
-    
-    if any(f.get('type') == 'sensitive_data' for f in findings):
-        recs.append("🟠 JWTs are SIGNED, not ENCRYPTED. Remove PII. Use opaque tokens for sensitive data.")
-    
+    if "none_algorithm" in types:
+        recs.append("Reject unsigned tokens and enforce an explicit algorithm allowlist.")
+    if "weak_secret" in types:
+        recs.append("Use a strong random signing secret and rotate it.")
+    if "no_expiry" in types:
+        recs.append("Set and validate expiration according to application policy.")
+    if "sensitive_data" in types:
+        recs.append("Avoid sensitive personal data in signed-but-unencrypted JWT payloads.")
     if not recs:
-        recs.append("✅ No critical issues. Continue monitoring and regular audits.")
-    
-    return '<ul>' + ''.join(f'<li>{r}</li>' for r in recs) + '</ul>'
+        recs.append("Review all observations and limitations; absence of findings does not prove security.")
+    return "<ul>" + "".join(f"<li>{html.escape(item)}</li>" for item in recs) + "</ul>"
