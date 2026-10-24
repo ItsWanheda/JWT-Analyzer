@@ -17,7 +17,11 @@ from jwt_analyzer.service import _WindowRateLimiter, create_app, main
 
 
 def _client(app):
-    return TestClient(app, base_url="http://127.0.0.1")
+    return TestClient(
+        app,
+        base_url="http://127.0.0.1",
+        headers={"host": "127.0.0.1"},
+    )
 
 
 def _segment(value):
