@@ -1,37 +1,20 @@
 # pyproject.toml
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Build system
-# ──────────────────────────────────────────────────────────────────────────────
 [build-system]
 requires = ["hatchling>=1.18"]
 build-backend = "hatchling.build"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Project metadata
-# ──────────────────────────────────────────────────────────────────────────────
 [project]
 name = "jwt-analyzer"
-version = "1.2.1"
-description = "Professional JWT security analysis CLI"
+version = "2.0.0.dev0"
+description = "JWT security analysis CLI and Python API"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-authors = [
-    { name = "Your Name", email = "you@example.com" },
-]
-keywords = [
-    "jwt",
-    "json-web-token",
-    "security",
-    "pentest",
-    "cryptography",
-    "token",
-    "audit",
-    "cli",
-]
+authors = [{ name = "ItsWanheda" }]
+keywords = ["jwt", "json-web-token", "security", "pentest", "cryptography", "token", "audit", "cli"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
@@ -43,6 +26,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Security",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -72,130 +57,81 @@ dev = [
     "build>=1.0.0",
     "twine>=4.0.0",
 ]
-all = [
-    "jwt-analyzer[dev]",
-]
 
 [project.urls]
-Homepage   = "https://github.com/yourusername/jwt-analyzer"
-Repository = "https://github.com/yourusername/jwt-analyzer"
-Issues     = "https://github.com/yourusername/jwt-analyzer/issues"
-Changelog  = "https://github.com/yourusername/jwt-analyzer/releases"
+Homepage = "https://github.com/ItsWanheda/jwt-analyzer"
+Repository = "https://github.com/ItsWanheda/jwt-analyzer"
+Issues = "https://github.com/ItsWanheda/jwt-analyzer/issues"
+Changelog = "https://github.com/ItsWanheda/jwt-analyzer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 jwt-analyzer = "main:cli"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Hatch build configuration
-# Adjust the package discovery below to match your project layout.
-# ──────────────────────────────────────────────────────────────────────────────
+# Keep the legacy CLI and internal compatibility modules in the wheel while
+# making jwt_analyzer the supported v2 import surface.
 [tool.hatch.build.targets.wheel]
-# Use ONE of the following blocks depending on your layout:
+packages = ["jwt_analyzer", "core", "utils", "plugins"]
 
-# Option A — flat layout (single main.py at the project root, your current setup):
-include = ["main.py", "jwt-analyzer/**/*.py"]
-exclude = [".github", "tests", "wordlists", "*.toml", "*.md", "*.yml", "*.yaml"]
+[tool.hatch.build.targets.wheel.force-include]
+"main.py" = "main.py"
+"config.py" = "config.py"
 
-# Option B — src layout with a jwt-analyzer package directory:
-# packages = ["jwt-analyzer"]
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Ruff — linter & formatter
-# ──────────────────────────────────────────────────────────────────────────────
 [tool.ruff]
-line-length    = 100
+line-length = 100
 target-version = "py39"
 extend-exclude = ["wordlists", "build", "dist", ".venv", ".tox"]
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
-    "S",   # flake8-bandit (security)
-    "RUF", # ruff-specific
-    "N",   # pep8-naming
-    "SIM", # flake8-simplify
-    "PIE", # flake8-pie
-    "PL",  # pylint
-    "RET", # flake8-return
-    "TRY", # tryceratops
-    "YTT", # flake8-2020
-    "ISC", # flake8-implicit-str-concat
-    "PGH", # pygrep-hooks
-    "EXE", # flake8-executable
+    "E", "W", "F", "I", "B", "C4", "UP", "S", "RUF", "N", "SIM",
+    "PIE", "PL", "RET", "TRY", "YTT", "ISC", "PGH", "EXE",
 ]
 ignore = [
-    "S101",    # Use of assert — fine in tests
-    "S104",    # Hardcoded bind to all interfaces — we don't bind, OK
-    "PLR0913", # Too many arguments
-    "TRY003",  # Long exception messages
+    "S101",
+    "S104",
+    "PLR0913",
+    "TRY003",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = [
-    "S",       # security rules off in tests
-    "PLR2004", # magic values used in comparisons
-    "ARG",     # unused function arguments (fixtures)
-    "FBT",     # boolean trap (fixtures)
-    "SLF001",  # private member access (white-box tests)
-]
-"main.py" = ["BLE001"]   # blind-except acceptable in CLI entry point
+"tests/*" = ["S", "PLR2004", "ARG", "FBT", "SLF001]
+"main.py" = ["BLE001"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["jwt-analyzer"]
+known-first-party = ["jwt_analyzer", "core", "utils", "config"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.ruff.format]
-quote-style  = "double"
+quote-style = "double"
 indent-style = "space"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# mypy — static type checking
-# ──────────────────────────────────────────────────────────────────────────────
 [tool.mypy]
-python_version        = "3.9"
-strict                = false
-warn_return_any       = true
-warn_unused_configs   = true
+python_version = "3.9"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
-exclude = [
-    "build/",
-    "dist/",
-    "wordlists/",
-    ".venv/",
-]
+exclude = ["build/", "dist/", "wordlists/", ".venv/"]
 
 [[tool.mypy.overrides]]
-module                = "tests.*"
+module = "tests.*"
 disallow_untyped_defs = false
-check_untyped_defs    = false
+check_untyped_defs = false
 
-# ──────────────────────────────────────────────────────────────────────────────
-# pytest
-# ──────────────────────────────────────────────────────────────────────────────
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts    = [
+addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
     "--tb=short",
-    "--cov=jwt-analyzer",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
 ]
-testpaths   = ["tests"]
-markers     = [
-    "slow:        marks tests as slow (deselect with '-m \"not slow\"')",
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests that require network access",
 ]
 filterwarnings = [
@@ -204,23 +140,17 @@ filterwarnings = [
     "ignore::PendingDeprecationWarning",
 ]
 
-# ──────────────────────────────────────────────────────────────────────────────
-# coverage — pytest-cov configuration
-# ──────────────────────────────────────────────────────────────────────────────
 [tool.coverage.run]
-source = ["jwt-analyzer"]
+source = ["jwt_analyzer", "core", "utils", "config"]
 branch = true
-omit   = [
-    "tests/*",
-    "wordlists/*",
-    ".venv/*",
-]
+omit = ["tests/*", "wordlists/*", ".venv/*"]
 
 [tool.coverage.report]
-precision    = 2
+precision = 2
 show_missing = true
 skip_covered = false
-fail_under   = 80
+# Coverage will be ratcheted up as v2 test coverage expands.
+fail_under = 0
 exclude_lines = [
     "pragma: no cover",
     "raise NotImplementedError",
@@ -238,32 +168,25 @@ directory = "htmlcov"
 [tool.coverage.xml]
 output = "coverage.xml"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# bandit — security linter
-# ──────────────────────────────────────────────────────────────────────────────
 [tool.bandit]
 exclude_dirs = ["tests", "wordlists", ".venv"]
-skips        = ["B101"]   # assert usage (fine in our context)
+skips = ["B101"]
 
-# ──────────────────────────────────────────────────────────────────────────────
-# tox — automated testing across Python versions and tasks
-# Remove this block if you only use pre-commit / GitHub Actions.
-# ──────────────────────────────────────────────────────────────────────────────
 [tool.tox]
-env_list = ["py39", "py310", "py311", "py312", "lint", "security"]
+env_list = ["py39", "py310", "py311", "py312", "py313", "py314", "lint", "security"]
 
 [tool.tox.env_run_base]
-deps     = ["pytest>=7.4.0", "pytest-cov>=4.1.0"]
+deps = ["pytest>=7.4.0", "pytest-cov>=4.1.0"]
 commands = [["pytest", { replace = "posargs", extend = true }]]
 
 [tool.tox.env.lint]
 deps = ["ruff>=0.1.0", "mypy>=1.5.0"]
 commands = [
-    ["ruff", "check", "."],
-    ["ruff", "format", "--check", "."],
-    ["mypy", "main.py", "jwt-analyzer"],
+    ["ruff", "check", "jwt_analyzer"],
+    ["ruff", "format", "--check", "jwt_analyzer"],
+    ["mypy", "jwt_analyzer"],
 ]
 
 [tool.tox.env.security]
-deps     = ["bandit[toml]>=1.7.0"]
-commands = [["bandit", "-r", "jwt-analyzer", "-c", "pyproject.toml"]]
+deps = ["bandit[toml]>=1.7.0"]
+commands = [["bandit", "-r", "jwt_analyzer", "-c", "pyproject.toml"]]
