@@ -328,12 +328,11 @@ def verify_rsa(token_file, public_key, output):
 @cli.command('verify-jwks')
 @click.option('--token-file', required=True, type=click.Path(exists=True))
 @click.option('--jwks-url', required=True)
-@click.option('--no-verify-ssl', is_flag=True, help='Skip TLS verification (debug only)')
-def verify_jwks_cmd(token_file, jwks_url, no_verify_ssl):
+def verify_jwks_cmd(token_file, jwks_url):
     """Verify against a JWKS endpoint (e.g., https://auth.example.com/.well-known/jwks.json)."""
     try:
         token = read_token_from_file(token_file)
-        result = verify_with_jwks(token, jwks_url, verify_ssl=not no_verify_ssl)
+        result = verify_with_jwks(token, jwks_url)
 
         if result['status'] == 'valid':
             console.print(f"[green]✓ Valid (kid={result.get('kid')})[/green]")
