@@ -27,9 +27,8 @@ except ImportError as exc:  # pragma: no cover - depends on optional install ext
     ) from exc
 
 from core.parser import MAX_TOKEN_LENGTH
-
-from . import __version__
-from .api import inspect_token, verify_with_public_key
+from jwt_analyzer import __version__
+from jwt_analyzer.api import inspect_token, verify_with_public_key
 
 
 DEFAULT_MAX_REQUEST_BYTES = (2 * MAX_TOKEN_LENGTH) + 65_536
