@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 
 class Severity(str, Enum):
@@ -107,6 +107,7 @@ class Assessment:
     header: Mapping[str, Any]
     claims: Mapping[str, Any]
     signature_present: bool
+    verification: Optional[Mapping[str, Any]] = None
     findings: tuple[Finding, ...] = ()
     verification_status: VerificationStatus = VerificationStatus.NOT_ATTEMPTED
     warnings: tuple[str, ...] = ()
@@ -119,6 +120,10 @@ class Assessment:
             raise TypeError("header and claims must be mappings")
         if not isinstance(self.signature_present, bool):
             raise TypeError("signature_present must be a boolean")
+        if self.verification is not None and not isinstance(self.verification, Mapping):
+            raise TypeError("verification must be a mapping or None")
+        if self.verification is not None:
+            object.__setattr__(self, "verification", dict(self.verification))
         object.__setattr__(self, "header", dict(self.header))
         object.__setattr__(self, "claims", dict(self.claims))
         object.__setattr__(self, "findings", tuple(self.findings))
@@ -144,6 +149,7 @@ class Assessment:
             "assessed_at": self.assessed_at,
             "verification_status": self.verification_status.value,
             "signature_present": self.signature_present,
+            "verification": _json_value(self.verification) if self.verification is not None else None,
             "header": _json_value(self.header),
             "claims": _json_value(self.claims),
             "findings": [finding.to_dict() for finding in self.findings],
