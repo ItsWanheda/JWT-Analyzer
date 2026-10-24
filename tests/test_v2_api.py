@@ -243,7 +243,7 @@ def test_public_key_verification_enforces_requested_issuer():
 def test_public_key_verification_rejects_implicit_or_malformed_allowlists():
     with pytest.raises(ValueError):
         verify_with_public_key("not-a-token", "not-a-key", algorithms=[])
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         verify_with_public_key("not-a-token", "not-a-key", algorithms="RS256")
 
 
