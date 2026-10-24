@@ -245,6 +245,8 @@ def test_public_key_verification_rejects_implicit_or_malformed_allowlists():
         verify_with_public_key("not-a-token", "not-a-key", algorithms=[])
     with pytest.raises(TypeError):
         verify_with_public_key("not-a-token", "not-a-key", algorithms="RS256")
+    with pytest.raises(ValueError):
+        verify_with_public_key("not-a-token", "not-a-key", algorithms=["HS256"])
 
 
 
