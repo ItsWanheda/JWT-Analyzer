@@ -62,7 +62,9 @@ def inspect_token(token: str) -> Assessment:
                 severity=Severity.LOW,
                 confidence=Confidence.HIGH,
                 category="token-structure",
-                recommendation="Reject malformed JWT headers and configure accepted algorithms explicitly.",
+                recommendation=(
+                    "Reject malformed JWT headers and configure accepted algorithms explicitly."
+                ),
                 evidence={"algorithm_type": type(algorithm).__name__},
             )
         )
@@ -79,7 +81,9 @@ def inspect_token(token: str) -> Assessment:
                 severity=Severity.MEDIUM,
                 confidence=Confidence.HIGH,
                 category="claim-policy",
-                recommendation="Require a bounded lifetime appropriate to the application's token policy.",
+                recommendation=(
+                    "Require a bounded lifetime appropriate to the application's token policy."
+                ),
                 evidence={"claim": "exp", "present": False},
             )
         )
