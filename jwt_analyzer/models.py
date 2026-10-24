@@ -11,7 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 class Severity(str, Enum):
@@ -107,7 +107,7 @@ class Assessment:
     header: Mapping[str, Any]
     claims: Mapping[str, Any]
     signature_present: bool
-    verification: Optional[Mapping[str, Any]] = None
+    verification: Mapping[str, Any] | None = None
     findings: tuple[Finding, ...] = ()
     verification_status: VerificationStatus = VerificationStatus.NOT_ATTEMPTED
     warnings: tuple[str, ...] = ()
