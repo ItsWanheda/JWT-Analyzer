@@ -57,6 +57,11 @@ dev = [
     "build>=1.0.0",
     "twine>=4.0.0",
 ]
+service = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.27.0",
+    "httpx>=0.25.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/ItsWanheda/jwt-analyzer"
@@ -66,6 +71,7 @@ Changelog = "https://github.com/ItsWanheda/jwt-analyzer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 jwt-analyzer = "main:cli"
+jwt-analyzer-api = "jwt_analyzer.service:main"
 
 # Keep the legacy CLI and internal compatibility modules in the wheel while
 # making jwt_analyzer the supported v2 import surface.
