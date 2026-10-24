@@ -94,7 +94,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S", "PLR2004", "ARG", "FBT", "SLF001]
+"tests/*" = ["S", "PLR2004", "ARG", "FBT", "SLF001"]
 "main.py" = ["BLE001"]
 
 [tool.ruff.lint.isort]
