@@ -15,10 +15,10 @@ FROM python:3.12-slim
 LABEL org.opencontainers.image.title="jwt-analyzer" \
       org.opencontainers.image.description="JWT security analysis CLI" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.source="https://github.com/yourorg/jwt-analyzer"
+      org.opencontainers.image.source="https://github.com/ItsWanheda/jwt-analyzer"
 
-# ca-certificates for HTTPS JWKS fetching, curl for downloading wordlists at build time
-# git is in case any dep needs it (some do)
+# ca-certificates are required for HTTPS JWKS fetching.
+# curl/git are retained here for the controlled build-time wordlist fetch and build tooling.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -44,11 +44,11 @@ COPY --chown=jwtuser:jwtuser . .
 
 # Bundle a wordlist in the image so users don't need to download one
 # 400 error means SecLists moved the file - update URL if build fails
-RUN mkdir -p wordlists && \
-    curl -fsSL -o wordlists/common_secrets.txt \
+RUN mkdir -p utils/wordlists && \
+    curl -fsSL -o utils/wordlists/common_secrets.txt \
       https://raw.githubusercontent.com/danielmiessler/SecLists/master/Passwords/Common-Credentials/jwt-secrets.txt && \
-    echo "Downloaded $(wc -l < wordlists/common_secrets.txt) secrets" && \
-    chown -R jwtuser:jwtuser wordlists
+    echo "Downloaded $(wc -l < utils/wordlists/common_secrets.txt) secrets" && \
+    chown -R jwtuser:jwtuser utils/wordlists
 
 # Switch to non-root - non-negotiable for security tools
 USER jwtuser
