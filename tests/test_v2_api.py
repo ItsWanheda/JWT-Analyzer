@@ -144,7 +144,9 @@ def test_cli_reports_alg_none_as_medium_indicator_not_confirmed_bypass(tmp_path)
 
     assert result.exit_code == 0, result.output
     report = json.loads((tmp_path / "assessment.json").read_text(encoding="utf-8"))
-    finding = next(item for item in report["findings"] if item["type"] == "none_algorithm_indicator")
+    finding = next(
+        item for item in report["findings"] if item["type"] == "none_algorithm_indicator"
+    )
     assert finding["severity"] == "MEDIUM"
     assert "does not establish" in finding["description"]
 
