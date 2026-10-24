@@ -104,6 +104,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "PLR2004", "ARG", "FBT", "SLF001"]
 "main.py" = ["BLE001"]
+# Service intentionally embeds HTML/CSS/JS and uses FastAPI dependency-injection defaults.
+# Keep the exceptions scoped to this optional framework adapter, not the core API.
+"jwt_analyzer/service.py" = ["E501", "PLR0915", "B008", "PLR2004", "PLC0415"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["jwt_analyzer", "core", "utils", "config"]
