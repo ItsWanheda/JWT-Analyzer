@@ -12,13 +12,14 @@ import json
 import os
 import secrets
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from threading import Lock
 from typing import Any
 
 try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse
+    from starlette.middleware.trustedhost import TrustedHostMiddleware
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 except ImportError as exc:  # pragma: no cover - depends on optional install extra
     raise ImportError(
@@ -303,6 +304,7 @@ def create_app(
     api_token: str | None = None,
     max_request_bytes: int = DEFAULT_MAX_REQUEST_BYTES,
     requests_per_minute: int = _DEFAULT_RATE_PER_MINUTE,
+    allowed_hosts: Sequence[str] | None = None,
 ) -> FastAPI:
     """Create the optional HTTP API; tokens are processed in memory only.
 
@@ -325,6 +327,17 @@ def create_app(
     ):
         raise ValueError("requests_per_minute must be a positive integer")
 
+    if allowed_hosts is None:
+        host_allowlist = ["127.0.0.1", "localhost", "testserver", "[::1]"]
+    else:
+        if isinstance(allowed_hosts, (str, bytes)) or not allowed_hosts:
+            raise ValueError("allowed_hosts must be a non-empty sequence of host names")
+        if any(not isinstance(host, str) or not host.strip() for host in allowed_hosts):
+            raise ValueError("allowed_hosts entries must be non-empty strings")
+        host_allowlist = [host.strip().lower() for host in allowed_hosts]
+        if any("*" in host for host in host_allowlist):
+            raise ValueError("Wildcard host entries are not supported")
+
     app = FastAPI(
         title="JWT Analyzer API",
         version=__version__,
@@ -335,6 +348,11 @@ def create_app(
     authorize = _auth_dependency(api_token)
     app.add_middleware(MaxRequestBodyMiddleware, max_body_bytes=max_request_bytes)
     app.add_middleware(RequestRateLimitMiddleware, requests_per_minute=requests_per_minute)
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=host_allowlist,
+        www_redirect=False,
+    )
     app.add_middleware(SecurityHeadersMiddleware)
 
     @app.get("/api/v1/health")
@@ -445,6 +463,12 @@ def main(argv: list[str] | None = None) -> None:
         help="Bearer token; may also be supplied via JWT_ANALYZER_API_TOKEN.",
     )
     parser.add_argument(
+        "--allowed-host",
+        action="append",
+        default=[],
+        help="Allowed HTTP Host value; repeat for multiple names. Wildcards are rejected.",
+    )
+    parser.add_argument(
         "--allow-remote",
         action="store_true",
         help="Explicitly permit a non-loopback bind; requires a bearer token.",
@@ -457,6 +481,10 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("Non-loopback binds require --allow-remote.")
     if not loopback and not args.api_token:
         parser.error("Non-loopback binds require --api-token or JWT_ANALYZER_API_TOKEN.")
+    if not loopback and len(args.api_token) < 32:
+        parser.error("Non-loopback binds require a bearer token at least 32 characters long.")
+    if not loopback and not args.allowed_host:
+        parser.error("Non-loopback binds require at least one explicit --allowed-host.")
     if args.api_token is not None and not args.api_token.strip():
         parser.error("--api-token must not be empty.")
 
@@ -468,7 +496,7 @@ def main(argv: list[str] | None = None) -> None:
         )
         raise SystemExit(2) from exc
     uvicorn.run(
-        create_app(api_token=args.api_token),
+        create_app(api_token=args.api_token, allowed_hosts=args.allowed_host or None),
         host=args.host,
         port=args.port,
         access_log=False,
