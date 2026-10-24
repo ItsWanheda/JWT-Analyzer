@@ -36,7 +36,9 @@ def test_inspection_never_claims_signature_verification():
     assessment = inspect_token(token)
 
     assert assessment.verification_status is VerificationStatus.NOT_ATTEMPTED
+    assert assessment.signature_present is True
     assert assessment.to_dict()["verification_status"] == "not_attempted"
+    assert assessment.to_dict()["signature_present"] is True
     assert any("untrusted" in warning.lower() for warning in assessment.warnings)
     assert "token" not in assessment.to_dict()
 
@@ -156,4 +158,4 @@ def test_cli_does_not_treat_exp_zero_as_a_missing_claim(tmp_path):
 
 def test_assessment_rejects_non_mapping_claims():
     with pytest.raises(TypeError):
-        Assessment(header={}, claims=[])  # type: ignore[arg-type]
+        Assessment(header={}, claims=[], signature_present=True)  # type: ignore[arg-type]
