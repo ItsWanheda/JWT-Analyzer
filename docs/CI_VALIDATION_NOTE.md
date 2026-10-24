@@ -23,3 +23,5 @@ Validation trigger after fixing import grouping and service lint boundary.
 Final current-head validation trigger after explicit package imports and test-client Host header fix.
 
 Rerun trigger after service import spacing fix and explicit Host header in service test client.
+
+Validation rerun after applying the Host allowlist to body/rate-limit tests and fixing module docstring spacing.
