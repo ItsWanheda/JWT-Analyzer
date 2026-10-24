@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [Unreleased — v2.0.0 development]
+
+> This section documents unreleased branch work. It is not a release announcement.
+
+### Added
+- Introduce the public `jwt_analyzer` Python namespace with normalized `Assessment` and `Finding` models.
+- Add `inspect_token()` for structural inspection that explicitly leaves verification as `not_attempted`.
+- Add a v2 milestone roadmap, migration checklist, and branch CI workflow.
+
+### Changed
+- Move the development package version to `2.0.0.dev0`; no PyPI/Docker publication or release tag is created.
+- Correct CLI finding semantics so `alg=none` is a token-header indicator, not a confirmed server-side signature bypass.
+- Correct the missing-`exp` check so numeric timestamp zero is not confused with an absent claim.
+- Correct wheel discovery and package metadata for the public API and required legacy modules.
+- Update README examples to stop recommending disabled TLS verification.
+
+### Validation
+- CI is being added on the v2 branch; passing results are required before the release-candidate milestone.
+- No release, tag, or package publication is included in this development work.
+
+---
+
 ## [Released]
 
 ### [1.2.1] - 2026-07-05
