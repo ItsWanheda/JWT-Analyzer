@@ -10,8 +10,9 @@ We maintain strict version control to ensure security patches are delivered effe
 
 | Version | Supported | Status |
 | :--- | :---: | :--- |
-| **1.2.0** | ✅ | Active |
-| **1.0.0** | ✅ | Active |
+| **1.2.1** | ✅ | Latest stable line; security fixes should target this line |
+| **2.0.0.dev0** | ❌ | Development prerelease; not supported for production use |
+| **1.2.0 and older** | ❌ | Upgrade to the latest stable 1.2.x release |
 ---
 
 ## 🚨 Reporting a Vulnerability
