@@ -59,6 +59,7 @@ dev = [
 ]
 service = [
     "fastapi>=0.110.0",
+    "starlette>=0.46.0,<1.0.0",
     "uvicorn>=0.27.0",
     "httpx>=0.25.0",
 ]
