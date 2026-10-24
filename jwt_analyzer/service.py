@@ -27,13 +27,15 @@ except ImportError as exc:  # pragma: no cover - depends on optional install ext
     ) from exc
 
 from core.parser import MAX_TOKEN_LENGTH
-
 from . import __version__
 from .api import inspect_token, verify_with_public_key
 
 
 DEFAULT_MAX_REQUEST_BYTES = (2 * MAX_TOKEN_LENGTH) + 65_536
 _DEFAULT_RATE_PER_MINUTE = 60
+_MAX_RATE_LIMITER_CLIENTS = 4096
+_MAX_PORT = 65535
+_REMOTE_TOKEN_MIN_LENGTH = 32
 
 
 _DASHBOARD_HTML = """<!doctype html>
@@ -118,7 +120,7 @@ _DASHBOARD_HTML = """<!doctype html>
 """
 
 
-class _BodyTooLarge(Exception):
+class _BodyTooLargeError(Exception):
     """Internal signal that a streamed request body exceeded its configured cap."""
 
 
@@ -170,7 +172,7 @@ class MaxRequestBodyMiddleware:
             if message.get("type") == "http.request":
                 received_bytes += len(message.get("body", b""))
                 if received_bytes > self.max_body_bytes:
-                    raise _BodyTooLarge
+                    raise _BodyTooLargeError
             return message
 
         async def tracked_send(message: Message) -> None:
@@ -181,7 +183,7 @@ class MaxRequestBodyMiddleware:
 
         try:
             await self.app(scope, limited_receive, tracked_send)
-        except _BodyTooLarge:
+        except _BodyTooLargeError:
             if not response_started:
                 await _send_json_error(send, 413, "Request body exceeds the configured size limit.")
 
@@ -199,11 +201,11 @@ class _WindowRateLimiter:
         window = int(time.monotonic() // self.window_seconds)
         with self._lock:
             current = self._counts.get(client_key)
-            if current is None and len(self._counts) >= 4096:
+            if current is None and len(self._counts) >= _MAX_RATE_LIMITER_CLIENTS:
                 self._counts = {
                     key: value for key, value in self._counts.items() if value[0] >= window
                 }
-                if len(self._counts) >= 4096:
+                if len(self._counts) >= _MAX_RATE_LIMITER_CLIENTS:
                     return False
                 current = self._counts.get(client_key)
             if current is None or current[0] != window:
@@ -477,14 +479,14 @@ def main(argv: list[str] | None = None) -> None:
         help="Explicitly permit a non-loopback bind; requires a bearer token.",
     )
     args = parser.parse_args(argv)
-    if not 1 <= args.port <= 65535:
+    if not 1 <= args.port <= _MAX_PORT:
         parser.error("--port must be between 1 and 65535")
     loopback = _is_loopback_host(args.host)
     if not loopback and not args.allow_remote:
         parser.error("Non-loopback binds require --allow-remote.")
     if not loopback and not args.api_token:
         parser.error("Non-loopback binds require --api-token or JWT_ANALYZER_API_TOKEN.")
-    if not loopback and len(args.api_token) < 32:
+    if not loopback and len(args.api_token) < _REMOTE_TOKEN_MIN_LENGTH:
         parser.error("Non-loopback binds require a bearer token at least 32 characters long.")
     if not loopback and not args.allowed_host:
         parser.error("Non-loopback binds require at least one explicit --allowed-host.")
