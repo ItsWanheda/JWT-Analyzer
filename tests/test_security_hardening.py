@@ -14,7 +14,7 @@ def _segment(value):
 
 
 def _token(header=None, payload=None, signature="sig"):
-    return ".".join((_segment(header or {"alg": "HS256"}), _segment(payload or {"sub": "demo"}), signature))
+    return ".".join((_segment(header if header is not None else {"alg": "HS256"}), _segment(payload if payload is not None else {"sub": "demo"}), signature))
 
 
 def test_parser_marks_decoded_claims_unverified():
