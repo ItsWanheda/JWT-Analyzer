@@ -28,7 +28,7 @@ Issues:
 - [ ] **M0-05 — Add required branch CI**: test on every supported Python version; run regression tests, build/install smoke tests, lint and type checks. CI must expose failures instead of relying on undocumented local runs.
 - [ ] **M0-06 — Audit output and secret-handling paths**: assert no original token, recovered signing secret, credential or PII leak into logs, JSON, HTML, exceptions or CI logs unless explicitly requested in a controlled local workflow.
 - [ ] **M0-07 — Align version and security-support docs**: version metadata, CLI version, README, changelog, `SECURITY.md`, Docker, tox and package metadata must agree.
-- [ ] **M0-08 — Make the Docker wordlist reproducible**: pin the upstream data revision and verify a checksum, or vendor a reviewed list; do not download mutable `master` data without integrity verification.
+- [ ] **M0-08 — Make bundled wordlist policy explicit**: ship the reviewed starter list in the image; any larger built-in corpus must be versioned and checksummed, with operator-supplied lists remaining an explicit opt-in.
 
 **Acceptance:** reproducible green test/build evidence; no high/critical unresolved security defects; JWKS adversarial tests pass; clean installation proves both the CLI and importable package work; docs no longer promise removed insecure flags.
 
