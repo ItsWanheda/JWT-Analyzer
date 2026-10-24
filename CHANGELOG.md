@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Introduce the public `jwt_analyzer` Python namespace with normalized `Assessment` and `Finding` models.
 - Add `inspect_token()` for structural inspection that explicitly leaves verification as `not_attempted`.
 - Add `verify_with_public_key()` with an explicit algorithm allowlist, optional issuer/audience validation, leeway control, and distinct verified/invalid/error assessment states.
+- Add the optional HTTP service extra with versioned health/inspect/verify routes, loopback-first startup controls, Host validation, bearer authentication, request-size limits, rate limiting, security headers, and a same-origin inspection dashboard.
 - Add a v2 milestone roadmap, migration checklist, and branch CI workflow.
 
 ### Changed
