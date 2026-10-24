@@ -15,6 +15,17 @@ We maintain strict version control to ensure security patches are delivered effe
 | **1.2.0 and older** | ❌ | Upgrade to the latest stable 1.2.x release |
 ---
 
+## Optional v2 HTTP Service
+
+The HTTP service and dashboard in `2.0.0.dev0` are experimental and unsupported for production use until the v2 security gates are complete.
+
+- The service binds to loopback by default. Non-loopback binds require explicit opt-in, a bearer token of at least 32 characters, and an exact Host allowlist.
+- Use remote mode only behind a TLS-terminating proxy or on a private, access-controlled network. The service itself speaks HTTP and must not receive bearer tokens over untrusted networks in clear text.
+- Assessment routes enforce request-size and per-client rate limits. The service does not persist request bodies or log submitted tokens, but response claims can contain sensitive data.
+- The service exposes no arbitrary JWKS URL-fetch endpoint. Do not add one without a separate SSRF threat model, destination controls, and adversarial tests.
+- A successful JWT signature check is not application authorization. Consumers must enforce issuer/audience requirements and application-specific access policy.
+- Report service vulnerabilities privately using the disclosure procedure below; do not test against systems you do not own or have permission to assess.
+
 ## 🚨 Reporting a Vulnerability
 
 We prioritize the security of our infrastructure and users above all else. If you believe you have discovered a vulnerability, we request that you **disclose it responsibly** by following our private disclosure process.
