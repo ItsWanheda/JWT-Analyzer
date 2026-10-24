@@ -187,7 +187,7 @@ def _new_rsa_key_pair():
 
 def test_public_key_verification_distinguishes_verified_and_invalid_signatures():
     private_key, public_key = _new_rsa_key_pair()
-    wrong_private_key, wrong_public_key = _new_rsa_key_pair()
+    _, wrong_public_key = _new_rsa_key_pair()
     payload = {
         "sub": "verified-user",
         "exp": 4102444800,
