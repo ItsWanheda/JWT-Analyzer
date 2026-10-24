@@ -1,6 +1,7 @@
 """Safe HTML report generation for JWT analysis."""
 import html
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
@@ -41,6 +42,8 @@ th {{ background: #34495e; color: white; }}
 
 _SENSITIVE_MARKERS = ("token", "secret", "password", "passwd", "authorization", "cookie", "private_key", "privatekey", "api_key", "apikey", "credential", "email", "phone", "address", "ssn", "date_of_birth", "dob")
 
+_COMPACT_JWT_RE = re.compile(r"^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{2,}\.[A-Za-z0-9_-]*$")
+
 
 def _redact(value: Any, key: str = "") -> Any:
     if any(marker in key.lower() for marker in _SENSITIVE_MARKERS):
@@ -49,7 +52,7 @@ def _redact(value: Any, key: str = "") -> Any:
         return {str(k): _redact(v, str(k)) for k, v in value.items()}
     if isinstance(value, list):
         return [_redact(item, key) for item in value]
-    if isinstance(value, str) and value.count(".") == 2 and len(value) > 40:
+    if isinstance(value, str) and _COMPACT_JWT_RE.fullmatch(value):
         return "[REDACTED: JWT-like value]"
     return value
 

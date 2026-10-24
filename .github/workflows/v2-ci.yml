@@ -1,0 +1,91 @@
+name: v2 CI
+
+on:
+  push:
+    branches:
+      - v2.0.0
+      - "v2.0.0/**"
+  pull_request:
+    branches:
+      - main
+      - v2.0.0
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install project and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+      - name: Run regression tests
+        run: python -m pytest -q
+      - name: Compile the public API
+        run: python -m compileall -q jwt_analyzer
+
+  quality:
+    name: Public API quality checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project and quality tools
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,service]"
+      - name: Lint public API
+        run: ruff check jwt_analyzer
+      - name: Check public API formatting
+        run: ruff format --check jwt_analyzer
+      - name: Type-check public API
+        run: mypy jwt_analyzer
+
+  service:
+    name: Optional HTTP service security tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install optional service and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,service]"
+      - name: Test HTTP service, auth, rate limits, body limits, and dashboard
+        run: python -m pytest -q tests/test_service.py
+
+  package:
+    name: Build and clean-install distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build twine
+      - name: Build wheel and sdist
+        run: python -m build
+      - name: Validate distribution metadata
+        run: python -m twine check dist/*
+      - name: Install the wheel without source-tree imports
+        run: |
+          python -m pip install --force-reinstall dist/*.whl
+          cd "$RUNNER_TEMP"
+          python -c "from importlib.metadata import version; assert version('jwt-analyzer') == '2.0.0.dev0'"
+          python -c "from jwt_analyzer import Assessment, Finding, inspect_token; print('public API import OK')"
+          jwt-analyzer --version

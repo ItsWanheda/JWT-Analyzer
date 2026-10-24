@@ -21,7 +21,7 @@ x-common: &common
   build:
     context: .
     dockerfile: Dockerfile
-  image: jwt-analyzer:1.1
+  image: jwt-analyzer:2.0.0-dev
   # Don't auto-restart. This is a CLI tool, not a daemon.
   restart: 'no'
 

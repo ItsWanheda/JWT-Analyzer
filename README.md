@@ -6,10 +6,12 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.1-green.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0.dev0--unreleased-orange.svg)](CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
 
 ---
+
+> **v2 development status:** `v2.0.0.dev0` is pre-release work on the `v2.0.0` branch. It is not the stable release, and this branch must not be used as a production upgrade until the release gates pass.
 
 ## ⚡ Quick Start
 
@@ -18,10 +20,10 @@
 pip install jwt-analyzer
 jwt-analyzer audit --token-file token.txt
 
-# Option 2: from source
-git clone https://github.com/ItsWanheda/jwt-analyzer.git
+# Option 2: from the v2 development branch (not a release)
+git clone --branch v2.0.0 https://github.com/ItsWanheda/jwt-analyzer.git
 cd jwt-analyzer
-pip install -r requirements.txt
+pip install -e ".[dev]"
 python main.py audit --token-file sample_token.txt
 
 # Option 3: Docker (best for CI/CD)
@@ -39,14 +41,69 @@ Most JWT tools just decode the base64. This one actually **looks for problems**:
 
 | Check | What it finds |
 |-------|---------------|
-| `none` algorithm detection | Servers that accept unsigned tokens (CVE-2015-9235) |
-| Algorithm confusion | RS256 tokens that could be forged as HS256 |
+| `none` algorithm indicator | Flags a header declaring `alg=none`; target acceptance must be verified separately |
+| Algorithm/key policy | Flags policy-review indicators; token-only inspection does not prove algorithm confusion |
 | `kid` header injection | SQLi / path traversal / command injection via the `kid` claim |
 | PII / secret scanning | Credit cards, SSNs, AWS keys, passwords leaking through payloads |
 | Brute-force attack | Cracks HS256 secrets using wordlists (multi-threaded) |
 | JWKS verification | Validates tokens against live identity providers |
 | Payload diffing | Shows exactly what changed between two tokens |
 | Token forgery | Crafts new tokens with custom payloads (for auth testing) |
+
+---
+
+## 🐍 v2 Python API (development)
+
+The v2 public import surface is `jwt_analyzer`. The API below performs structural inspection only:
+
+```python
+from jwt_analyzer import inspect_token
+
+assessment = inspect_token(compact_jwt)
+print(assessment.to_dict())
+assert assessment.verification_status.value == "not_attempted"
+```
+
+Decoded claims are untrusted until signature verification and your application's claim policy both succeed. An `alg=none` or suspicious `kid` value is an indicator, not proof that a target accepts an attack. The assessment does not store the original compact token, but its decoded claims can still contain sensitive data; redact them before logging or sharing reports.
+
+### Explicit public-key verification
+
+Signature verification is a separate call and requires an explicit, non-empty algorithm allowlist:
+
+```python
+from pathlib import Path
+from jwt_analyzer import verify_with_public_key
+
+assessment = verify_with_public_key(
+    compact_jwt,
+    Path("public.pem").read_text(encoding="utf-8"),
+    algorithms=["RS256"],
+    issuer="https://issuer.example",
+    audience="jwt-api",
+)
+
+if assessment.verification_status.value != "verified":
+    raise ValueError(f"JWT was not verified: {assessment.errors}")
+```
+
+Use a trusted PEM public key or public JWK obtained from a trusted source. If issuer or audience is omitted, that claim is not validated by this call. A verified signature is not an authorization decision; still enforce application-specific scope, tenant, role and access-control rules.
+
+This API is part of the unreleased `2.0.0.dev0` branch and may change until the v2 release gates pass.
+
+### Optional HTTP API and dashboard
+
+The HTTP service is an opt-in extra; the CLI and Python package do not require FastAPI or Uvicorn.
+
+```bash
+python -m pip install -e ".[service]"
+export JWT_ANALYZER_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+jwt-analyzer-api --host 127.0.0.1 --port 8765
+```
+
+Open `http://127.0.0.1:8765/dashboard`. The service defaults to loopback, checks `Host` values, limits request size and assessment request rate, and does not store or log request bodies. The dashboard does not persist tokens in browser storage. Set `JWT_ANALYZER_API_TOKEN` to require bearer authentication on assessment endpoints.
+
+Remote binds require `--allow-remote`, a bearer token at least 32 characters long, and explicit `--allowed-host` values. This service is plain HTTP; use remote mode only behind a TLS-terminating proxy or on a private, access-controlled network. See [HTTP service security and endpoint documentation](docs/HTTP_SERVICE.md). The service is still unreleased v2 functionality and is not intended to authorize users or protect an internet-facing application.
+
 
 ---
 
@@ -207,10 +264,9 @@ python main.py verify-rsa --token-file token.txt --public-key key.jwk
 python main.py verify-jwks --token-file token.txt \
     --jwks-url https://auth.example.com/.well-known/jwks.json
 
-# Skip TLS verification (debug only)
+# TLS verification is always enabled; use a valid certificate and trust store.
 python main.py verify-jwks --token-file token.txt \
-    --jwks-url https://localhost:8443/jwks \
-    --no-verify-ssl
+    --jwks-url https://auth.example.com/.well-known/jwks.json \
 ```
 
 #### `forge` — create a custom token
@@ -232,6 +288,9 @@ The `--yes` flag exists because we want you to think twice.
 
 ```
 jwt-analyzer/
+├── jwt_analyzer/                 # Public v2 Python API and normalized assessment models
+│   ├── api.py                     # Conservative token inspection API
+│   └── models.py                  # Assessment and finding schema
 ├── main.py                       # CLI entry point
 ├── config.py                     # Configuration & env vars
 ├── Dockerfile                    # Production container
@@ -257,7 +316,7 @@ jwt-analyzer/
 │   ├── io.py                     # File reading helpers
 │   ├── report.py                 # HTML report generation
 │   └── wordlists/
-│       └── common_secrets.txt    # Bundled wordlist (~10k secrets)
+│       └── common_secrets.txt    # Small starter list; add an authorized wordlist for deeper checks
 │
 ├── plugins/                      # Custom check plugins (optional)
 │   └── README.md                 # How to write plugins

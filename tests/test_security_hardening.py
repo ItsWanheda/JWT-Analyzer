@@ -30,6 +30,14 @@ def test_parser_rejects_malformed_segments_and_claims(token):
         parse_jwt(token)
 
 
+
+@pytest.mark.parametrize("signature", ["!", "a", "with+plus"])
+def test_parser_rejects_invalid_signature_base64url(signature):
+    with pytest.raises(ValueError):
+        parse_jwt(_token(signature=signature))
+
+
+
 def test_parser_can_inspect_unsigned_token_without_trusting_it():
     result = parse_jwt(_token(header={"alg": "none"}, signature=""))
     assert result["signature_present"] is False

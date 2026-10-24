@@ -44,6 +44,8 @@ def parse_jwt(token: str) -> dict[str, Any]:
 
     header = _json_object(parts[0], "header")
     payload = _json_object(parts[1], "payload")
+    if parts[2]:
+        _base64url_decode(parts[2])
     expiry_info = {}
     if "exp" in payload:
         exp = payload["exp"]

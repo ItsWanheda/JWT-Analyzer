@@ -41,7 +41,7 @@ if not Config.is_rich_enabled():
 
 logger = logging.getLogger(__name__)
 
-VERSION = "1.2.1"
+VERSION = "2.0.0.dev0"
 
 
 @click.group()
@@ -89,11 +89,14 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
             t = progress.add_task("Security checks...", total=None)
             if check_none_algorithm(token):
                 findings.append({
-                    'severity': 'CRITICAL',
-                    'type': 'none_algorithm',
-                    'title': "'none' algorithm detected",
-                    'description': 'Token uses alg=none - signature bypass possible (CVE-2015-9235)',
-                    'remediation': 'Reject none algorithm server-side. Pin allowed algorithms explicitly.'
+                    'severity': 'MEDIUM',
+                    'type': 'none_algorithm_indicator',
+                    'title': 'Unsigned algorithm declared',
+                    'description': (
+                        'The token header declares alg=none. Token-only inspection does not establish '
+                        'whether a target accepts unsigned tokens or is vulnerable to signature bypass.'
+                    ),
+                    'remediation': 'Verify that the target rejects unsigned tokens and pins an explicit algorithm allowlist.'
                 })
 
             confusion = check_algorithm_confusion(token)
@@ -120,12 +123,12 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
 
             # expiry
             exp = parsed.get('expiry_info') or {}
-            if not exp.get('exp_timestamp'):
+            if "exp_timestamp" not in exp:
                 findings.append({
                     'severity': 'MEDIUM',
                     'type': 'no_expiry',
                     'title': 'Token has no expiry',
-                    'description': 'No exp claim - this token lives forever.',
+                    'description': 'No exp claim found. Token acceptance and effective lifetime depend on verifier policy.',
                     'remediation': 'Add exp claim. Short-lived tokens (15-60 min) + refresh tokens.'
                 })
             elif exp.get('is_expired'):

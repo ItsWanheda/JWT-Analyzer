@@ -6,6 +6,8 @@ import jwt
 
 DEFAULT_ASYMMETRIC_ALGORITHMS = ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"]
 
+_PRIVATE_JWK_MEMBERS = frozenset({"d", "p", "q", "dp", "dq", "qi", "oth", "k"})
+
 
 def _load_public_key(key_content: str):
     key_content = key_content.strip()
@@ -18,6 +20,8 @@ def _load_public_key(key_content: str):
             raise ValueError("Public key JSON is malformed") from exc
         if not isinstance(jwk, dict):
             raise ValueError("JWK must be a JSON object")
+        if _PRIVATE_JWK_MEMBERS.intersection(jwk):
+            raise ValueError("Private or symmetric JWK material is not accepted")
         kty = jwk.get("kty")
         if kty == "RSA":
             return jwt.algorithms.RSAAlgorithm.from_jwk(jwk)
