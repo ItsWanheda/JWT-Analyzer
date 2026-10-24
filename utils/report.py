@@ -10,32 +10,32 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JWT Security Analysis Report</title>
 <style>
-body { font-family: system-ui, sans-serif; margin: 2rem; background: #f5f5f5; color: #222; }
-.container { max-width: 1100px; margin: auto; background: white; padding: 2rem; border-radius: 8px; }
-h1 { border-bottom: 3px solid #3498db; padding-bottom: .5rem; }
-.metadata, .summary-card { background: #ecf0f1; padding: 1rem; border-radius: 6px; }
-.summary-card { display: inline-block; margin: .4rem; min-width: 90px; text-align: center; }
-.number { font-size: 1.8rem; font-weight: bold; }
-pre { background: #202b36; color: white; padding: 1rem; overflow-wrap: anywhere; white-space: pre-wrap; }
-table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-th, td { padding: .7rem; text-align: left; border-bottom: 1px solid #ddd; overflow-wrap: anywhere; }
-th { background: #34495e; color: white; }
-.critical { background: #b42318; color: white; } .high { background: #c65d0a; color: white; }
-.medium { background: #946200; color: white; } .low { background: #175cd3; color: white; }
-.ok { background: #067647; color: white; padding: .5rem; }
+body {{ font-family: system-ui, sans-serif; margin: 2rem; background: #f5f5f5; color: #222; }}
+.container {{ max-width: 1100px; margin: auto; background: white; padding: 2rem; border-radius: 8px; }}
+h1 {{ border-bottom: 3px solid #3498db; padding-bottom: .5rem; }}
+.metadata, .summary-card {{ background: #ecf0f1; padding: 1rem; border-radius: 6px; }}
+.summary-card {{ display: inline-block; margin: .4rem; min-width: 90px; text-align: center; }}
+.number {{ font-size: 1.8rem; font-weight: bold; }}
+pre {{ background: #202b36; color: white; padding: 1rem; overflow-wrap: anywhere; white-space: pre-wrap; }}
+table {{ border-collapse: collapse; width: 100%; margin-top: 1rem; }}
+th, td {{ padding: .7rem; text-align: left; border-bottom: 1px solid #ddd; overflow-wrap: anywhere; }}
+th {{ background: #34495e; color: white; }}
+.critical {{ background: #b42318; color: white; }} .high {{ background: #c65d0a; color: white; }}
+.medium {{ background: #946200; color: white; }} .low {{ background: #175cd3; color: white; }}
+.ok {{ background: #067647; color: white; padding: .5rem; }}
 </style></head><body><main class="container">
 <h1>JWT Security Analysis Report</h1>
-<div class="metadata"><strong>Generated (UTC):</strong> {timestamp}<br>
-<strong>Tool:</strong> JWT Analyzer<br><strong>Analyst:</strong> {analyst}</div>
+<div class="metadata"><strong>Generated (UTC):</strong> {{timestamp}}<br>
+<strong>Tool:</strong> JWT Analyzer<br><strong>Analyst:</strong> {{analyst}}</div>
 <section aria-label="Severity summary">
-<div class="summary-card"><div class="number">{critical_count}</div>Critical</div>
-<div class="summary-card"><div class="number">{high_count}</div>High</div>
-<div class="summary-card"><div class="number">{medium_count}</div>Medium</div>
-<div class="summary-card"><div class="number">{low_count}</div>Low</div></section>
-<h2>Token Information</h2><pre>{token_info}</pre>
-<h2>Security Findings</h2>{findings_html}
-<h2>Recommendations</h2>{recommendations_html}
-<h2>Payload Analysis (redacted)</h2><pre>{payload_json}</pre>
+<div class="summary-card"><div class="number">{{critical_count}}</div>Critical</div>
+<div class="summary-card"><div class="number">{{high_count}}</div>High</div>
+<div class="summary-card"><div class="number">{{medium_count}}</div>Medium</div>
+<div class="summary-card"><div class="number">{{low_count}}</div>Low</div></section>
+<h2>Token Information</h2><pre>{{token_info}}</pre>
+<h2>Security Findings</h2>{{findings_html}}
+<h2>Recommendations</h2>{{recommendations_html}}
+<h2>Payload Analysis (redacted)</h2><pre>{{payload_json}}</pre>
 <p>Decoded JWT claims are untrusted unless signature and claim validation succeeded.</p>
 </main></body></html>"""
 
