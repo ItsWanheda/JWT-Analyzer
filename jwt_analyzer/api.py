@@ -7,10 +7,8 @@ from typing import Any
 
 from core.parser import parse_jwt
 from core.security import check_kid_injection
-from core.verification import (
-    DEFAULT_ASYMMETRIC_ALGORITHMS,
-    verify_with_public_key as _verify_with_public_key,
-)
+from core.verification import DEFAULT_ASYMMETRIC_ALGORITHMS
+from core.verification import verify_with_public_key as _verify_with_public_key
 
 from .models import Assessment, Confidence, Finding, Severity, VerificationStatus
 
