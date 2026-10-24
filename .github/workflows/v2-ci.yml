@@ -45,13 +45,27 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install project and quality tools
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,service]"
       - name: Lint public API
         run: ruff check jwt_analyzer
       - name: Check public API formatting
         run: ruff format --check jwt_analyzer
       - name: Type-check public API
         run: mypy jwt_analyzer
+
+  service:
+    name: Optional HTTP service security tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install optional service and test dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,service]"
+      - name: Test HTTP service, auth, rate limits, body limits, and dashboard
+        run: python -m pytest -q tests/test_service.py
 
   package:
     name: Build and clean-install distributions
