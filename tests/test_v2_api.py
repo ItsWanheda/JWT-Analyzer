@@ -2,8 +2,11 @@
 import base64
 import json
 
+import jwt
 import pytest
 from click.testing import CliRunner
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 from main import cli
 from utils.report import redact_sensitive_data
@@ -14,6 +17,7 @@ from jwt_analyzer import (
     Severity,
     VerificationStatus,
     inspect_token,
+    verify_with_public_key,
 )
 
 
@@ -169,6 +173,77 @@ def test_cli_does_not_treat_exp_zero_as_a_missing_claim(tmp_path):
     assert result.exit_code == 0, result.output
     report = json.loads((tmp_path / "assessment.json").read_text(encoding="utf-8"))
     assert not any(item["type"] == "no_expiry" for item in report["findings"])
+
+
+
+def _new_rsa_key_pair():
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_key = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    return private_key, public_key.decode("ascii")
+
+
+def test_public_key_verification_distinguishes_verified_and_invalid_signatures():
+    private_key, public_key = _new_rsa_key_pair()
+    wrong_private_key, wrong_public_key = _new_rsa_key_pair()
+    payload = {
+        "sub": "verified-user",
+        "exp": 4102444800,
+        "iss": "https://issuer.example",
+        "aud": "jwt-api",
+    }
+    token = jwt.encode(payload, private_key, algorithm="RS256")
+
+    verified = verify_with_public_key(
+        token,
+        public_key,
+        algorithms=["RS256"],
+        issuer="https://issuer.example",
+        audience="jwt-api",
+    )
+    rejected = verify_with_public_key(
+        token,
+        wrong_public_key,
+        algorithms=["RS256"],
+    )
+
+    assert verified.verification_status is VerificationStatus.VERIFIED
+    assert verified.claims["sub"] == "verified-user"
+    assert verified.to_dict()["verification"]["algorithms"] == ["RS256"]
+    assert "authorization policy" in verified.warnings[0].lower()
+    assert rejected.verification_status is VerificationStatus.INVALID
+    assert rejected.claims["sub"] == "verified-user"
+    assert "untrusted" in rejected.warnings[0].lower()
+    assert rejected.errors
+
+
+def test_public_key_verification_enforces_requested_issuer():
+    private_key, public_key = _new_rsa_key_pair()
+    token = jwt.encode(
+        {"sub": "verified-user", "exp": 4102444800, "iss": "https://issuer.example"},
+        private_key,
+        algorithm="RS256",
+    )
+
+    assessment = verify_with_public_key(
+        token,
+        public_key,
+        algorithms=["RS256"],
+        issuer="https://different-issuer.example",
+    )
+
+    assert assessment.verification_status is VerificationStatus.INVALID
+    assert assessment.errors
+
+
+def test_public_key_verification_rejects_implicit_or_malformed_allowlists():
+    with pytest.raises(ValueError):
+        verify_with_public_key("not-a-token", "not-a-key", algorithms=[])
+    with pytest.raises(ValueError):
+        verify_with_public_key("not-a-token", "not-a-key", algorithms="RS256")
+
 
 
 def test_assessment_rejects_non_mapping_claims():
