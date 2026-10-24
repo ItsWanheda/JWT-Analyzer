@@ -90,6 +90,21 @@ Use a trusted PEM public key or public JWK obtained from a trusted source. If is
 
 This API is part of the unreleased `2.0.0.dev0` branch and may change until the v2 release gates pass.
 
+### Optional HTTP API and dashboard
+
+The HTTP service is an opt-in extra; the CLI and Python package do not require FastAPI or Uvicorn.
+
+```bash
+python -m pip install -e ".[service]"
+export JWT_ANALYZER_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+jwt-analyzer-api --host 127.0.0.1 --port 8765
+```
+
+Open `http://127.0.0.1:8765/dashboard`. The service defaults to loopback, checks `Host` values, limits request size and assessment request rate, and does not store or log request bodies. The dashboard does not persist tokens in browser storage. Set `JWT_ANALYZER_API_TOKEN` to require bearer authentication on assessment endpoints.
+
+Remote binds require `--allow-remote`, a bearer token at least 32 characters long, and explicit `--allowed-host` values. This service is plain HTTP; use remote mode only behind a TLS-terminating proxy or on a private, access-controlled network. See [HTTP service security and endpoint documentation](docs/HTTP_SERVICE.md). The service is still unreleased v2 functionality and is not intended to authorize users or protect an internet-facing application.
+
+
 ---
 
 ## 📦 Installation
