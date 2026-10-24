@@ -243,4 +243,3 @@ def verify_with_public_key(
         warnings=warnings,
         errors=errors,
     )
-
