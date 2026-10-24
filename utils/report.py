@@ -25,17 +25,17 @@ th {{ background: #34495e; color: white; }}
 .ok {{ background: #067647; color: white; padding: .5rem; }}
 </style></head><body><main class="container">
 <h1>JWT Security Analysis Report</h1>
-<div class="metadata"><strong>Generated (UTC):</strong> {{timestamp}}<br>
-<strong>Tool:</strong> JWT Analyzer<br><strong>Analyst:</strong> {{analyst}}</div>
+<div class="metadata"><strong>Generated (UTC):</strong> {timestamp}<br>
+<strong>Tool:</strong> JWT Analyzer<br><strong>Analyst:</strong> {analyst}</div>
 <section aria-label="Severity summary">
-<div class="summary-card"><div class="number">{{critical_count}}</div>Critical</div>
-<div class="summary-card"><div class="number">{{high_count}}</div>High</div>
-<div class="summary-card"><div class="number">{{medium_count}}</div>Medium</div>
-<div class="summary-card"><div class="number">{{low_count}}</div>Low</div></section>
-<h2>Token Information</h2><pre>{{token_info}}</pre>
-<h2>Security Findings</h2>{{findings_html}}
-<h2>Recommendations</h2>{{recommendations_html}}
-<h2>Payload Analysis (redacted)</h2><pre>{{payload_json}}</pre>
+<div class="summary-card"><div class="number">{critical_count}</div>Critical</div>
+<div class="summary-card"><div class="number">{high_count}</div>High</div>
+<div class="summary-card"><div class="number">{medium_count}</div>Medium</div>
+<div class="summary-card"><div class="number">{low_count}</div>Low</div></section>
+<h2>Token Information</h2><pre>{token_info}</pre>
+<h2>Security Findings</h2>{findings_html}
+<h2>Recommendations</h2>{recommendations_html}
+<h2>Payload Analysis (redacted)</h2><pre>{payload_json}</pre>
 <p>Decoded JWT claims are untrusted unless signature and claim validation succeeded.</p>
 </main></body></html>"""
 
