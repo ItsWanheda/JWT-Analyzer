@@ -75,6 +75,7 @@ packages = ["jwt_analyzer", "core", "utils", "plugins"]
 [tool.hatch.build.targets.wheel.force-include]
 "main.py" = "main.py"
 "config.py" = "config.py"
+"utils/wordlists/common_secrets.txt" = "utils/wordlists/common_secrets.txt"
 
 [tool.ruff]
 line-length = 100
