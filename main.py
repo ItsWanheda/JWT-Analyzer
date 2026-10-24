@@ -19,7 +19,7 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 
 from utils.io import read_token_from_file, read_text_file
-from utils.report import generate_html_report
+from utils.report import generate_html_report, redact_sensitive_data
 from core.parser import parse_jwt
 from core.security import (
     check_none_algorithm, brute_force_secret,
@@ -196,7 +196,7 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
             if fmt in ('json', 'both'):
                 Path(output).parent.mkdir(parents=True, exist_ok=True)
                 with open(f"{output}.json", 'w') as fh:
-                    json.dump(report, fh, indent=2, default=str)
+                    json.dump(redact_sensitive_data(report), fh, indent=2, default=str)
                 console.print(f"[dim]JSON report: {output}.json[/dim]")
             if fmt in ('html', 'both'):
                 generate_html_report(report, f"{output}.html")
