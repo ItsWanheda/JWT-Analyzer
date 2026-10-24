@@ -6,6 +6,7 @@ import pytest
 from click.testing import CliRunner
 
 from main import cli
+from utils.report import redact_sensitive_data
 from jwt_analyzer import (
     Assessment,
     Confidence,
@@ -21,7 +22,7 @@ def _segment(value):
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 
-def _token(header=None, claims=None, signature="signature"):
+def _token(header=None, claims=None, signature="c2lnbmF0dXJl"):
     return ".".join(
         (
             _segment(header if header is not None else {"alg": "HS256", "typ": "JWT"}),
@@ -29,6 +30,20 @@ def _token(header=None, claims=None, signature="signature"):
             signature,
         )
     )
+
+
+
+def test_redactor_preserves_finding_text_and_redacts_jwt_values():
+    description = (
+        "The token header declares alg=none. This confirms the header value; it does not "
+        "establish that any server accepts unsigned tokens or is vulnerable to a bypass."
+    )
+    compact = _token(header={"alg": "HS256"}, claims={"sub": "redaction-test"})
+    result = redact_sensitive_data({"diagnostic": description, "example": compact})
+
+    assert result["diagnostic"] == description
+    assert result["example"] == "[REDACTED: JWT-like value]"
+
 
 
 def test_inspection_never_claims_signature_verification():
