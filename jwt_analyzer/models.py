@@ -123,7 +123,11 @@ class Assessment:
         object.__setattr__(self, "warnings", tuple(self.warnings))
         object.__setattr__(self, "errors", tuple(self.errors))
         try:
-            object.__setattr__(self, "verification_status", VerificationStatus(self.verification_status))
+            object.__setattr__(
+                self,
+                "verification_status",
+                VerificationStatus(self.verification_status),
+            )
         except ValueError as exc:
             raise ValueError("verification_status is not a supported value") from exc
         if not self.schema_version:
