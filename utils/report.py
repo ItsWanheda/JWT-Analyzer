@@ -92,6 +92,12 @@ def _redact(value: Any, key: str = "") -> Any:
         return _redact_string(value)
     return value
 
+
+def redact_sensitive_data(value: Any) -> Any:
+    """Return a recursively redacted copy of a report or log payload."""
+    return _redact(value)
+
+
 def _json_text(value: Any) -> str:
     return json.dumps(_redact(value), indent=2, ensure_ascii=False, default=str)
 
