@@ -111,7 +111,7 @@ def _validate_jwks_url(
     except ValueError:
         # Reject platform-specific decimal, octal, or hexadecimal IPv4 forms.
         if _NUMERIC_HOST_RE.fullmatch(hostname):
-            raise ValueError("IP literals must use canonical IPv4 or IPv6 notation")
+            raise ValueError("IP literals must use canonical IPv4 or IPv6 notation") from None
         try:
             hostname = hostname.encode("idna").decode("ascii").lower()
         except UnicodeError as exc:
@@ -123,7 +123,7 @@ def _validate_jwks_url(
             or not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label)
             for label in labels
         ):
-            raise ValueError("JWKS hostname is invalid")
+            raise ValueError("JWKS hostname is invalid") from None
     else:
         hostname = str(literal_ip)
 
