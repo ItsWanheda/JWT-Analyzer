@@ -19,9 +19,7 @@ def test_redaction_removes_pii_tokens_and_scanner_matches():
         },
         "pii_details": {
             "findings_by_severity": {
-                "CRITICAL": [
-                    {"type": "credit_card", "matched_text": "4111111111111111"}
-                ]
+                "CRITICAL": [{"type": "credit_card", "matched_text": "4111111111111111"}]
             }
         },
     }
