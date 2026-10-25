@@ -267,7 +267,7 @@ def _evaluate_required_claims(
                     severity=Severity.MEDIUM,
                     confidence=confidence,
                     impact=(
-                        "The token does not satisfy a required field in the " 
+                        "The token does not satisfy a required field in the "
                         "configured claim policy."
                     ),
                     recommendation=(
@@ -364,7 +364,7 @@ def _evaluate_time_claims(
                     severity=Severity.MEDIUM,
                     confidence=confidence,
                     impact=(
-                        "Unexpected future issuance times can indicate clock skew or " 
+                        "Unexpected future issuance times can indicate clock skew or "
                         "malformed claims."
                     ),
                     recommendation=(

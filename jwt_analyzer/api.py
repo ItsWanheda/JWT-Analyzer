@@ -10,6 +10,8 @@ from core.parser import parse_jwt
 from core.security import check_kid_injection
 from core.verification import (
     DEFAULT_ASYMMETRIC_ALGORITHMS,
+)
+from core.verification import (
     verify_signature_with_public_key as _verify_signature_with_public_key,
 )
 
