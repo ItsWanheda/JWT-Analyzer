@@ -156,7 +156,12 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
                 wl_path = wordlist or Config.get_wordlist_path()
                 if Path(wl_path).exists():
                     t = progress.add_task(f"Brute force ({wl_path})...", total=None)
-                    secrets = [s.strip() for s in open(wl_path) if s.strip() and not s.startswith('#')]
+                    with open(wl_path, encoding="utf-8-sig") as wordlist_file:
+                        secrets = [
+                            line.strip()
+                            for line in wordlist_file
+                            if line.strip() and not line.lstrip().startswith("#")
+                        ]
                     found = brute_force_parallel(token, secrets, workers=workers)
                     if found:
                         findings.append({
@@ -257,7 +262,12 @@ def brute_force(token_file, wordlist, workers):
             console.print(f"[red]Wordlist not found: {wl_path}[/red]")
             sys.exit(1)
 
-        secrets = [s.strip() for s in open(wl_path) if s.strip() and not s.startswith('#')]
+        with open(wl_path, encoding="utf-8-sig") as wordlist_file:
+            secrets = [
+                line.strip()
+                for line in wordlist_file
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
         console.print(f"[yellow]Trying {len(secrets)} secrets with {workers} workers...[/yellow]")
 
         found = brute_force_parallel(token, secrets, workers=workers)
