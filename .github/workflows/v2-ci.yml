@@ -158,4 +158,4 @@ jobs:
         run: docker build --tag jwt-analyzer:m0 .
       - name: Verify the starter list in the runtime image
         run: |
-          docker run --rm --entrypoint python jwt-analyzer:m0 -c "from pathlib import Path; p = Path('/app/utils/wordlists/common_secrets.txt'); words = [line.strip() for line in p.read_text(encoding='utf-8').splitlines() if line.strip() and not line.lstrip().startswith('#'); assert p.is_file() and len(words) == 6, (p, len(words)); print('starter wordlist present')"
+          docker run --rm --entrypoint python jwt-analyzer:m0 -c "from pathlib import Path; p = Path('/app/utils/wordlists/common_secrets.txt'); words = [line.strip() for line in p.read_text(encoding='utf-8').splitlines() if line.strip() and not line.lstrip().startswith('#')]; assert p.is_file() and len(words) == 6, (p, len(words)); print('starter wordlist present')"
