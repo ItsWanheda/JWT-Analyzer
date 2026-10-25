@@ -74,12 +74,8 @@ def test_accepts_globally_routable_ipv6_and_preserves_authority(monkeypatch):
         "",
         ("2001:4860:4860::8888", 443, 0, 0),
     )
-    monkeypatch.setattr(
-        core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [public_v6]
-    )
-    destination = core.jwks._validate_jwks_url(
-        "https://[2001:4860:4860::8888]/keys"
-    )
+    monkeypatch.setattr(core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [public_v6])
+    destination = core.jwks._validate_jwks_url("https://[2001:4860:4860::8888]/keys")
     assert destination.hostname == "2001:4860:4860::8888"
     assert destination.host_header == "[2001:4860:4860::8888]"
     assert destination.addresses == (public_v6,)
@@ -91,9 +87,7 @@ def test_tls_verification_cannot_be_disabled():
 
 
 def test_rejects_private_ipv6_dns_answer(monkeypatch):
-    monkeypatch.setattr(
-        core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [PRIVATE_V6]
-    )
+    monkeypatch.setattr(core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [PRIVATE_V6])
     with pytest.raises(ValueError, match="non-public"):
         core.jwks._validate_jwks_url("https://v6.example.test/keys")
 
@@ -118,13 +112,9 @@ def test_connection_uses_ip_socket_and_original_tls_hostname(monkeypatch):
     tls_socket = Mock()
     context = Mock()
     context.wrap_socket.return_value = tls_socket
-    conn = core.jwks._PinnedHTTPSConnection(
-        "core.jwks.example.test", 443, (PUBLIC_V4,), timeout=3
-    )
+    conn = core.jwks._PinnedHTTPSConnection("core.jwks.example.test", 443, (PUBLIC_V4,), timeout=3)
     conn._context = context
-    monkeypatch.setattr(
-        core.jwks.socket, "socket", lambda family, socktype, proto: raw_socket
-    )
+    monkeypatch.setattr(core.jwks.socket, "socket", lambda family, socktype, proto: raw_socket)
     conn.connect()
     raw_socket.connect.assert_called_once_with(("93.184.216.34", 443))
     context.wrap_socket.assert_called_once_with(
