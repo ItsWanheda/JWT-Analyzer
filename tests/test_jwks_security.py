@@ -50,6 +50,7 @@ def clear_cache():
         "https://127.0.0.1/keys",
         "https://[::1]/keys",
         "https://core.jwks.example.test:99999/keys",
+        "https://core.jwks.example.test:0/keys",
         "https://core.jwks.example.test/keys\r\nHost: attacker.test",
     ],
 )
@@ -135,6 +136,9 @@ class FakeResponse:
 
     def read(self, amount):
         return self.body[:amount]
+
+    def read1(self, amount):
+        return self.read(amount)
 
 
 def install_fake_http(monkeypatch, response):
@@ -262,3 +266,39 @@ def test_rejects_non_asymmetric_allowlists(algorithm):
     )
     assert result["status"] == "error"
     assert result["verified"] is False
+
+
+def test_rejects_excessive_dns_answer_sets(monkeypatch):
+    monkeypatch.setattr(
+        core.jwks.socket,
+        "getaddrinfo",
+        lambda *_args, **_kwargs: [PUBLIC_V4] * (core.jwks.MAX_JWKS_DNS_ANSWERS + 1),
+    )
+    with pytest.raises(ValueError, match="too many addresses"):
+        core.jwks._validate_jwks_url("https://many-answers.example.test/keys")
+
+
+@pytest.mark.parametrize("timeout", [float("nan"), float("inf"), float("-inf")])
+def test_rejects_non_finite_timeouts(timeout):
+    with pytest.raises(ValueError, match="timeout"):
+        core.jwks.fetch_jwks("https://core.jwks.example.test/keys", timeout=timeout)
+
+
+def test_response_body_read_obeys_monotonic_deadline(monkeypatch):
+    payload = {"keys": []}
+    response = FakeResponse(json.dumps(payload).encode())
+    install_fake_http(monkeypatch, response)
+    ticks = iter([100.0, 100.5, 102.0])
+    monkeypatch.setattr(core.jwks.time, "monotonic", lambda: next(ticks))
+
+    with pytest.raises(ConnectionError, match="Timed out fetching JWKS"):
+        core.jwks.fetch_jwks("https://core.jwks.example.test/slow", timeout=1)
+
+
+def test_cache_eviction_keeps_memory_bounded():
+    for index in range(core.jwks.MAX_JWKS_CACHE_ENTRIES + 10):
+        core.jwks._cache.set(f"https://cache-{index}.example.test/keys", {"keys": []})
+
+    assert len(core.jwks._cache._store) == core.jwks.MAX_JWKS_CACHE_ENTRIES
+    assert "https://cache-0.example.test/keys" not in core.jwks._cache._store
+    assert f"https://cache-{core.jwks.MAX_JWKS_CACHE_ENTRIES + 9}.example.test/keys" in core.jwks._cache._store
