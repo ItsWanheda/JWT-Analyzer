@@ -155,13 +155,15 @@ def install_fake_http(monkeypatch, response):
     connections = []
 
     class FakeConnection:
-        def __init__(self, hostname, port, addresses, timeout):
+        def __init__(self, hostname, port, addresses, timeout, deadline=None):
             self.hostname = hostname
             self.port = port
             self.addresses = addresses
             self.timeout = timeout
+            self.deadline = deadline
             self.request_args = None
             self.closed = False
+            self.sock = None
             connections.append(self)
 
         def request(self, method, target, headers):
