@@ -266,7 +266,7 @@ python main.py verify-jwks --token-file token.txt \
 
 # TLS verification is always enabled; use a valid certificate and trust store.
 python main.py verify-jwks --token-file token.txt \
-    --jwks-url https://auth.example.com/.well-known/jwks.json \
+    --jwks-url https://auth.example.com/.well-known/jwks.json
 ```
 
 #### `forge` — create a custom token
@@ -334,6 +334,15 @@ jwt-analyzer/
 
 ---
 
+## 📚 Bundled wordlist policy
+
+The wheel and Docker image contain only a six-entry starter list at
+`utils/wordlists/common_secrets.txt`. It is not a comprehensive password corpus.
+No larger corpus is downloaded or bundled automatically. An operator-supplied
+list must be explicitly opted into with `--wordlist /path/to/authorized-list.txt`
+or `JWT_ANALYZER_WORDLIST_PATH`. Treat custom wordlists as sensitive files.
+See [the wordlist policy](docs/WORDLIST_POLICY.md).
+
 ## ⚙️ Configuration
 
 ### Environment variables
@@ -342,7 +351,7 @@ All have sensible defaults. Override when needed:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `JWTANALYZER_WORDLIST_PATH` | `utils/wordlists/common_secrets.txt` | Path to secrets wordlist |
+| `JWT_ANALYZER_WORDLIST_PATH` | `utils/wordlists/common_secrets.txt` | Path to secrets wordlist |
 | `JWT_ANALYZER_TIMEOUT` | `300` | Brute force timeout (seconds) |
 | `JWT_ANALYZER_WORKERS` | `8` | Parallel workers for brute force |
 | `JWT_ANALYZER_LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
