@@ -2,9 +2,11 @@
 
 import base64
 import json
+from pathlib import Path
 
 from click.testing import CliRunner
 
+import main
 from main import cli
 
 
@@ -49,3 +51,46 @@ def test_alg_none_is_an_indicator_not_a_confirmed_bypass(tmp_path):
     assert finding["confidence_scope"] == "token-header-observation-only"
     assert "does not establish" in finding["description"]
     assert "vulnerable to signature bypass" in finding["description"]
+
+
+def test_recovered_signing_secret_is_not_written_to_default_reports(tmp_path, monkeypatch):
+    recovered_secret = "M0-RECOVERED-SIGNING-SECRET-9a72e31d"
+    token = ".".join(
+        (
+            _segment({"alg": "HS256", "typ": "JWT"}),
+            _segment({"sub": "redaction-test", "exp": 4102444800}),
+            "c2lnbmF0dXJl",
+        )
+    )
+    token_file = tmp_path / "signed.jwt"
+    token_file.write_text(token, encoding="utf-8")
+    wordlist = tmp_path / "candidates.txt"
+    wordlist.write_text("candidate-secret\\n", encoding="utf-8")
+    output_basename = tmp_path / "secret-safe-report"
+    monkeypatch.setattr(
+        main,
+        "brute_force_parallel",
+        lambda *_args, **_kwargs: recovered_secret,
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "audit",
+            "--token-file",
+            str(token_file),
+            "--wordlist",
+            str(wordlist),
+            "--output",
+            str(output_basename),
+            "--format",
+            "both",
+        ],
+    )
+
+    assert result.exit_code == 2, result.output
+    assert recovered_secret not in result.output
+    json_report = output_basename.with_suffix(".json").read_text(encoding="utf-8")
+    html_report = Path(f"{output_basename}.html").read_text(encoding="utf-8")
+    assert recovered_secret not in json_report
+    assert recovered_secret not in html_report
