@@ -212,7 +212,7 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
         sys.exit(1)
     except Exception as e:
         logger.exception("Audit failed")
-        console.print(f"[red]Unexpected error: {e}[/red]")
+        console.print(f"[red]Unexpected error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -237,7 +237,7 @@ def analyze(token_file):
             else:
                 console.print(f"\n[green]✓ Valid for {exp['remaining_seconds']:.0f}s (expires {exp['exp_datetime']})[/green]")
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -264,7 +264,7 @@ def brute_force(token_file, wordlist, workers):
             console.print("[red]✗ Not in wordlist[/red]")
             sys.exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -296,7 +296,7 @@ def diff(token1, token2):
 
         console.print(table)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
 
 
 @cli.command('verify-rsa')
@@ -322,9 +322,9 @@ def verify_rsa(token_file, public_key, output):
 
         if output:
             with open(output, 'w') as f:
-                json.dump(result, f, indent=2)
+                json.dump(redact_sensitive_data(result), f, indent=2)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -344,7 +344,7 @@ def verify_jwks_cmd(token_file, jwks_url):
             console.print(f"[red]✗ {result['error']}[/red]")
             sys.exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -379,7 +379,7 @@ def forge(token_file, payload_file, secret, algorithm, output, yes):
                 f.write(forged)
             console.print(f"[dim]Saved to {output}[/dim]")
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
