@@ -77,8 +77,14 @@ def test_html_report_redacts_sensitive_finding_text_and_analyst(tmp_path):
                     "remediation": "Rotate credentials.",
                 }
             ],
-            "token_info": {},
-            "payload": {},
+            "token_info": {
+                "raw_token": token,
+                "account_email": "metadata@example.test",
+            },
+            "payload": {
+                "sub": "payload@example.test",
+                "access_token": token,
+            },
         },
         str(output),
         analyst="analyst@example.test",
@@ -87,3 +93,5 @@ def test_html_report_redacts_sensitive_finding_text_and_analyst(tmp_path):
     assert token not in html
     assert "person@example.test" not in html
     assert "analyst@example.test" not in html
+    assert "metadata@example.test" not in html
+    assert "payload@example.test" not in html
