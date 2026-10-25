@@ -41,7 +41,9 @@ def test_alg_none_is_an_indicator_not_a_confirmed_bypass(tmp_path):
 
     assert result.exit_code == 0, result.output
     report = json.loads(output_basename.with_suffix(".json").read_text(encoding="utf-8"))
-    finding = next(item for item in report["findings"] if item["type"] == "none_algorithm_indicator")
+    finding = next(
+        item for item in report["findings"] if item["type"] == "none_algorithm_indicator"
+    )
     assert finding["severity"] == "MEDIUM"
     assert finding["confidence"] == "high"
     assert finding["confidence_scope"] == "token-header-observation-only"
