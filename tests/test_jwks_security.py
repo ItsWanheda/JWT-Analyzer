@@ -130,12 +130,15 @@ class FakeResponse:
         self.body = body
         self.status = status
         self.headers = headers or {"Content-Type": "application/json"}
+        self.offset = 0
 
     def getheader(self, name, default=None):
         return self.headers.get(name, default)
 
     def read(self, amount):
-        return self.body[:amount]
+        chunk = self.body[self.offset : self.offset + amount]
+        self.offset += len(chunk)
+        return chunk
 
     def read1(self, amount):
         return self.read(amount)
