@@ -90,11 +90,14 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
             if check_none_algorithm(token):
                 findings.append({
                     'severity': 'MEDIUM',
+                    'confidence': 'high',
+                    'confidence_scope': 'token-header-observation-only',
                     'type': 'none_algorithm_indicator',
                     'title': 'Unsigned algorithm declared',
                     'description': (
-                        'The token header declares alg=none. Token-only inspection does not establish '
-                        'whether a target accepts unsigned tokens or is vulnerable to signature bypass.'
+                        'The token header declares alg=none. Confidence applies only to this observed '
+                        'header value; token-only inspection does not establish whether a target accepts '
+                        'unsigned tokens or is vulnerable to signature bypass.'
                     ),
                     'remediation': 'Verify that the target rejects unsigned tokens and pins an explicit algorithm allowlist.'
                 })
@@ -153,7 +156,12 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
                 wl_path = wordlist or Config.get_wordlist_path()
                 if Path(wl_path).exists():
                     t = progress.add_task(f"Brute force ({wl_path})...", total=None)
-                    secrets = [s.strip() for s in open(wl_path) if s.strip() and not s.startswith('#')]
+                    with open(wl_path, encoding="utf-8-sig") as wordlist_file:
+                        secrets = [
+                            line.strip()
+                            for line in wordlist_file
+                            if line.strip() and not line.lstrip().startswith("#")
+                        ]
                     found = brute_force_parallel(token, secrets, workers=workers)
                     if found:
                         findings.append({
@@ -212,7 +220,7 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
         sys.exit(1)
     except Exception as e:
         logger.exception("Audit failed")
-        console.print(f"[red]Unexpected error: {e}[/red]")
+        console.print(f"[red]Unexpected error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -237,7 +245,7 @@ def analyze(token_file):
             else:
                 console.print(f"\n[green]✓ Valid for {exp['remaining_seconds']:.0f}s (expires {exp['exp_datetime']})[/green]")
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -254,7 +262,12 @@ def brute_force(token_file, wordlist, workers):
             console.print(f"[red]Wordlist not found: {wl_path}[/red]")
             sys.exit(1)
 
-        secrets = [s.strip() for s in open(wl_path) if s.strip() and not s.startswith('#')]
+        with open(wl_path, encoding="utf-8-sig") as wordlist_file:
+            secrets = [
+                line.strip()
+                for line in wordlist_file
+                if line.strip() and not line.lstrip().startswith("#")
+            ]
         console.print(f"[yellow]Trying {len(secrets)} secrets with {workers} workers...[/yellow]")
 
         found = brute_force_parallel(token, secrets, workers=workers)
@@ -264,7 +277,7 @@ def brute_force(token_file, wordlist, workers):
             console.print("[red]✗ Not in wordlist[/red]")
             sys.exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -296,7 +309,7 @@ def diff(token1, token2):
 
         console.print(table)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
 
 
 @cli.command('verify-rsa')
@@ -322,9 +335,9 @@ def verify_rsa(token_file, public_key, output):
 
         if output:
             with open(output, 'w') as f:
-                json.dump(result, f, indent=2)
+                json.dump(redact_sensitive_data(result), f, indent=2)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -344,7 +357,7 @@ def verify_jwks_cmd(token_file, jwks_url):
             console.print(f"[red]✗ {result['error']}[/red]")
             sys.exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 
@@ -379,7 +392,7 @@ def forge(token_file, payload_file, secret, algorithm, output, yes):
                 f.write(forged)
             console.print(f"[dim]Saved to {output}[/dim]")
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
+        console.print(f"[red]Error: {redact_sensitive_data(str(e))}[/red]")
         sys.exit(1)
 
 

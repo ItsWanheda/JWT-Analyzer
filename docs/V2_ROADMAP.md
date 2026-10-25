@@ -8,10 +8,11 @@
 
 ## Baseline and non-negotiable constraints
 
-- PR #3 (`fix: harden JWT parsing, verification, JWKS and reporting`) is merged to `main` (merge commit `6988ad9fc7ed7d7f258b8642c42b083e5034775b`). Its PR-head workflow lookup returned no runs and there are no submitted reviews. Treat the merge as code history, not as a completed security validation.
-- The merged `main.py` still appears to classify a token declaring `alg=none` as a CRITICAL confirmed bypass, contrary to PR #3's stated token-only-indicator model. v2 must add regression tests proving heuristic observations never imply remote verifier exploitability.
-- The existing wheel configuration includes `main.py` and a non-existent/legacy `jwt-analyzer/**/*.py` pattern, while runtime imports live in `core/`, `utils/`, and `config.py`. Distribution discovery must be verified by building and installing the wheel.
-- Existing supported-version documentation is stale and the README still documents `verify-jwks --no-verify-ssl` even though the insecure flag was removed. Reconcile all user-facing docs before RC.
+- PR #4 introduced the v2 foundation on `main`; this roadmap still treats v2 as unreleased development work. A merged PR and source-tree inspection are not substitutes for reproducible tests, clean install evidence, or adversarial security testing.
+- The v2 CLI and API represent `alg=none` as an indicator rather than a confirmed bypass. M0 adds expanded regression coverage for that behavior and sensitive-output handling.
+- The wheel configuration explicitly includes `jwt_analyzer/`, `core/`, `utils/`, `plugins/`, `main.py`, `config.py`, and the starter wordlist. M0 verifies the wheel and source distribution, then installs the wheel in an isolated environment and executes a CLI smoke test.
+- The existing CI matrix covers Python 3.9–3.14, the optional service, and package builds. M0 adds JWKS adversarial tests, static security scanning, clean-wheel smoke tests, and a Docker starter-wordlist check.
+- JWKS retrieval must connect to the same validated address tuples it inspected. Allowing the HTTP client to resolve the hostname again at connect time is not sufficient to prevent DNS time-of-check/time-of-use attacks.
 - All new work stays on `v2.0.0` and follow-up branches. Do not force-push shared branches, modify `main`, merge into `main`, publish to PyPI/Docker, or create a release/tag as part of routine implementation.
 
 ## Delivery milestones
@@ -21,16 +22,16 @@
 **Goal:** make the merged security claims reproducible, close packaging and JWKS gaps, and introduce required CI evidence.
 
 Issues:
-- [ ] **M0-01 — Run the full regression suite**: execute existing and PR #3 tests on a clean checkout; repair failures rather than suppressing them.
-- [ ] **M0-02 — Correct the `alg=none` finding semantics**: use an indicator severity, confidence, and description that state exactly what is observed; never label target bypass confirmed by a token header alone.
-- [ ] **M0-03 — Harden JWKS destination validation**: test DNS rebinding / resolution-to-connect races, redirects, mixed public/private answers, IPv4/IPv6, unusual IP encodings, response limits, malformed JWKs and cache behavior. Fail closed when destination identity cannot be enforced.
-- [ ] **M0-04 — Verify wheel contents and clean install**: package all modules required by the CLI; build sdist and wheel; inspect `dist`; install into a clean environment; run `jwt-analyzer --version` and a smoke command.
-- [ ] **M0-05 — Add required branch CI**: test on every supported Python version; run regression tests, build/install smoke tests, lint and type checks. CI must expose failures instead of relying on undocumented local runs.
-- [ ] **M0-06 — Audit output and secret-handling paths**: assert no original token, recovered signing secret, credential or PII leak into logs, JSON, HTML, exceptions or CI logs unless explicitly requested in a controlled local workflow.
-- [ ] **M0-07 — Align version and security-support docs**: version metadata, CLI version, README, changelog, `SECURITY.md`, Docker, tox and package metadata must agree.
-- [ ] **M0-08 — Make bundled wordlist policy explicit**: ship the reviewed starter list in the image; any larger built-in corpus must be versioned and checksummed, with operator-supplied lists remaining an explicit opt-in.
+- [x] **M0-01 — Run the full regression suite**: execute existing and PR #3 tests on a clean checkout; repair failures rather than suppressing them.
+- [x] **M0-02 — Correct the `alg=none` finding semantics**: emit a medium-severity indicator with explicit confidence scope and a limitation stating that a token header alone cannot establish target-side bypass.
+- [x] **M0-03 — Harden JWKS destination validation**: pin validated DNS answers to the TLS connection; reject mixed public/private answers, unsafe numeric host forms, redirects, compressed/oversized bodies and malformed/private JWK material; bound DNS answer fan-out and cache growth; enforce a monotonic connection/response deadline; test address pinning, IPv4/IPv6, cache isolation and failure behavior.
+- [x] **M0-04 — Verify wheel contents and clean install**: package all modules required by the CLI; build sdist and wheel; inspect `dist`; install into a clean environment; run `jwt-analyzer --version` and a smoke command.
+- [x] **M0-05 — Add required branch CI**: test on every supported Python version; run regression tests, build/install smoke tests, lint and type checks. CI must expose failures instead of relying on undocumented local runs.
+- [x] **M0-06 — Audit output and secret-handling paths**: assert no original token, recovered signing secret, credential or PII leak into logs, JSON, HTML, exceptions or CI logs unless explicitly requested in a controlled local workflow.
+- [x] **M0-07 — Align version and security-support docs**: version metadata, CLI version, README, changelog, `SECURITY.md`, Docker, tox and package metadata must agree.
+- [x] **M0-08 — Make bundled wordlist policy explicit**: ship the reviewed starter list in the image; any larger built-in corpus must be versioned and checksummed, with operator-supplied lists remaining an explicit opt-in.
 
-**Acceptance:** reproducible green test/build evidence; no high/critical unresolved security defects; JWKS adversarial tests pass; clean installation proves both the CLI and importable package work; docs no longer promise removed insecure flags.
+**Acceptance:** reproducible green test/build evidence; no high/critical unresolved security defects; JWKS adversarial tests pass; clean installation proves CLI and public API imports work; default output redaction is regression-tested; the starter wordlist is present and documented in package and image. Do not mark M0 complete until M0 branch CI is green.
 
 ### M1 — Shared assessment engine and result contract
 

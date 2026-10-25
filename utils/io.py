@@ -15,8 +15,8 @@ def read_token_from_file(path: str) -> str:
 
     if token.count('.') != 2:
         raise ValueError(
-            f"Doesn't look like a JWT (expected 2 dots, got {token.count('.')}). "
-            f"Got: {token[:50]}..."
+            f"Input does not look like a JWT (expected 2 separators, got {token.count('.')}). "
+            "Token contents are omitted from this error."
         )
 
     return token

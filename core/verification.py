@@ -57,9 +57,21 @@ def verify_with_public_key(token: str, key_content: str,
         return {"status": "valid", "payload": payload, "verified": True,
                 "validation": {"algorithms": list(algorithms), "issuer": issuer,
                                "audience": audience, "leeway_seconds": leeway}}
-    except jwt.InvalidTokenError as exc:
-        return {"status": "invalid", "verified": False, "error": str(exc)}
-    except (ValueError, TypeError) as exc:
-        return {"status": "error", "verified": False, "error": str(exc)}
-    except Exception as exc:
-        return {"status": "error", "verified": False, "error": str(exc)}
+    except jwt.InvalidTokenError:
+        return {
+            "status": "invalid",
+            "verified": False,
+            "error": "JWT signature or configured claim validation failed",
+        }
+    except (ValueError, TypeError):
+        return {
+            "status": "error",
+            "verified": False,
+            "error": "Public key or verification configuration is invalid",
+        }
+    except Exception:
+        return {
+            "status": "error",
+            "verified": False,
+            "error": "Verification could not be completed",
+        }

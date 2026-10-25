@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from config import Config
+from utils.report import redact_sensitive_data
 
 
 class JSONFormatter(logging.Formatter):
@@ -33,7 +34,14 @@ class JSONFormatter(logging.Formatter):
                           'threadName', 'processName', 'process', 'message'):
                 log_data[key] = value
         
-        return json.dumps(log_data)
+        return json.dumps(redact_sensitive_data(log_data), default=str, ensure_ascii=False)
+
+
+class RedactingFormatter(logging.Formatter):
+    """Redact common sensitive values from human-readable log records."""
+
+    def format(self, record):
+        return str(redact_sensitive_data(super().format(record)))
 
 
 def setup_logging(log_file: str = None, json_format: bool = False):
@@ -47,7 +55,7 @@ def setup_logging(log_file: str = None, json_format: bool = False):
         console_handler.setFormatter(JSONFormatter())
     else:
         console_format = '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
-        console_handler.setFormatter(logging.Formatter(console_format))
+        console_handler.setFormatter(RedactingFormatter(console_format))
     
     handlers = [console_handler]
     
