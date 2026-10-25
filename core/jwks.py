@@ -11,6 +11,7 @@ import socket
 import ssl
 import time
 from dataclasses import dataclass
+from threading import Lock
 from typing import Optional
 from urllib.parse import urlsplit
 
@@ -44,25 +45,30 @@ class _JWKSCache:
     def __init__(self, ttl: int = 3600):
         self.ttl = max(0, ttl)
         self._store: dict[str, tuple[dict, float]] = {}
+        self._lock = Lock()
 
     def get(self, url: str) -> Optional[dict]:
-        entry = self._store.get(url)
-        if entry is None:
-            return None
-        data, fetched_at = entry
-        if time.monotonic() - fetched_at > self.ttl:
-            self._store.pop(url, None)
-            return None
-        return copy.deepcopy(data)
+        with self._lock:
+            entry = self._store.get(url)
+            if entry is None:
+                return None
+            data, fetched_at = entry
+            if time.monotonic() - fetched_at > self.ttl:
+                self._store.pop(url, None)
+                return None
+            return copy.deepcopy(data)
 
     def set(self, url: str, data: dict) -> None:
-        if url not in self._store and len(self._store) >= MAX_JWKS_CACHE_ENTRIES:
-            oldest_url = min(self._store.items(), key=lambda item: item[1][1])[0]
-            self._store.pop(oldest_url, None)
-        self._store[url] = (copy.deepcopy(data), time.monotonic())
+        copied_data = copy.deepcopy(data)
+        with self._lock:
+            if url not in self._store and len(self._store) >= MAX_JWKS_CACHE_ENTRIES:
+                oldest_url = min(self._store.items(), key=lambda item: item[1][1])[0]
+                self._store.pop(oldest_url, None)
+            self._store[url] = (copied_data, time.monotonic())
 
     def clear(self) -> None:
-        self._store.clear()
+        with self._lock:
+            self._store.clear()
 
 
 _cache = _JWKSCache()
@@ -219,6 +225,16 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         raise ConnectionError("Unable to connect to the validated JWKS destination") from last_error
 
 
+def _set_socket_timeout(connection, deadline: float) -> None:
+    """Apply the remaining overall request deadline to an open socket."""
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("JWKS request exceeded its configured time limit")
+    sock = getattr(connection, "sock", None)
+    if sock is not None:
+        sock.settimeout(remaining)
+
+
 def _read_response_body(response, connection, deadline: float) -> bytes:
     """Read a response in bounded chunks under one monotonic body-read deadline."""
     raw = bytearray()
@@ -284,7 +300,9 @@ def fetch_jwks(
                 "Connection": "close",
             },
         )
+        _set_socket_timeout(connection, deadline)
         response = connection.getresponse()
+        _set_socket_timeout(connection, deadline)
         if 300 <= response.status < 400:
             raise ValueError("JWKS redirects are disabled; configure the final HTTPS URL")
         if not 200 <= response.status < 300:
