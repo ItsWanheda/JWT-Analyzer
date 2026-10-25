@@ -5,7 +5,7 @@ import logging
 
 from core.logging_config import JSONFormatter
 from utils.io import read_token_from_file
-from utils.report import redact_sensitive_data
+from utils.report import generate_html_report, redact_sensitive_data
 
 
 def test_redaction_removes_pii_tokens_and_scanner_matches():
@@ -31,6 +31,8 @@ def test_redaction_removes_pii_tokens_and_scanner_matches():
     assert "Example Person" not in rendered
     assert "4111111111111111" not in rendered
     assert "[REDACTED]" in rendered
+    inline_credential = redact_sensitive_data({"message": "token=plain-secret-value"})
+    assert "plain-secret-value" not in inline_credential["message"]
 
 
 def test_log_formatter_redacts_tokens_and_inline_credentials():
@@ -61,3 +63,29 @@ def test_malformed_token_error_omits_input_contents(tmp_path):
         raise AssertionError("Expected malformed input to be rejected")
     assert "secret-fragment" not in message
     assert "Token contents are omitted" in message
+
+
+def test_html_report_redacts_sensitive_finding_text_and_analyst(tmp_path):
+    token = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.c2lnbmF0dXJl"
+    output = tmp_path / "report.html"
+    generate_html_report(
+        {
+            "findings": [
+                {
+                    "type": "custom_finding",
+                    "severity": "HIGH",
+                    "title": "Sensitive data",
+                    "description": f"Leaked person@example.test token={token}",
+                    "remediation": "Rotate credentials.",
+                }
+            ],
+            "token_info": {},
+            "payload": {},
+        },
+        str(output),
+        analyst="analyst@example.test",
+    )
+    html = output.read_text(encoding="utf-8")
+    assert token not in html
+    assert "person@example.test" not in html
+    assert "analyst@example.test" not in html
