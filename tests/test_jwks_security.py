@@ -176,7 +176,7 @@ def install_fake_http(monkeypatch, response):
         def close(self):
             self.closed = True
 
-    monkeypatch.setattr(jwks, "_PinnedHTTPSConnection", FakeConnection)
+    monkeypatch.setattr(core.jwks, "_PinnedHTTPSConnection", FakeConnection)
     return calls, connections
 
 
