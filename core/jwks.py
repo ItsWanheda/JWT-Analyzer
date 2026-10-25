@@ -5,6 +5,7 @@ import http.client
 import ipaddress
 import json
 import logging
+import math
 import re
 import socket
 import ssl
@@ -18,6 +19,9 @@ import jwt
 logger = logging.getLogger(__name__)
 MAX_JWKS_BYTES = 1_048_576
 MAX_JWKS_KEYS = 1000
+MAX_JWKS_DNS_ANSWERS = 16
+MAX_JWKS_CACHE_ENTRIES = 128
+MAX_JWKS_READ_CHUNK_SIZE = 64 * 1024
 _DEFAULT_ALGORITHMS = frozenset({"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"})
 _PRIVATE_JWK_MEMBERS = frozenset({"d", "p", "q", "dp", "dq", "qi", "oth", "k"})
 _NUMERIC_HOST_RE = re.compile(r"(?i)(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*\Z")
@@ -52,6 +56,9 @@ class _JWKSCache:
         return copy.deepcopy(data)
 
     def set(self, url: str, data: dict) -> None:
+        if url not in self._store and len(self._store) >= MAX_JWKS_CACHE_ENTRIES:
+            oldest_url = min(self._store.items(), key=lambda item: item[1][1])[0]
+            self._store.pop(oldest_url, None)
         self._store[url] = (copy.deepcopy(data), time.monotonic())
 
     def clear(self) -> None:
@@ -82,7 +89,8 @@ def _validate_jwks_url(url: str, allow_private_hosts: bool = False) -> _JWKSLoca
     try:
         parsed = urlsplit(url)
         raw_hostname = parsed.hostname
-        port = parsed.port or 443
+        explicit_port = parsed.port
+        port = 443 if explicit_port is None else explicit_port
     except (TypeError, ValueError) as exc:
         raise ValueError("JWKS URL is malformed") from exc
     if parsed.scheme.lower() != "https":
@@ -129,6 +137,8 @@ def _validate_jwks_url(url: str, allow_private_hosts: bool = False) -> _JWKSLoca
         raise ValueError("JWKS hostname could not be resolved") from exc
     if not addresses:
         raise ValueError("JWKS hostname resolved to no addresses")
+    if len(addresses) > MAX_JWKS_DNS_ANSWERS:
+        raise ValueError("JWKS hostname resolved to too many addresses")
     for info in addresses:
         try:
             ip = ipaddress.ip_address(info[4][0].split("%", 1)[0])
@@ -149,9 +159,17 @@ def _validate_jwks_url(url: str, allow_private_hosts: bool = False) -> _JWKSLoca
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
     """TLS connection that never resolves the original hostname again."""
 
-    def __init__(self, hostname: str, port: int, addresses: tuple, timeout: float):
+    def __init__(
+        self,
+        hostname: str,
+        port: int,
+        addresses: tuple,
+        timeout: float,
+        deadline: Optional[float] = None,
+    ):
         self._validated_addresses = addresses
         self._connect_timeout = min(float(timeout), 5.0)
+        self._deadline = deadline if deadline is not None else time.monotonic() + float(timeout)
         super().__init__(
             host=hostname,
             port=port,
@@ -159,30 +177,66 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
             context=ssl.create_default_context(),
         )
 
+    def _remaining_timeout(self) -> float:
+        remaining = self._deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("JWKS request exceeded its configured time limit")
+        return remaining
+
     def connect(self) -> None:
         if self._tunnel_host:
             raise ConnectionError("JWKS proxy tunnels are not supported")
         last_error = None
         for family, socktype, proto, _canonname, sockaddr in self._validated_addresses:
+            remaining = self._remaining_timeout()
             raw_socket = None
             try:
                 raw_socket = socket.socket(family, socktype, proto)
-                raw_socket.settimeout(self._connect_timeout)
+                raw_socket.settimeout(min(self._connect_timeout, remaining))
                 # sockaddr already contains the validated IP address.
                 raw_socket.connect(sockaddr)
+                remaining = self._remaining_timeout()
+                raw_socket.settimeout(remaining)
                 tls_socket = self._context.wrap_socket(raw_socket, server_hostname=self.host)
-                tls_socket.settimeout(self.timeout)
+                remaining = self._remaining_timeout()
+                tls_socket.settimeout(remaining)
                 self.sock = tls_socket
                 return
             except ssl.SSLCertVerificationError:
                 if raw_socket is not None:
                     raw_socket.close()
                 raise
+            except (socket.timeout, TimeoutError) as exc:
+                if raw_socket is not None:
+                    raw_socket.close()
+                if time.monotonic() >= self._deadline:
+                    raise TimeoutError("JWKS request exceeded its configured time limit") from exc
+                last_error = exc
             except (OSError, ssl.SSLError) as exc:
                 if raw_socket is not None:
                     raw_socket.close()
                 last_error = exc
         raise ConnectionError("Unable to connect to the validated JWKS destination") from last_error
+
+
+def _read_response_body(response, connection, deadline: float) -> bytes:
+    """Read a response in bounded chunks under one monotonic body-read deadline."""
+    raw = bytearray()
+    reader = getattr(response, "read1", None) or response.read
+    while len(raw) <= MAX_JWKS_BYTES:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("JWKS response body exceeded its configured time limit")
+        sock = getattr(connection, "sock", None)
+        if sock is not None:
+            sock.settimeout(remaining)
+        chunk = reader(min(MAX_JWKS_READ_CHUNK_SIZE, MAX_JWKS_BYTES + 1 - len(raw)))
+        if not chunk:
+            break
+        raw.extend(chunk)
+    if len(raw) > MAX_JWKS_BYTES:
+        raise ValueError("JWKS response exceeds the 1 MiB size limit")
+    return bytes(raw)
 
 
 def fetch_jwks(
@@ -197,6 +251,7 @@ def fetch_jwks(
         or not isinstance(timeout, (int, float))
         or timeout <= 0
         or timeout > 60
+        or not math.isfinite(float(timeout))
     ):
         raise ValueError("timeout must be greater than 0 and at most 60 seconds")
     if not verify_ssl:
@@ -209,8 +264,13 @@ def fetch_jwks(
     if cached is not None:
         return cached
 
+    deadline = time.monotonic() + float(timeout)
     connection = _PinnedHTTPSConnection(
-        destination.hostname, destination.port, destination.addresses, float(timeout)
+        destination.hostname,
+        destination.port,
+        destination.addresses,
+        float(timeout),
+        deadline=deadline,
     )
     try:
         connection.request(
@@ -251,9 +311,7 @@ def fetch_jwks(
                 raise ValueError("JWKS response has an invalid Content-Length")
             if declared_length > MAX_JWKS_BYTES:
                 raise ValueError("JWKS response exceeds the 1 MiB size limit")
-        raw = response.read(MAX_JWKS_BYTES + 1)
-        if len(raw) > MAX_JWKS_BYTES:
-            raise ValueError("JWKS response exceeds the 1 MiB size limit")
+        raw = _read_response_body(response, connection, deadline)
     except ValueError:
         raise
     except ssl.SSLCertVerificationError as exc:
