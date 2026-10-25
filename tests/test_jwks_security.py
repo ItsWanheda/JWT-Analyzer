@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import core.jwks as jwks
+from core import jwks
 
 
 PUBLIC_V4 = (
