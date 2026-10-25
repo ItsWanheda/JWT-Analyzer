@@ -15,6 +15,20 @@ We maintain strict version control to ensure security patches are delivered effe
 | **1.2.0 and older** | ❌ | Upgrade to the latest stable 1.2.x release |
 ---
 
+## Default report and log handling
+
+The v2 JSON/HTML exports and application logging paths use best-effort default
+redaction for JWT-like strings, common credential patterns, sensitive claim fields,
+and several common PII patterns. Redaction is a safety net, not a guarantee that
+every custom identifier, secret format, or jurisdiction-specific personal datum
+will be recognized. Review reports before sharing them and avoid putting full
+assessments containing sensitive claims into shared artifacts.
+
+Commands that explicitly display decoded data—including \`analyze\`,
+\`verify-rsa\` payload output, payload comparison, and token forging—can display
+sensitive values by design. Use these local inspection workflows only in a
+controlled environment.
+
 ## Optional v2 HTTP Service
 
 The HTTP service and dashboard in `2.0.0.dev0` are experimental and unsupported for production use until the v2 security gates are complete.
