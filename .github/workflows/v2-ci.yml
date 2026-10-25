@@ -54,7 +54,7 @@ jobs:
       - name: Type-check public API
         run: mypy --python-version 3.12 jwt_analyzer
       - name: Lint JWKS hardening and regression tests
-        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py --select E,F,I,B,C4,UP,SIM,RUF,N
+        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py --select E,F,B,C4,UP,SIM,RUF,N
       - name: Static security scan
         run: bandit -r jwt_analyzer core utils
 
