@@ -18,13 +18,9 @@ import jwt
 logger = logging.getLogger(__name__)
 MAX_JWKS_BYTES = 1_048_576
 MAX_JWKS_KEYS = 1000
-_DEFAULT_ALGORITHMS = frozenset(
-    {"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"}
-)
+_DEFAULT_ALGORITHMS = frozenset({"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"})
 _PRIVATE_JWK_MEMBERS = frozenset({"d", "p", "q", "dp", "dq", "qi", "oth", "k"})
-_NUMERIC_HOST_RE = re.compile(
-    r"(?i)(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*\Z"
-)
+_NUMERIC_HOST_RE = re.compile(r"(?i)(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*\Z")
 
 
 @dataclass(frozen=True)
@@ -70,9 +66,7 @@ def clear_cache() -> None:
     _cache.clear()
 
 
-def _validate_jwks_url(
-    url: str, allow_private_hosts: bool = False
-) -> _JWKSLocation:
+def _validate_jwks_url(url: str, allow_private_hosts: bool = False) -> _JWKSLocation:
     """Validate URL syntax and DNS answers, and return the pinned destination.
 
     By default all resolved addresses must be globally routable. Mixed public
@@ -127,14 +121,10 @@ def _validate_jwks_url(
     else:
         hostname = str(literal_ip)
 
-    if not allow_private_hosts and (
-        hostname == "localhost" or hostname.endswith(".localhost")
-    ):
+    if not allow_private_hosts and (hostname == "localhost" or hostname.endswith(".localhost")):
         raise ValueError("JWKS URL may not target localhost")
     try:
-        addresses = tuple(
-            socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
-        )
+        addresses = tuple(socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM))
     except (OSError, UnicodeError) as exc:
         raise ValueError("JWKS hostname could not be resolved") from exc
     if not addresses:
@@ -180,9 +170,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
                 raw_socket.settimeout(self._connect_timeout)
                 # sockaddr already contains the validated IP address.
                 raw_socket.connect(sockaddr)
-                tls_socket = self._context.wrap_socket(
-                    raw_socket, server_hostname=self.host
-                )
+                tls_socket = self._context.wrap_socket(raw_socket, server_hostname=self.host)
                 tls_socket.settimeout(self.timeout)
                 self.sock = tls_socket
                 return
@@ -194,9 +182,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
                 if raw_socket is not None:
                     raw_socket.close()
                 last_error = exc
-        raise ConnectionError(
-            "Unable to connect to the validated JWKS destination"
-        ) from last_error
+        raise ConnectionError("Unable to connect to the validated JWKS destination") from last_error
 
 
 def fetch_jwks(
@@ -244,11 +230,11 @@ def fetch_jwks(
         if not 200 <= response.status < 300:
             raise ValueError(f"JWKS endpoint returned HTTP status {response.status}")
 
-        content_type = (
-            response.getheader("Content-Type") or ""
-        ).split(";", 1)[0].strip().lower()
-        if content_type and content_type != "application/json" and not content_type.endswith(
-            "+json"
+        content_type = (response.getheader("Content-Type") or "").split(";", 1)[0].strip().lower()
+        if (
+            content_type
+            and content_type != "application/json"
+            and not content_type.endswith("+json")
         ):
             raise ValueError("JWKS endpoint did not return a JSON content type")
         encoding = (response.getheader("Content-Encoding") or "identity").lower().strip()
@@ -271,17 +257,13 @@ def fetch_jwks(
     except ValueError:
         raise
     except ssl.SSLCertVerificationError as exc:
-        raise ConnectionError(
-            "TLS certificate verification failed for JWKS endpoint"
-        ) from exc
+        raise ConnectionError("TLS certificate verification failed for JWKS endpoint") from exc
     except ssl.SSLError as exc:
         raise ConnectionError("TLS connection failed for JWKS endpoint") from exc
     except (socket.timeout, TimeoutError) as exc:
         raise ConnectionError(f"Timed out fetching JWKS after {timeout:g}s") from exc
     except (OSError, http.client.HTTPException) as exc:
-        raise ConnectionError(
-            "Failed to fetch JWKS from the validated destination"
-        ) from exc
+        raise ConnectionError("Failed to fetch JWKS from the validated destination") from exc
     finally:
         connection.close()
 
@@ -305,8 +287,7 @@ def fetch_jwks(
                 raise ValueError(f"JWKS key field {field} must be a string")
         key_ops = key_data.get("key_ops")
         if key_ops is not None and (
-            not isinstance(key_ops, list)
-            or any(not isinstance(item, str) for item in key_ops)
+            not isinstance(key_ops, list) or any(not isinstance(item, str) for item in key_ops)
         ):
             raise ValueError("JWKS key_ops must be an array of strings")
     _cache.set(url, data)
@@ -352,11 +333,7 @@ def verify_with_jwks(
             "verified": False,
             "error": "TLS certificate verification cannot be disabled",
         }
-    if (
-        isinstance(leeway, bool)
-        or not isinstance(leeway, (int, float))
-        or leeway < 0
-    ):
+    if isinstance(leeway, bool) or not isinstance(leeway, (int, float)) or leeway < 0:
         return {"status": "error", "verified": False, "error": "leeway must be non-negative"}
     if not isinstance(token, str) or not token or len(token) > 1_048_576:
         return {
@@ -380,9 +357,7 @@ def verify_with_jwks(
                 "verified": False,
                 "error": "Token algorithm is not in the configured allowlist",
             }
-        jwks = fetch_jwks(
-            jwks_url, verify_ssl=verify_ssl, allow_private_hosts=allow_private_hosts
-        )
+        jwks = fetch_jwks(jwks_url, verify_ssl=verify_ssl, allow_private_hosts=allow_private_hosts)
         key_data = _find_key(jwks, kid)
         if key_data is None:
             return {
