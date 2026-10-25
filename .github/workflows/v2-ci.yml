@@ -5,6 +5,7 @@ on:
     branches:
       - v2.0.0
       - "v2.0.0/**"
+      - "v2.0.0-m0-*"
   pull_request:
     branches:
       - main
@@ -33,7 +34,7 @@ jobs:
       - name: Run regression tests
         run: python -m pytest -q
       - name: Compile the public API
-        run: python -m compileall -q jwt_analyzer
+        run: python -m compileall -q jwt_analyzer core utils main.py config.py
 
   quality:
     name: Public API quality checks
@@ -45,13 +46,17 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install project and quality tools
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,service]"
+        run: python -m pip install --upgrade pip bandit && python -m pip install -e ".[dev,service]"
       - name: Lint public API
         run: ruff check jwt_analyzer
       - name: Check public API formatting
         run: ruff format --check jwt_analyzer
       - name: Type-check public API
         run: mypy jwt_analyzer
+      - name: Lint JWKS hardening and regression tests
+        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py
+      - name: Static security scan
+        run: bandit -r jwt_analyzer core utils
 
   service:
     name: Optional HTTP service security tests
@@ -78,14 +83,79 @@ jobs:
           cache: pip
       - name: Install build tooling
         run: python -m pip install --upgrade pip build twine
-      - name: Build wheel and sdist
+      - name: Build wheel and source distribution
         run: python -m build
       - name: Validate distribution metadata
         run: python -m twine check dist/*
-      - name: Install the wheel without source-tree imports
+      - name: Inspect wheel and source archive
         run: |
-          python -m pip install --force-reinstall dist/*.whl
+          python - <<'PY'
+          import glob
+          import tarfile
+          import zipfile
+
+          wheel_path = glob.glob("dist/*.whl")[0]
+          with zipfile.ZipFile(wheel_path) as archive:
+              wheel_files = set(archive.namelist())
+          required = {
+              "main.py", "config.py", "core/jwks.py",
+              "jwt_analyzer/__init__.py", "jwt_analyzer/api.py",
+              "utils/wordlists/common_secrets.txt",
+          }
+          assert not (required - wheel_files), sorted(required - wheel_files)
+
+          sdist_path = glob.glob("dist/*.tar.gz")[0]
+          with tarfile.open(sdist_path, "r:gz") as archive:
+              names = archive.getnames()
+          for path in (
+              "core/jwks.py", "jwt_analyzer/api.py",
+              "utils/wordlists/common_secrets.txt",
+          ):
+              assert any(name.endswith("/" + path) for name in names), path
+          PY
+      - name: Clean wheel install and CLI smoke test
+        run: |
+          python -m venv "$RUNNER_TEMP/jwt-analyzer-clean"
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -m pip install dist/*.whl
           cd "$RUNNER_TEMP"
-          python -c "from importlib.metadata import version; assert version('jwt-analyzer') == '2.0.0.dev0'"
-          python -c "from jwt_analyzer import Assessment, Finding, inspect_token; print('public API import OK')"
-          jwt-analyzer --version
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -c "from importlib.metadata import version; assert version('jwt-analyzer') == '2.0.0.dev0'"
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -c "from importlib.resources import files; from jwt_analyzer import Assessment, Finding, inspect_token; assert files('utils').joinpath('wordlists', 'common_secrets.txt').is_file(); print('public API and starter wordlist import OK')"
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer" --version
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" - <<'PY'
+          import base64
+          import json
+          from pathlib import Path
+
+          def segment(value):
+              raw = json.dumps(value, separators=(",", ":")).encode()
+              return base64.urlsafe_b64encode(raw).decode().rstrip("=")
+
+          token = ".".join((
+              segment({"alg": "none", "typ": "JWT"}),
+              segment({"sub": "ci-smoke-test", "exp": 4102444800}),
+              "",
+          ))
+          Path("smoke.jwt").write_text(token, encoding="utf-8")
+          PY
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer" audit --token-file "$RUNNER_TEMP/smoke.jwt" --skip-bruteforce --output "$RUNNER_TEMP/wheel-smoke" --format json
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("wheel-smoke.json").read_text(encoding="utf-8"))
+          finding = next(item for item in report["findings"] if item["type"] == "none_algorithm_indicator")
+          assert finding["severity"] == "MEDIUM"
+          assert "does not establish" in finding["description"]
+          PY
+
+  docker-wordlist:
+    name: Docker image includes the reviewed starter wordlist
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the CLI image
+        run: docker build --tag jwt-analyzer:m0 .
+      - name: Verify the starter list in the runtime image
+        run: |
+          docker run --rm --entrypoint python jwt-analyzer:m0 -c "from pathlib import Path; p = Path('/app/utils/wordlists/common_secrets.txt'); words = [line.strip() for line in p.read_text(encoding='utf-8').splitlines() if line.strip() and not line.lstrip().startswith('#'); assert p.is_file() and len(words) == 6, (p, len(words)); print('starter wordlist present')"
