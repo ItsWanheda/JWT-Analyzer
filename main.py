@@ -90,11 +90,14 @@ def audit(token_file, wordlist, output, fmt, workers, skip_bruteforce):
             if check_none_algorithm(token):
                 findings.append({
                     'severity': 'MEDIUM',
+                    'confidence': 'high',
+                    'confidence_scope': 'token-header-observation-only',
                     'type': 'none_algorithm_indicator',
                     'title': 'Unsigned algorithm declared',
                     'description': (
-                        'The token header declares alg=none. Token-only inspection does not establish '
-                        'whether a target accepts unsigned tokens or is vulnerable to signature bypass.'
+                        'The token header declares alg=none. Confidence applies only to this observed '
+                        'header value; token-only inspection does not establish whether a target accepts '
+                        'unsigned tokens or is vulnerable to signature bypass.'
                     ),
                     'remediation': 'Verify that the target rejects unsigned tokens and pins an explicit algorithm allowlist.'
                 })
