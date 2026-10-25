@@ -66,12 +66,12 @@ def _json_value(value: Any) -> Any:
         normalized_mapping: dict[str, Any] = {}
         for key, item in value.items():
             if not isinstance(key, str):
-                raise ValueError("assessment object keys must be strings")
+                raise TypeError("assessment object keys must be strings")
             normalized_mapping[key] = _json_value(item)
         return normalized_mapping
     if isinstance(value, (tuple, list)):
         return [_json_value(item) for item in value]
-    raise ValueError(f"unsupported assessment value type: {type(value).__name__}")
+    raise TypeError(f"unsupported assessment value type: {type(value).__name__}")
 
 
 def _reject_json_constant(value: str) -> None:
@@ -190,6 +190,37 @@ class Finding:
         )
 
 
+def _normalize_timestamp(value: str) -> str:
+    _require_text("assessed_at", value)
+    try:
+        timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError("assessed_at must be a valid ISO-8601 timestamp") from exc
+    if timestamp.tzinfo is None:
+        raise ValueError("assessed_at must include a timezone")
+    return timestamp.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _normalize_findings(values: Any) -> tuple[Finding, ...]:
+    findings = tuple(values)
+    if any(not isinstance(item, Finding) for item in findings):
+        raise TypeError("findings must contain Finding objects")
+    ids = [item.id for item in findings]
+    if len(ids) != len(set(ids)):
+        raise ValueError("finding IDs must be unique within an assessment")
+    return tuple(
+        sorted(findings, key=lambda item: (_SEVERITY_ORDER[item.severity.value], item.id))
+    )
+
+
+def _normalize_text_sequence(name: str, values: Any) -> tuple[str, ...]:
+    if isinstance(values, (str, bytes)) or not isinstance(values, (tuple, list)):
+        raise TypeError(f"{name} must be a sequence of strings")
+    normalized = tuple(values)
+    if any(not isinstance(item, str) or not item.strip() for item in normalized):
+        raise ValueError(f"{name} must contain non-empty strings")
+    return normalized
+
 @dataclass(frozen=True)
 class Assessment:
     """A versioned assessment; no field stores the original compact JWT string."""
@@ -213,25 +244,13 @@ class Assessment:
             raise TypeError("signature_present must be a boolean")
         if self.schema_version != ASSESSMENT_SCHEMA_VERSION:
             raise ValueError(f"unsupported assessment schema version: {self.schema_version!r}")
-        _require_text("assessed_at", self.assessed_at)
-        try:
-            timestamp = datetime.fromisoformat(self.assessed_at.replace("Z", "+00:00"))
-        except ValueError as exc:
-            raise ValueError("assessed_at must be a valid ISO-8601 timestamp") from exc
-        if timestamp.tzinfo is None:
-            raise ValueError("assessed_at must include a timezone")
-        normalized_timestamp = timestamp.astimezone(timezone.utc).isoformat().replace(
-            "+00:00", "Z"
-        )
-        object.__setattr__(self, "assessed_at", normalized_timestamp)
-
+        object.__setattr__(self, "assessed_at", _normalize_timestamp(self.assessed_at))
         for name in ("verification", "policy"):
             value = getattr(self, name)
-            if value is not None and not isinstance(value, Mapping):
-                raise TypeError(f"{name} must be a mapping or None")
             if value is not None:
+                if not isinstance(value, Mapping):
+                    raise TypeError(f"{name} must be a mapping or None")
                 object.__setattr__(self, name, _json_value(deepcopy(value)))
-
         object.__setattr__(self, "header", _json_value(deepcopy(self.header)))
         object.__setattr__(self, "claims", _json_value(deepcopy(self.claims)))
         try:
@@ -239,26 +258,11 @@ class Assessment:
         except (TypeError, ValueError) as exc:
             raise ValueError("verification_status is not a supported value") from exc
         object.__setattr__(self, "verification_status", status)
-
-        findings = tuple(self.findings)
-        if any(not isinstance(item, Finding) for item in findings):
-            raise TypeError("findings must contain Finding objects")
-        ids = [item.id for item in findings]
-        if len(ids) != len(set(ids)):
-            raise ValueError("finding IDs must be unique within an assessment")
-        findings = tuple(
-            sorted(findings, key=lambda item: (_SEVERITY_ORDER[item.severity.value], item.id))
-        )
-        object.__setattr__(self, "findings", findings)
-
+        object.__setattr__(self, "findings", _normalize_findings(self.findings))
         for name in ("warnings", "errors"):
-            value = getattr(self, name)
-            if isinstance(value, (str, bytes)) or not isinstance(value, (tuple, list)):
-                raise TypeError(f"{name} must be a sequence of strings")
-            normalized = tuple(value)
-            if any(not isinstance(item, str) or not item.strip() for item in normalized):
-                raise ValueError(f"{name} must contain non-empty strings")
-            object.__setattr__(self, name, normalized)
+            object.__setattr__(
+                self, name, _normalize_text_sequence(name, getattr(self, name))
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain JSON-compatible structure; the token is never included."""
@@ -341,5 +345,5 @@ class Assessment:
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise ValueError("assessment JSON is malformed") from exc
         if not isinstance(parsed, Mapping):
-            raise ValueError("assessment JSON must contain an object")
+            raise TypeError("assessment JSON must contain an object")
         return cls.from_dict(parsed)

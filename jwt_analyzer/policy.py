@@ -6,6 +6,7 @@ import hashlib
 import math
 import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -188,30 +189,15 @@ def _policy_finding(
     )
 
 
-def evaluate_policy(
+def _evaluate_algorithm(
     assessment: Assessment,
-    policy: AssessmentPolicy | str = "baseline",
-) -> Assessment:
-    """Evaluate local claim policy without changing cryptographic verification status.
-
-    Calling this function on an inspection-only assessment is permitted, but the
-    result will explicitly remain not_verified and carry an advisory warning.
-    """
-    if not isinstance(assessment, Assessment):
-        raise TypeError("assessment must be an Assessment")
-    if isinstance(policy, str):
-        policy = get_policy_profile(policy)
-    if not isinstance(policy, AssessmentPolicy):
-        raise TypeError("policy must be an AssessmentPolicy or profile name")
-
-    claims = assessment.claims
-    header = assessment.header
-    is_verified = assessment.verification_status is VerificationStatus.VERIFIED
-    confidence = Confidence.HIGH if is_verified else Confidence.MEDIUM
-    findings: list[Finding] = []
-    algorithm = header.get("alg")
+    policy: AssessmentPolicy,
+    confidence: Confidence,
+    verified: bool,
+) -> list[Finding]:
+    algorithm = assessment.header.get("alg")
     if not isinstance(algorithm, str) or not algorithm:
-        findings.append(
+        return [
             _policy_finding(
                 finding_id="jwt.policy.algorithm_missing",
                 title="Algorithm is missing or invalid",
@@ -221,11 +207,11 @@ def evaluate_policy(
                 impact="A verifier cannot safely select an expected signature algorithm.",
                 recommendation="Reject the token and configure an explicit algorithm allowlist.",
                 evidence={"header_field": "alg"},
-                verified_claims=is_verified,
+                verified_claims=verified,
             )
-        )
-    elif algorithm not in policy.accepted_algorithms:
-        findings.append(
+        ]
+    if algorithm not in policy.accepted_algorithms:
+        return [
             _policy_finding(
                 finding_id="jwt.policy.algorithm_not_allowed",
                 title="Algorithm is not allowed by policy",
@@ -240,10 +226,19 @@ def evaluate_policy(
                     "algorithm": algorithm,
                     "accepted_algorithms": list(policy.accepted_algorithms),
                 },
-                verified_claims=is_verified,
+                verified_claims=verified,
             )
-        )
+        ]
+    return []
 
+
+def _evaluate_required_claims(
+    claims: Mapping[str, Any],
+    policy: AssessmentPolicy,
+    confidence: Confidence,
+    verified: bool,
+) -> list[Finding]:
+    findings = []
     for claim in policy.required_claims:
         if claim not in claims or not _is_present(claims.get(claim)):
             findings.append(
@@ -261,25 +256,35 @@ def evaluate_policy(
                         "the policy deliberately."
                     ),
                     evidence={"claim": claim, "profile": policy.name},
-                    verified_claims=is_verified,
+                    verified_claims=verified,
                 )
             )
+    return findings
 
-    now = policy.now_timestamp if policy.now_timestamp is not None else time.time()
+
+def _numeric_timestamp(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    try:
+        number = float(value)
+    except (OverflowError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _evaluate_time_claims(
+    claims: dict[str, Any] | Any,
+    policy: AssessmentPolicy,
+    now: float,
+    confidence: Confidence,
+    verified: bool,
+) -> list[Finding]:
+    findings = []
     leeway = policy.leeway_seconds
     for claim in policy.time_claims:
         if claim not in claims:
             continue
-        value = claims[claim]
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            numeric_value = None
-        else:
-            try:
-                numeric_value = float(value)
-            except (OverflowError, ValueError):
-                numeric_value = None
-            if numeric_value is not None and not math.isfinite(numeric_value):
-                numeric_value = None
+        numeric_value = _numeric_timestamp(claims[claim])
         if numeric_value is None:
             findings.append(
                 _policy_finding(
@@ -291,7 +296,7 @@ def evaluate_policy(
                     impact="Malformed time claims can cause inconsistent token-lifetime decisions.",
                     recommendation=f"Emit a finite NumericDate value for the {claim!r} claim.",
                     evidence={"claim": claim, "reason": "expected_finite_numeric_date"},
-                    verified_claims=is_verified,
+                    verified_claims=verified,
                 )
             )
             continue
@@ -310,7 +315,7 @@ def evaluate_policy(
                         "Obtain a newly issued token; do not extend expiry by mutating a token."
                     ),
                     evidence={"claim": "exp", "leeway_seconds": leeway},
-                    verified_claims=is_verified,
+                    verified_claims=verified,
                 )
             )
         elif claim == "nbf" and numeric_value > now + leeway:
@@ -326,7 +331,7 @@ def evaluate_policy(
                     impact="A verifier enforcing this policy should not accept the token yet.",
                     recommendation="Check issuer clock synchronization and token activation time.",
                     evidence={"claim": "nbf", "leeway_seconds": leeway},
-                    verified_claims=is_verified,
+                    verified_claims=verified,
                 )
             )
         elif claim == "iat" and numeric_value > (
@@ -347,13 +352,21 @@ def evaluate_policy(
                         "claim": "iat",
                         "max_future_iat_seconds": policy.max_future_iat_seconds,
                     },
-                    verified_claims=is_verified,
+                    verified_claims=verified,
                 )
             )
+    return findings
 
+
+def _evaluate_issuer_audience(
+    claims: dict[str, Any] | Any,
+    policy: AssessmentPolicy,
+    confidence: Confidence,
+    verified: bool,
+) -> list[Finding]:
+    findings = []
     issuer_value = claims.get("iss")
-    issuer_present = isinstance(issuer_value, str) and bool(issuer_value)
-    if policy.require_issuer and not issuer_present:
+    if policy.require_issuer and not (isinstance(issuer_value, str) and issuer_value):
         findings.append(
             _policy_finding(
                 finding_id="jwt.policy.issuer_missing",
@@ -366,7 +379,7 @@ def evaluate_policy(
                     "Require an issuer claim and validate it against a configured trusted issuer."
                 ),
                 evidence={"claim": "iss"},
-                verified_claims=is_verified,
+                verified_claims=verified,
             )
         )
     elif policy.issuer is not None and issuer_value != policy.issuer:
@@ -382,7 +395,7 @@ def evaluate_policy(
                     "Use the expected issuer value and validate it during policy evaluation."
                 ),
                 evidence={"claim": "iss", "expected_value_disclosed": False},
-                verified_claims=is_verified,
+                verified_claims=verified,
             )
         )
 
@@ -404,7 +417,7 @@ def evaluate_policy(
                     "Require and validate an audience matching the receiving application."
                 ),
                 evidence={"claim": "aud"},
-                verified_claims=is_verified,
+                verified_claims=verified,
             )
         )
     elif policy.audience is not None and policy.audience not in audience_values:
@@ -420,13 +433,45 @@ def evaluate_policy(
                     "Use the expected audience and validate it for the receiving application."
                 ),
                 evidence={"claim": "aud", "expected_value_disclosed": False},
-                verified_claims=is_verified,
+                verified_claims=verified,
             )
         )
+    return findings
 
+
+def evaluate_policy(
+    assessment: Assessment,
+    policy: AssessmentPolicy | str = "baseline",
+) -> Assessment:
+    """Evaluate policy separately without changing cryptographic verification status.
+
+    Unverified claims can be evaluated for diagnostics, but the resulting policy status
+    remains not_verified and must not be used for authentication or authorization.
+    """
+    if not isinstance(assessment, Assessment):
+        raise TypeError("assessment must be an Assessment")
+    if isinstance(policy, str):
+        policy = get_policy_profile(policy)
+    if not isinstance(policy, AssessmentPolicy):
+        raise TypeError("policy must be an AssessmentPolicy or profile name")
+
+    verified = assessment.verification_status is VerificationStatus.VERIFIED
+    confidence = Confidence.HIGH if verified else Confidence.MEDIUM
+    findings = _evaluate_algorithm(assessment, policy, confidence, verified)
+    findings.extend(
+        _evaluate_required_claims(assessment.claims, policy, confidence, verified)
+    )
+    now = policy.now_timestamp if policy.now_timestamp is not None else time.time()
+    findings.extend(
+        _evaluate_time_claims(assessment.claims, policy, now, confidence, verified)
+    )
+    findings.extend(
+        _evaluate_issuer_audience(assessment.claims, policy, confidence, verified)
+    )
     non_policy_findings = [item for item in assessment.findings if item.stage != "policy"]
     combined_findings = tuple(non_policy_findings + findings)
-    if len({item.id for item in combined_findings}) != len(combined_findings):
+    ids = [item.id for item in combined_findings]
+    if len(ids) != len(set(ids)):
         raise ValueError(
             "policy evaluation produced a finding ID that conflicts with an existing finding"
         )
@@ -434,14 +479,13 @@ def evaluate_policy(
     warnings = tuple(
         warning for warning in assessment.warnings if warning != _UNVERIFIED_POLICY_WARNING
     )
-    if not is_verified:
+    if not verified:
         warnings += (_UNVERIFIED_POLICY_WARNING,)
-
-    policy_status = "not_verified" if not is_verified else ("failed" if findings else "passed")
+    status = "not_verified" if not verified else ("failed" if findings else "passed")
     metadata = {
         "profile": policy.name,
-        "status": policy_status,
-        "compliant": (not findings) if is_verified else None,
+        "status": status,
+        "compliant": (not findings) if verified else None,
         "observed_compliant": not findings,
         "accepted_algorithms": list(policy.accepted_algorithms),
         "required_claims": list(policy.required_claims),
@@ -454,8 +498,5 @@ def evaluate_policy(
         "max_future_iat_seconds": policy.max_future_iat_seconds,
     }
     return replace(
-        assessment,
-        findings=combined_findings,
-        warnings=warnings,
-        policy=metadata,
+        assessment, findings=combined_findings, warnings=warnings, policy=metadata
     )

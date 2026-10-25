@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any
 
 from core.parser import parse_jwt
 from core.security import check_kid_injection
-from core.verification import DEFAULT_ASYMMETRIC_ALGORITHMS
 from core.verification import (
+    DEFAULT_ASYMMETRIC_ALGORITHMS,
     verify_signature_with_public_key as _verify_signature_with_public_key,
 )
 
@@ -62,7 +62,10 @@ def inspect_token(token: str) -> Assessment:
                 observation="The token header declares alg=none.",
                 impact="A verifier that accepts unsigned tokens could permit token forgery.",
                 limitations="The header alone does not prove that a target accepts unsigned tokens.",
-                evidence={"algorithm": algorithm, "signature_present": parsed["signature_present"]},
+                evidence={
+                    "algorithm": algorithm,
+                    "signature_present": parsed["signature_present"],
+                },
             )
         )
     elif not isinstance(algorithm, str) or not algorithm:
@@ -217,8 +220,10 @@ def verify_signature_with_public_key(
 
     if status is VerificationStatus.VERIFIED:
         warnings = (
-            "Cryptographic signature verified; apply application-specific authorization policy "
-            "before trusting identity or permissions.",
+            (
+                "Cryptographic signature verified; apply application-specific authorization policy "
+                "before trusting identity or permissions."
+            ),
         )
     else:
         warnings = (parsed["warning"],)
