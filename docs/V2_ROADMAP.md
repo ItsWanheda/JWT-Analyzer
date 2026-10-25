@@ -22,14 +22,14 @@
 **Goal:** make the merged security claims reproducible, close packaging and JWKS gaps, and introduce required CI evidence.
 
 Issues:
-- [ ] **M0-01 — Run the full regression suite**: execute existing and PR #3 tests on a clean checkout; repair failures rather than suppressing them.
-- [ ] **M0-02 — Correct the `alg=none` finding semantics**: use an indicator severity, confidence, and description that state exactly what is observed; never label target bypass confirmed by a token header alone.
-- [ ] **M0-03 — Harden JWKS destination validation**: test DNS rebinding / resolution-to-connect races, redirects, mixed public/private answers, IPv4/IPv6, unusual IP encodings, response limits, malformed JWKs and cache behavior. Fail closed when destination identity cannot be enforced.
-- [ ] **M0-04 — Verify wheel contents and clean install**: package all modules required by the CLI; build sdist and wheel; inspect `dist`; install into a clean environment; run `jwt-analyzer --version` and a smoke command.
-- [ ] **M0-05 — Add required branch CI**: test on every supported Python version; run regression tests, build/install smoke tests, lint and type checks. CI must expose failures instead of relying on undocumented local runs.
-- [ ] **M0-06 — Audit output and secret-handling paths**: assert no original token, recovered signing secret, credential or PII leak into logs, JSON, HTML, exceptions or CI logs unless explicitly requested in a controlled local workflow.
-- [ ] **M0-07 — Align version and security-support docs**: version metadata, CLI version, README, changelog, `SECURITY.md`, Docker, tox and package metadata must agree.
-- [ ] **M0-08 — Make bundled wordlist policy explicit**: ship the reviewed starter list in the image; any larger built-in corpus must be versioned and checksummed, with operator-supplied lists remaining an explicit opt-in.
+- [x] **M0-01 — Run the full regression suite**: execute existing and PR #3 tests on a clean checkout; repair failures rather than suppressing them.
+- [x] **M0-02 — Correct the `alg=none` finding semantics**: use an indicator severity, confidence, and description that state exactly what is observed; never label target bypass confirmed by a token header alone.
+- [x] **M0-03 — Harden JWKS destination validation**: test DNS rebinding / resolution-to-connect races, redirects, mixed public/private answers, IPv4/IPv6, unusual IP encodings, response limits, malformed JWKs and cache behavior. Fail closed when destination identity cannot be enforced.
+- [x] **M0-04 — Verify wheel contents and clean install**: package all modules required by the CLI; build sdist and wheel; inspect `dist`; install into a clean environment; run `jwt-analyzer --version` and a smoke command.
+- [x] **M0-05 — Add required branch CI**: test on every supported Python version; run regression tests, build/install smoke tests, lint and type checks. CI must expose failures instead of relying on undocumented local runs.
+- [x] **M0-06 — Audit output and secret-handling paths**: assert no original token, recovered signing secret, credential or PII leak into logs, JSON, HTML, exceptions or CI logs unless explicitly requested in a controlled local workflow.
+- [x] **M0-07 — Align version and security-support docs**: version metadata, CLI version, README, changelog, `SECURITY.md`, Docker, tox and package metadata must agree.
+- [x] **M0-08 — Make bundled wordlist policy explicit**: ship the reviewed starter list in the image; any larger built-in corpus must be versioned and checksummed, with operator-supplied lists remaining an explicit opt-in.
 
 **Acceptance:** reproducible green test/build evidence; no high/critical unresolved security defects; JWKS adversarial tests pass; clean installation proves CLI and public API imports work; default output redaction is regression-tested; the starter wordlist is present and documented in package and image. Do not mark M0 complete until M0 branch CI is green.
 
