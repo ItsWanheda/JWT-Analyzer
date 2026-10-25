@@ -61,7 +61,9 @@ def inspect_token(token: str) -> Assessment:
                 ),
                 observation="The token header declares alg=none.",
                 impact="A verifier that accepts unsigned tokens could permit token forgery.",
-                limitations="The header alone does not prove that a target accepts unsigned tokens.",
+                limitations=(
+                    "The header alone does not prove that a target accepts unsigned tokens."
+                ),
                 evidence={
                     "algorithm": algorithm,
                     "signature_present": parsed["signature_present"],

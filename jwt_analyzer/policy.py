@@ -6,7 +6,6 @@ import hashlib
 import math
 import re
 import time
-from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -50,46 +49,65 @@ class AssessmentPolicy:
     now_timestamp: float | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.name, str) or not self.name.strip():
-            raise ValueError("policy name must be a non-empty string")
-        for field_name in ("accepted_algorithms", "required_claims", "time_claims"):
-            value = getattr(self, field_name)
-            if isinstance(value, (str, bytes)) or not isinstance(value, (tuple, list)):
-                raise TypeError(f"{field_name} must be a sequence of strings")
-            normalized = tuple(value)
-            if any(not isinstance(item, str) or not item.strip() for item in normalized):
-                raise ValueError(f"{field_name} must contain non-empty strings")
-            if len(normalized) != len(set(normalized)):
-                raise ValueError(f"{field_name} must not contain duplicates")
-            object.__setattr__(self, field_name, normalized)
-        if not self.accepted_algorithms:
-            raise ValueError("accepted_algorithms must not be empty")
-        unsupported = sorted(set(self.accepted_algorithms).difference(KNOWN_ALGORITHMS))
-        if unsupported:
-            raise ValueError("unsupported algorithm name(s): " + ", ".join(unsupported))
-        for claim in self.time_claims:
-            if claim not in {"exp", "nbf", "iat"}:
-                raise ValueError("time_claims may contain only exp, nbf, and iat")
-        for field_name in ("issuer", "audience"):
-            value = getattr(self, field_name)
-            if value is not None and (not isinstance(value, str) or not value.strip()):
-                raise ValueError(f"{field_name} must be a non-empty string when configured")
-        if not isinstance(self.require_issuer, bool) or not isinstance(self.require_audience, bool):
-            raise TypeError("require_issuer and require_audience must be booleans")
-        for field_name in ("leeway_seconds", "max_future_iat_seconds"):
-            value = getattr(self, field_name)
-            if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise TypeError(f"{field_name} must be a non-negative finite number")
-            if not math.isfinite(float(value)) or value < 0:
-                raise ValueError(f"{field_name} must be a non-negative finite number")
-            object.__setattr__(self, field_name, float(value))
-        if self.now_timestamp is not None:
-            value = self.now_timestamp
-            if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise TypeError("now_timestamp must be a finite number")
-            if not math.isfinite(float(value)):
-                raise ValueError("now_timestamp must be a finite number")
-            object.__setattr__(self, "now_timestamp", float(value))
+        _normalize_policy(self)
+
+
+def _normalize_string_sequence(field_name: str, value: Any) -> tuple[str, ...]:
+    if isinstance(value, (str, bytes)) or not isinstance(value, (tuple, list)):
+        raise TypeError(f"{field_name} must be a sequence of strings")
+    normalized = tuple(value)
+    if any(not isinstance(item, str) or not item.strip() for item in normalized):
+        raise ValueError(f"{field_name} must contain non-empty strings")
+    if len(normalized) != len(set(normalized)):
+        raise ValueError(f"{field_name} must not contain duplicates")
+    return normalized
+
+
+def _finite_number(name: str, value: Any, *, non_negative: bool = False) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{name} must be a finite number")
+    normalized = float(value)
+    if not math.isfinite(normalized):
+        raise ValueError(f"{name} must be a finite number")
+    if non_negative and normalized < 0:
+        raise ValueError(f"{name} must be non-negative")
+    return normalized
+
+
+def _normalize_policy(policy: AssessmentPolicy) -> None:
+    if not isinstance(policy.name, str):
+        raise TypeError("policy name must be a string")
+    if not policy.name.strip():
+        raise ValueError("policy name must be a non-empty string")
+    for field_name in ("accepted_algorithms", "required_claims", "time_claims"):
+        normalized = _normalize_string_sequence(field_name, getattr(policy, field_name))
+        object.__setattr__(policy, field_name, normalized)
+    if not policy.accepted_algorithms:
+        raise ValueError("accepted_algorithms must not be empty")
+    unsupported = sorted(set(policy.accepted_algorithms).difference(KNOWN_ALGORITHMS))
+    if unsupported:
+        raise ValueError("unsupported algorithm name(s): " + ", ".join(unsupported))
+    if any(claim not in {"exp", "nbf", "iat"} for claim in policy.time_claims):
+        raise ValueError("time_claims may contain only exp, nbf, and iat")
+    for field_name in ("issuer", "audience"):
+        value = getattr(policy, field_name)
+        if value is not None and not isinstance(value, str):
+            raise TypeError(f"{field_name} must be a string when configured")
+        if value is not None and not value.strip():
+            raise ValueError(f"{field_name} must be a non-empty string when configured")
+    if not isinstance(policy.require_issuer, bool) or not isinstance(
+        policy.require_audience, bool
+    ):
+        raise TypeError("require_issuer and require_audience must be booleans")
+    for field_name in ("leeway_seconds", "max_future_iat_seconds"):
+        normalized = _finite_number(
+            field_name, getattr(policy, field_name), non_negative=True
+        )
+        object.__setattr__(policy, field_name, normalized)
+    if policy.now_timestamp is not None:
+        normalized_now = _finite_number("now_timestamp", policy.now_timestamp)
+        object.__setattr__(policy, "now_timestamp", normalized_now)
+
 
 
 _BASELINE = AssessmentPolicy(name="baseline")
@@ -140,7 +158,7 @@ def _claim_slug(claim: str) -> str:
 
 
 def _is_present(value: Any) -> bool:
-    return value is not None and value != "" and value != []
+    return value is not None and value not in ("", [])
 
 
 def _valid_audience(value: Any) -> tuple[bool, set[str]]:
@@ -233,7 +251,7 @@ def _evaluate_algorithm(
 
 
 def _evaluate_required_claims(
-    claims: Mapping[str, Any],
+    claims: dict[str, Any] | Any,
     policy: AssessmentPolicy,
     confidence: Confidence,
     verified: bool,
@@ -249,7 +267,8 @@ def _evaluate_required_claims(
                     severity=Severity.MEDIUM,
                     confidence=confidence,
                     impact=(
-                        "The token does not satisfy a required field in the configured claim policy."
+                        "The token does not satisfy a required field in the " 
+                        "configured claim policy."
                     ),
                     recommendation=(
                         f"Configure the issuer to provide a valid {claim!r} claim or revise "
@@ -345,9 +364,12 @@ def _evaluate_time_claims(
                     severity=Severity.MEDIUM,
                     confidence=confidence,
                     impact=(
-                        "Unexpected future issuance times can indicate clock skew or malformed claims."
+                        "Unexpected future issuance times can indicate clock skew or " 
+                        "malformed claims."
                     ),
-                    recommendation="Check issuer clock synchronization and the configured tolerance.",
+                    recommendation=(
+                        "Check issuer clock synchronization and the configured tolerance."
+                    ),
                     evidence={
                         "claim": "iat",
                         "max_future_iat_seconds": policy.max_future_iat_seconds,
