@@ -56,7 +56,7 @@ jobs:
       - name: Lint JWKS hardening and regression tests
         run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py --select E,F,B,C4,UP,SIM,RUF,N
       - name: Check formatting for security boundary and regressions
-        run: ruff format --diff core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py || true
+        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py
       - name: Static security scan
         run: bandit -r jwt_analyzer core utils
 
