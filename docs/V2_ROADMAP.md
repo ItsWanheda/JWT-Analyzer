@@ -38,13 +38,13 @@ Issues:
 **Goal:** separate token parsing, cryptographic verification, policy evaluation and presentation from the legacy CLI.
 
 Issues:
-- [ ] **M1-01 — Freeze the normalized result schema**: stable `Assessment`, `Finding`, severity, confidence, verification status, warnings/errors and schema version. Do not put the raw compact token in result objects.
-- [ ] **M1-02 — Define finding semantics**: each check declares observation, confidence, impact, evidence, limitations, remediation and stable finding ID. Token-only heuristics are not confirmed remote vulnerabilities.
-- [ ] **M1-03 — Separate parse / verify / policy stages**: parsing always marks claims untrusted; verification requires explicit key/algorithm constraints; application claim policy is a distinct step.
-- [ ] **M1-04 — Add policy profiles**: baseline, strict, and user-defined profiles for issuer, audience, time claims, required claims and accepted algorithms.
-- [ ] **M1-05 — Make assessments deterministic**: stable finding identifiers and ordering, schema fixtures, clear timestamps, and machine-readable errors.
+- [x] **M1-01 — Freeze the normalized result schema**: publish schema v1.1 for `Assessment` and `Finding`; include severity, confidence, verification/policy status, warnings/errors, timestamp, stage and schema version. Result models do not include a raw-token field.
+- [x] **M1-02 — Define finding semantics**: findings expose stable IDs, stage, observation, confidence, impact, evidence, limitations and remediation. Token-only heuristics remain indicators, not confirmed remote vulnerabilities.
+- [x] **M1-03 — Separate parse / verify / policy stages**: parsing leaves claims untrusted; signature verification uses explicit public-key and asymmetric algorithm constraints without checking issuer/audience/time claims; policy evaluation is a separate operation.
+- [x] **M1-04 — Add policy profiles**: baseline, strict and user-defined `AssessmentPolicy` profiles cover issuer, audience, time claims, required claims, accepted algorithms and clock leeway.
+- [x] **M1-05 — Make assessments deterministic**: stable severity-then-ID finding order, unique finding IDs, UTC ISO-8601 timestamps, strict JSON round-tripping, public schema and deterministic contract fixtures.
 
-**Acceptance:** public models have contract tests; malformed input fails predictably; inspection never returns a verified status; JSON round-trips preserve schema and finding IDs; equivalent input and policy produce stable finding ordering.
+**Acceptance:** public models have contract tests; malformed input fails predictably; inspection never returns a verified status; signature and policy statuses are separate; JSON round-trips preserve schema and finding IDs; equivalent input and policy produce stable finding ordering.
 
 ### M2 — Cryptographic verification and security intelligence
 

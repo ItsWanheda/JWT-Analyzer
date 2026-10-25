@@ -19,6 +19,38 @@ print(assessment.to_dict())
 
 `inspect_token()` only parses token structure and emits token-only indicators. It does not verify the signature, issuer, audience, or remote server behavior. Its `Assessment.verification_status` is `not_attempted`; its decoded claims remain untrusted. The original compact token is not retained in the assessment. Claims can still contain sensitive data, so do not write full assessments to shared logs or reports without an explicit redaction policy.
 
+## M1 assessment contract and evaluation stages
+
+The normalized result contract is schema version 1.1. `Assessment` contains decoded header and claims, cryptographic verification state, stable findings, warnings/errors, a UTC `assessed_at` timestamp, and optional policy metadata. It has no field for the original compact token. Decoded claims can still contain sensitive data, so redact them before storing or sharing assessments.
+
+Each `Finding` includes a stable `id`, severity, confidence, category, stage, observation, impact, evidence, limitations and recommendation. IDs are machine-readable contract keys, not display labels. Findings sort by severity and then ID. The machine-readable schema is `jwt_analyzer/assessment-v1.1.schema.json`.
+
+Signature verification and claim policy are independent stages:
+
+```python
+from pathlib import Path
+from jwt_analyzer import evaluate_policy, get_policy_profile, verify_signature_with_public_key
+
+signature_result = verify_signature_with_public_key(
+    compact_jwt,
+    Path("public.pem").read_text(encoding="utf-8"),
+    algorithms=["RS256"],
+)
+assessment = evaluate_policy(
+    signature_result,
+    get_policy_profile(
+        "strict",
+        issuer="https://issuer.example",
+        audience="orders-api",
+    ),
+)
+print(assessment.to_dict())
+```
+
+`verify_signature_with_public_key()` checks the cryptographic signature only against the explicit asymmetric algorithm allowlist. `evaluate_policy()` separately evaluates the selected profile's accepted algorithms, required claims, NumericDate time claims, issuer and audience. The baseline profile requires `exp`; the strict profile also requires `iat`, `iss`, `aud` and `sub`, with a narrower algorithm allowlist. Use `AssessmentPolicy(name="organization", ...)` or `get_policy_profile("baseline", ...)` to define custom requirements.
+
+`verification_status` describes only cryptographic signature validity. `policy["status"]` reports `passed`, `failed`, or `not_verified`. Evaluating an unverified assessment remains advisory and cannot establish token authenticity or authorize access. The convenience function `verify_with_public_key()` combines signature verification with the baseline policy while preserving this distinction.
+
 ## Planned breaking changes
 
 The list below is the migration checklist; entries will be replaced with exact old/new examples as the implementation stabilizes.

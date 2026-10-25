@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.1",
+  "assessed_at": "2026-01-02T03:04:05Z",
+  "verification_status": "not_attempted",
+  "signature_present": true,
+  "verification": null,
+  "policy": null,
+  "header": {
+    "alg": "RS256",
+    "typ": "JWT"
+  },
+  "claims": {
+    "exp": 4102444800,
+    "sub": "fixture-user"
+  },
+  "findings": [
+    {
+      "id": "jwt.policy.sample",
+      "title": "Sample policy finding",
+      "description": "The sample fixture illustrates the stable finding contract.",
+      "severity": "low",
+      "confidence": "high",
+      "category": "claim-policy",
+      "recommendation": "Use this fixture for contract tests only.",
+      "observation": "A deterministic fixture finding is present.",
+      "impact": "Consumers can rely on the stable finding identifier.",
+      "limitations": "The fixture is not a real vulnerability assessment.",
+      "stage": "policy",
+      "evidence": {
+        "fixture": true
+      }
+    }
+  ],
+  "warnings": [
+    "Decoded claims are untrusted."
+  ],
+  "errors": []
+}

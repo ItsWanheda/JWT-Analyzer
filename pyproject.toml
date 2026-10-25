@@ -84,6 +84,7 @@ packages = ["jwt_analyzer", "core", "utils", "plugins"]
 "main.py" = "main.py"
 "config.py" = "config.py"
 "utils/wordlists/common_secrets.txt" = "utils/wordlists/common_secrets.txt"
+"jwt_analyzer/assessment-v1.1.schema.json" = "jwt_analyzer/assessment-v1.1.schema.json"
 
 [tool.ruff]
 line-length = 100

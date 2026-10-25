@@ -17,6 +17,16 @@ All notable changes to this project will be documented in this file.
 
 > This section documents unreleased branch work. It is not a release announcement.
 
+### M1 shared assessment engine and result contract
+
+- Publish assessment schema v1.1 with strict JSON round-tripping, UTC timestamps, unique stable finding IDs and deterministic severity-then-ID ordering.
+- Extend findings with stage, observation, impact, evidence, limitations and remediation.
+- Add signature-only public-key verification and separate baseline, strict and custom claim-policy evaluation.
+- Keep signature validity independent from issuer, audience and lifetime policy outcomes; unverified policy evaluations are explicitly advisory.
+- Add JSON Schema, canonical fixture and regression tests for malformed claims, policy profiles, and signature/policy separation.
+
+> M1 work remains unreleased development functionality.
+
 ### Added
 - Introduce the public `jwt_analyzer` Python namespace with normalized `Assessment` and `Finding` models.
 - Add `inspect_token()` for structural inspection that explicitly leaves verification as `not_attempted`.
