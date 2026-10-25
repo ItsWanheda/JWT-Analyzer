@@ -24,8 +24,8 @@ every custom identifier, secret format, or jurisdiction-specific personal datum
 will be recognized. Review reports before sharing them and avoid putting full
 assessments containing sensitive claims into shared artifacts.
 
-Commands that explicitly display decoded data—including \`analyze\`,
-\`verify-rsa\` payload output, payload comparison, and token forging—can display
+Commands that explicitly display decoded data—including `analyze`,
+`verify-rsa` payload output, payload comparison, and token forging—can display
 sensitive values by design. Use these local inspection workflows only in a
 controlled environment.
 
