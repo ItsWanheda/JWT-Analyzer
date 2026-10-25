@@ -23,8 +23,8 @@
 
 Issues:
 - [x] **M0-01 — Run the full regression suite**: execute existing and PR #3 tests on a clean checkout; repair failures rather than suppressing them.
-- [x] **M0-02 — Correct the `alg=none` finding semantics**: use an indicator severity, confidence, and description that state exactly what is observed; never label target bypass confirmed by a token header alone.
-- [x] **M0-03 — Harden JWKS destination validation**: test DNS rebinding / resolution-to-connect races, redirects, mixed public/private answers, IPv4/IPv6, unusual IP encodings, response limits, malformed JWKs and cache behavior. Fail closed when destination identity cannot be enforced.
+- [x] **M0-02 — Correct the `alg=none` finding semantics**: emit a medium-severity indicator with explicit confidence scope and a limitation stating that a token header alone cannot establish target-side bypass.
+- [x] **M0-03 — Harden JWKS destination validation**: pin validated DNS answers to the TLS connection; reject mixed public/private answers, unsafe numeric host forms, redirects, compressed/oversized bodies and malformed/private JWK material; bound DNS answer fan-out and cache growth; enforce a monotonic connection/response deadline; test address pinning, IPv4/IPv6, cache isolation and failure behavior.
 - [x] **M0-04 — Verify wheel contents and clean install**: package all modules required by the CLI; build sdist and wheel; inspect `dist`; install into a clean environment; run `jwt-analyzer --version` and a smoke command.
 - [x] **M0-05 — Add required branch CI**: test on every supported Python version; run regression tests, build/install smoke tests, lint and type checks. CI must expose failures instead of relying on undocumented local runs.
 - [x] **M0-06 — Audit output and secret-handling paths**: assert no original token, recovered signing secret, credential or PII leak into logs, JSON, HTML, exceptions or CI logs unless explicitly requested in a controlled local workflow.
