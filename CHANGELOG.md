@@ -9,7 +9,9 @@ All notable changes to this project will be documented in this file.
 ### M0 security-baseline hardening
 
 - Pin JWKS HTTPS connections to validated DNS address tuples while preserving TLS hostname verification; reject mixed public/private DNS answers, non-canonical numeric IP forms, redirects, compressed/oversized bodies, private JWK material, and malformed key metadata.
-- Return defensive copies from the JWKS cache and restrict verification to supported asymmetric algorithms with sanitized error messages.
+- Bound JWKS DNS answer fan-out and cache entries; enforce a monotonic deadline over connection, response headers, and chunked body reads; reject non-finite timeouts and port zero.
+- Return thread-safe defensive copies from the bounded JWKS cache and restrict verification to supported asymmetric algorithms with sanitized error messages.
+- Record `alg=none` as a medium-severity header indicator with explicit confidence scope; do not claim a target-side signature bypass without verifier evidence.
 - Add best-effort redaction for JWT-like strings, common credentials, sensitive claim identifiers, PII patterns and scanner match excerpts in report/log paths; stop echoing malformed token contents in file-read errors.
 - Expand CI for JWKS adversarial cases, isolated wheel installation, CLI smoke testing, static security scanning and Docker starter-wordlist presence.
 
