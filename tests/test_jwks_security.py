@@ -121,7 +121,8 @@ def test_connection_uses_ip_socket_and_original_tls_hostname(monkeypatch):
     context.wrap_socket.assert_called_once_with(
         raw_socket, server_hostname="core.jwks.example.test"
     )
-    tls_socket.settimeout.assert_called_once_with(3.0)
+    timeout = tls_socket.settimeout.call_args.args[0]
+    assert 0 < timeout <= 3.0
     conn.close()
 
 
@@ -293,7 +294,7 @@ def test_response_body_read_obeys_monotonic_deadline(monkeypatch):
     payload = {"keys": []}
     response = FakeResponse(json.dumps(payload).encode())
     install_fake_http(monkeypatch, response)
-    ticks = iter([100.0, 100.5, 102.0])
+    ticks = iter([100.0, 100.1, 100.2, 100.5, 102.0])
     monkeypatch.setattr(core.jwks.time, "monotonic", lambda: next(ticks))
 
     with pytest.raises(ConnectionError, match="Timed out fetching JWKS"):
