@@ -307,4 +307,5 @@ def test_cache_eviction_keeps_memory_bounded():
 
     assert len(core.jwks._cache._store) == core.jwks.MAX_JWKS_CACHE_ENTRIES
     assert "https://cache-0.example.test/keys" not in core.jwks._cache._store
-    assert f"https://cache-{core.jwks.MAX_JWKS_CACHE_ENTRIES + 9}.example.test/keys" in core.jwks._cache._store
+    newest_url = f"https://cache-{core.jwks.MAX_JWKS_CACHE_ENTRIES + 9}.example.test/keys"
+    assert newest_url in core.jwks._cache._store
