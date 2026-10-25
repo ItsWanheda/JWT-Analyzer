@@ -52,7 +52,7 @@ jobs:
       - name: Check public API formatting
         run: ruff format --check jwt_analyzer
       - name: Type-check public API
-        run: mypy jwt_analyzer
+        run: mypy --python-version 3.12 jwt_analyzer
       - name: Lint JWKS hardening and regression tests
         run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py
       - name: Static security scan
