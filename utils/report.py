@@ -113,10 +113,10 @@ def generate_html_report(analysis_data: Dict, output_path: str,
         analyst=html.escape(_redact_string(str(analyst))),
         critical_count=count("CRITICAL"), high_count=count("HIGH"),
         medium_count=count("MEDIUM"), low_count=count("LOW"),
-        token_info=html.escape(_json_text(analysis_data.get("token_info", {}))),
+        token_info=html.escape(_json_text(_redact(analysis_data.get("token_info", {})))),
         findings_html=_render_findings(_redact(findings)),
         recommendations_html=_generate_recommendations(_redact(findings)),
-        payload_json=html.escape(_json_text(analysis_data.get("payload", {}))),
+        payload_json=html.escape(_json_text(_redact(analysis_data.get("payload", {})))),
     )
     Path(output_path).write_text(html_content, encoding="utf-8")
     return output_path
