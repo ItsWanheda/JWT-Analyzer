@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from core import jwks
+import core.jwks
 
 
 PUBLIC_V4 = (
@@ -34,44 +34,68 @@ PRIVATE_V6 = (
 
 @pytest.fixture(autouse=True)
 def clear_cache():
-    jwks.clear_cache()
+    core.jwks.clear_cache()
     yield
-    jwks.clear_cache()
+    core.jwks.clear_cache()
 
 
 @pytest.mark.parametrize(
     "url",
     [
-        "http://jwks.example.test/keys",
-        "https://user:secret@jwks.example.test/keys",
-        "https://jwks.example.test/keys#fragment",
+        "http://core.jwks.example.test/keys",
+        "https://user:secret@core.jwks.example.test/keys",
+        "https://core.jwks.example.test/keys#fragment",
         "https://2130706433/keys",
         "https://0x7f000001/keys",
         "https://127.0.0.1/keys",
         "https://[::1]/keys",
-        "https://jwks.example.test:99999/keys",
-        "https://jwks.example.test/keys\r\nHost: attacker.test",
+        "https://core.jwks.example.test:99999/keys",
+        "https://core.jwks.example.test/keys\r\nHost: attacker.test",
     ],
 )
 def test_rejects_unsafe_or_noncanonical_urls(url):
     with pytest.raises(ValueError):
-        jwks._validate_jwks_url(url)
+        core.jwks._validate_jwks_url(url)
 
 
 def test_rejects_mixed_public_and_private_dns_answers(monkeypatch):
     monkeypatch.setattr(
-        jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [PUBLIC_V4, PRIVATE_V4]
+        core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [PUBLIC_V4, PRIVATE_V4]
     )
     with pytest.raises(ValueError, match="non-public"):
-        jwks._validate_jwks_url("https://mixed.example.test/keys")
+        core.jwks._validate_jwks_url("https://mixed.example.test/keys")
+
+
+def test_accepts_globally_routable_ipv6_and_preserves_authority(monkeypatch):
+    public_v6 = (
+        socket.AF_INET6,
+        socket.SOCK_STREAM,
+        socket.IPPROTO_TCP,
+        "",
+        ("2001:4860:4860::8888", 443, 0, 0),
+    )
+    monkeypatch.setattr(
+        core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [public_v6]
+    )
+    destination = core.jwks._validate_jwks_url(
+        "https://[2001:4860:4860::8888]/keys"
+    )
+    assert destination.hostname == "2001:4860:4860::8888"
+    assert destination.host_header == "[2001:4860:4860::8888]"
+    assert destination.addresses == (public_v6,)
+
+
+def test_tls_verification_cannot_be_disabled():
+    with pytest.raises(ValueError, match="cannot be disabled"):
+        core.jwks.fetch_jwks("https://jwks.example.test/keys", verify_ssl=False)
 
 
 def test_rejects_private_ipv6_dns_answer(monkeypatch):
     monkeypatch.setattr(
-        jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [PRIVATE_V6]
+        core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [PRIVATE_V6]
     )
     with pytest.raises(ValueError, match="non-public"):
-        jwks._validate_jwks_url("https://v6.example.test/keys")
+        core.jwks._validate_jwks_url("https://v6.example.test/keys")
 
 
 def test_private_override_still_returns_pinned_destination(monkeypatch):
@@ -81,8 +105,8 @@ def test_private_override_still_returns_pinned_destination(monkeypatch):
         calls.append((host, port))
         return [PRIVATE_V4]
 
-    monkeypatch.setattr(jwks.socket, "getaddrinfo", resolve)
-    dest = jwks._validate_jwks_url(
+    monkeypatch.setattr(core.jwks.socket, "getaddrinfo", resolve)
+    dest = core.jwks._validate_jwks_url(
         "https://internal.example.test/keys", allow_private_hosts=True
     )
     assert dest.addresses == (PRIVATE_V4,)
@@ -94,17 +118,17 @@ def test_connection_uses_ip_socket_and_original_tls_hostname(monkeypatch):
     tls_socket = Mock()
     context = Mock()
     context.wrap_socket.return_value = tls_socket
-    conn = jwks._PinnedHTTPSConnection(
-        "jwks.example.test", 443, (PUBLIC_V4,), timeout=3
+    conn = core.jwks._PinnedHTTPSConnection(
+        "core.jwks.example.test", 443, (PUBLIC_V4,), timeout=3
     )
     conn._context = context
     monkeypatch.setattr(
-        jwks.socket, "socket", lambda family, socktype, proto: raw_socket
+        core.jwks.socket, "socket", lambda family, socktype, proto: raw_socket
     )
     conn.connect()
     raw_socket.connect.assert_called_once_with(("93.184.216.34", 443))
     context.wrap_socket.assert_called_once_with(
-        raw_socket, server_hostname="jwks.example.test"
+        raw_socket, server_hostname="core.jwks.example.test"
     )
     tls_socket.settimeout.assert_called_once_with(3.0)
     conn.close()
@@ -130,7 +154,7 @@ def install_fake_http(monkeypatch, response):
         calls.append((host, port))
         return [PUBLIC_V4]
 
-    monkeypatch.setattr(jwks.socket, "getaddrinfo", resolve)
+    monkeypatch.setattr(core.jwks.socket, "getaddrinfo", resolve)
     connections = []
 
     class FakeConnection:
@@ -160,14 +184,14 @@ def test_fetch_passes_validated_dns_answers_to_connection_without_second_lookup(
     payload = {"keys": [{"kty": "RSA", "kid": "one", "n": "AQAB", "e": "AQAB"}]}
     response = FakeResponse(json.dumps(payload).encode())
     calls, connections = install_fake_http(monkeypatch, response)
-    result = jwks.fetch_jwks("https://jwks.example.test/keys?tenant=test")
+    result = core.jwks.fetch_jwks("https://core.jwks.example.test/keys?tenant=test")
     assert result == payload
-    assert calls == [("jwks.example.test", 443)]
+    assert calls == [("core.jwks.example.test", 443)]
     assert len(connections) == 1
     assert connections[0].addresses == (PUBLIC_V4,)
     method, target, headers = connections[0].request_args
     assert (method, target) == ("GET", "/keys?tenant=test")
-    assert headers["Host"] == "jwks.example.test"
+    assert headers["Host"] == "core.jwks.example.test"
     assert headers["Accept-Encoding"] == "identity"
     assert connections[0].closed is True
 
@@ -200,17 +224,17 @@ def test_fetch_passes_validated_dns_answers_to_connection_without_second_lookup(
 def test_fails_closed_on_unsafe_or_malformed_responses(monkeypatch, response, message):
     install_fake_http(monkeypatch, response)
     with pytest.raises(ValueError, match=message):
-        jwks.fetch_jwks("https://jwks.example.test/keys")
+        core.jwks.fetch_jwks("https://core.jwks.example.test/keys")
 
 
 def test_oversized_body_is_bounded(monkeypatch):
     response = FakeResponse(
-        b"x" * (jwks.MAX_JWKS_BYTES + 10),
+        b"x" * (core.jwks.MAX_JWKS_BYTES + 10),
         headers={"Content-Type": "application/json"},
     )
     install_fake_http(monkeypatch, response)
     with pytest.raises(ValueError, match="1 MiB"):
-        jwks.fetch_jwks("https://jwks.example.test/oversized")
+        core.jwks.fetch_jwks("https://core.jwks.example.test/oversized")
 
 
 @pytest.mark.parametrize(
@@ -226,16 +250,16 @@ def test_rejects_private_or_malformed_jwks_entries(monkeypatch, keys):
     response = FakeResponse(json.dumps({"keys": keys}).encode())
     install_fake_http(monkeypatch, response)
     with pytest.raises(ValueError):
-        jwks.fetch_jwks("https://jwks.example.test/malformed")
+        core.jwks.fetch_jwks("https://core.jwks.example.test/malformed")
 
 
 def test_cache_returns_copies_and_revalidates_urls_on_hits(monkeypatch):
     payload = {"keys": [{"kty": "RSA", "kid": "trusted", "n": "AQAB", "e": "AQAB"}]}
     response = FakeResponse(json.dumps(payload).encode())
     calls, connections = install_fake_http(monkeypatch, response)
-    first = jwks.fetch_jwks("https://jwks.example.test/cached")
+    first = core.jwks.fetch_jwks("https://core.jwks.example.test/cached")
     first["keys"][0]["kid"] = "poisoned"
-    second = jwks.fetch_jwks("https://jwks.example.test/cached")
+    second = core.jwks.fetch_jwks("https://core.jwks.example.test/cached")
     assert second == payload
     assert len(connections) == 1
     assert len(calls) == 2
@@ -243,8 +267,8 @@ def test_cache_returns_copies_and_revalidates_urls_on_hits(monkeypatch):
 
 @pytest.mark.parametrize("algorithm", ["none", "HS256", ""])
 def test_rejects_non_asymmetric_allowlists(algorithm):
-    result = jwks.verify_with_jwks(
-        "not-a-token", "https://jwks.example.test/keys", algorithms=[algorithm]
+    result = core.jwks.verify_with_jwks(
+        "not-a-token", "https://core.jwks.example.test/keys", algorithms=[algorithm]
     )
     assert result["status"] == "error"
     assert result["verified"] is False
