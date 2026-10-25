@@ -2,7 +2,7 @@
 
 ## What ships with v2
 
-The package and Docker image include only \`utils/wordlists/common_secrets.txt\`, a
+The package and Docker image include only `utils/wordlists/common_secrets.txt`, a
 small six-entry starter list intended for smoke tests and quick, authorized checks.
 It is not a comprehensive password corpus and does not imply exhaustive coverage.
 
@@ -13,8 +13,8 @@ provenance, size, or integrity risks.
 ## Supplying a larger list
 
 A larger list is an operator-controlled opt-in. Supply it explicitly with
-\`--wordlist /path/to/authorized-list.txt\`, or deliberately set
-\`JWT_ANALYZER_WORDLIST_PATH\`. Only use data you are authorized to test. Treat custom
+`--wordlist /path/to/authorized-list.txt`, or deliberately set
+`JWT_ANALYZER_WORDLIST_PATH`. Only use data you are authorized to test. Treat custom
 wordlists as sensitive files and do not commit them to the repository or include
 their contents in reports or logs.
 
