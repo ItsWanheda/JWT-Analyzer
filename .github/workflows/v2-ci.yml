@@ -6,6 +6,7 @@ on:
       - v2.0.0
       - "v2.0.0/**"
       - "v2.0.0-m0-*"
+      - "feat/m1-*"
   pull_request:
     branches:
       - main

@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from typing import Any
 
 from core.parser import parse_jwt
 from core.security import check_kid_injection
-from core.verification import DEFAULT_ASYMMETRIC_ALGORITHMS
-from core.verification import verify_with_public_key as _verify_with_public_key
+from core.verification import (
+    DEFAULT_ASYMMETRIC_ALGORITHMS,
+)
+from core.verification import (
+    verify_signature_with_public_key as _verify_signature_with_public_key,
+)
 
 from .models import Assessment, Confidence, Finding, Severity, VerificationStatus
+from .policy import evaluate_policy, get_policy_profile
 
 
 def inspect_token(token: str) -> Assessment:
@@ -55,7 +61,15 @@ def inspect_token(token: str) -> Assessment:
                     "Verify that the target pins an explicit algorithm allowlist and rejects "
                     "unsigned tokens unless an unsigned profile is intentionally required."
                 ),
-                evidence={"algorithm": algorithm, "signature_present": parsed["signature_present"]},
+                observation="The token header declares alg=none.",
+                impact="A verifier that accepts unsigned tokens could permit token forgery.",
+                limitations=(
+                    "The header alone does not prove that a target accepts unsigned tokens."
+                ),
+                evidence={
+                    "algorithm": algorithm,
+                    "signature_present": parsed["signature_present"],
+                },
             )
         )
     elif not isinstance(algorithm, str) or not algorithm:
@@ -70,6 +84,9 @@ def inspect_token(token: str) -> Assessment:
                 recommendation=(
                     "Reject malformed JWT headers and configure accepted algorithms explicitly."
                 ),
+                observation="The header does not contain a valid non-empty algorithm name.",
+                impact="Algorithm selection may be ambiguous or fail closed incorrectly.",
+                limitations="This observation describes the header, not remote verifier behavior.",
                 evidence={"algorithm_type": type(algorithm).__name__},
             )
         )
@@ -89,6 +106,9 @@ def inspect_token(token: str) -> Assessment:
                 recommendation=(
                     "Require a bounded lifetime appropriate to the application's token policy."
                 ),
+                observation="The decoded payload has no exp claim.",
+                impact="A verifier that requires token expiry should reject this token.",
+                limitations="The payload is untrusted until signature verification succeeds.",
                 evidence={"claim": "exp", "present": False},
             )
         )
@@ -115,6 +135,9 @@ def inspect_token(token: str) -> Assessment:
                     "Treat kid as an opaque key identifier. Resolve it only against a fixed, "
                     "trusted key set; never interpolate it into SQL, filesystem paths, or commands."
                 ),
+                observation="The kid value matches one or more suspicious input patterns.",
+                impact="Unsafe downstream use of kid may create injection or key-selection risks.",
+                limitations="This heuristic does not prove SQL, path, or command injection.",
                 evidence={"indicators": kid_result.get("vulnerability_types", [])},
             )
         )
@@ -163,38 +186,19 @@ def _validate_verification_options(
     return algorithm_list
 
 
-def verify_with_public_key(
+def verify_signature_with_public_key(
     token: str,
     key_content: str,
     *,
     algorithms: Sequence[str],
-    issuer: str | None = None,
-    audience: str | None = None,
-    leeway: int = 0,
 ) -> Assessment:
-    """Verify a compact JWT using an explicit public key and algorithm allowlist.
-
-    A VERIFIED result means the signature and the configured PyJWT claim checks
-    succeeded. It does not imply that application-specific authorization,
-    tenant, scope, or business-policy checks have passed. If issuer or audience
-    is omitted, that claim is not checked by this operation.
-
-    Malformed tokens and invalid API arguments raise ValueError. Key-loading or
-    verification failures are represented in the returned Assessment, and
-    decoded claims remain untrusted unless verification succeeds.
-    """
+    """Verify a signature only; apply claim policy separately with evaluate_policy()."""
     algorithm_list = _validate_verification_options(
-        algorithms, key_content, issuer, audience, leeway
+        algorithms, key_content, issuer=None, audience=None, leeway=0
     )
-
     parsed = parse_jwt(token)
-    raw_result = _verify_with_public_key(
-        token,
-        key_content,
-        algorithms=list(algorithm_list),
-        issuer=issuer,
-        audience=audience,
-        leeway=leeway,
+    raw_result = _verify_signature_with_public_key(
+        token, key_content, algorithms=list(algorithm_list)
     )
     raw_status = raw_result.get("status")
     errors: tuple[str, ...] = ()
@@ -207,21 +211,22 @@ def verify_with_public_key(
             errors = ("Verifier returned an unexpected payload type.",)
         else:
             claims = validated_claims
-            errors = ()
     elif raw_status == "invalid":
         status = VerificationStatus.INVALID
         claims = parsed["payload"]
-        errors = (str(raw_result.get("error") or "Signature or claim validation failed."),)
+        errors = ("JWT signature verification failed.",)
     else:
         status = VerificationStatus.ERROR
         claims = parsed["payload"]
-        errors = (str(raw_result.get("error") or "Verification could not be completed."),)
+        errors = (
+            str(raw_result.get("error") or "Signature verification could not be completed."),
+        )
 
     if status is VerificationStatus.VERIFIED:
         warnings = (
             (
-                "Signature and configured claim checks passed; apply application-specific "
-                "authorization policy before trusting the identity."
+                "Cryptographic signature verified; apply application-specific authorization policy "
+                "before trusting identity or permissions."
             ),
         )
     else:
@@ -230,10 +235,8 @@ def verify_with_public_key(
     verification = {
         "status": status.value,
         "algorithms": list(algorithm_list),
-        "issuer": issuer,
-        "audience": audience,
-        "leeway_seconds": leeway,
         "verified": status is VerificationStatus.VERIFIED,
+        "mode": "signature_only",
     }
     return Assessment(
         header=parsed["header"],
@@ -244,3 +247,45 @@ def verify_with_public_key(
         warnings=warnings,
         errors=errors,
     )
+
+
+def verify_with_public_key(
+    token: str,
+    key_content: str,
+    *,
+    algorithms: Sequence[str],
+    issuer: str | None = None,
+    audience: str | None = None,
+    leeway: int = 0,
+) -> Assessment:
+    """Convenience pipeline: verify the signature, then evaluate baseline policy.
+
+    A valid signature with a wrong issuer remains cryptographically VERIFIED.
+    The separate policy result records that the token does not meet that policy.
+    """
+    algorithm_list = _validate_verification_options(
+        algorithms, key_content, issuer, audience, leeway
+    )
+    assessment = verify_signature_with_public_key(
+        token, key_content, algorithms=algorithm_list
+    )
+    verification = dict(assessment.verification or {})
+    verification.update(
+        {
+            "issuer": issuer,
+            "audience": audience,
+            "leeway_seconds": leeway,
+            "mode": "signature_then_policy",
+        }
+    )
+    assessment = replace(assessment, verification=verification)
+    policy = get_policy_profile(
+        "baseline",
+        issuer=issuer,
+        audience=audience,
+        require_issuer=issuer is not None,
+        require_audience=audience is not None,
+        leeway_seconds=leeway,
+    )
+    return evaluate_policy(assessment, policy)
+

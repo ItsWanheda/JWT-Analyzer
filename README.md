@@ -83,12 +83,44 @@ assessment = verify_with_public_key(
 )
 
 if assessment.verification_status.value != "verified":
-    raise ValueError(f"JWT was not verified: {assessment.errors}")
+    raise ValueError(f"JWT signature was not verified: {assessment.errors}")
+if assessment.policy is None or assessment.policy["status"] != "passed":
+    raise ValueError("JWT did not satisfy the configured claim policy")
 ```
 
-Use a trusted PEM public key or public JWK obtained from a trusted source. If issuer or audience is omitted, that claim is not validated by this call. A verified signature is not an authorization decision; still enforce application-specific scope, tenant, role and access-control rules.
+Use a trusted PEM public key or public JWK obtained from a trusted source. If issuer or audience is omitted, that claim is not validated by this call. A verified signature is not an authorization decision; still enforce application-specific scope, tenant, role and access-control rules. The v2 API keeps `verification_status` (cryptographic signature state) separate from `policy["status"]` (`passed`, `failed`, or `not_verified`).
 
 This API is part of the unreleased `2.0.0.dev0` branch and may change until the v2 release gates pass.
+
+### Policy profiles and normalized results
+
+The shared M1 engine separates parsing, cryptographic verification, claim policy, and presentation. Inspection never changes `verification_status` from `not_attempted`. The signature-only API is explicit:
+
+```python
+from pathlib import Path
+from jwt_analyzer import evaluate_policy, get_policy_profile, verify_signature_with_public_key
+
+signature_result = verify_signature_with_public_key(
+    compact_jwt,
+    Path("public.pem").read_text(encoding="utf-8"),
+    algorithms=["RS256"],
+)
+assessment = evaluate_policy(
+    signature_result,
+    get_policy_profile(
+        "strict",
+        issuer="https://issuer.example",
+        audience="jwt-api",
+    ),
+)
+print(assessment.to_dict())
+```
+
+The baseline profile requires an expiry claim; the strict profile additionally requires issuer, audience, issued-at and subject claims and uses a narrower algorithm allowlist. Build an organization-specific policy with `AssessmentPolicy(name="custom", ...)` or use `get_policy_profile("baseline", ...)` with explicit overrides.
+
+`Assessment.to_json()` and `Assessment.from_json()` provide deterministic JSON round-tripping for schema version 1.1. The JSON Schema is included in the package at `jwt_analyzer/assessment-v1.1.schema.json`. Findings have stable IDs, explicit limitations and deterministic severity-then-ID ordering. Decoded claims remain potentially sensitive even though the compact token itself is not stored.
+
+Policy checks over unverified claims are advisory only. A `not_verified` policy result is not a signature result and must never be used as authentication or authorization.
 
 ### Optional HTTP API and dashboard
 

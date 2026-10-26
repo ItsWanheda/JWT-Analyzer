@@ -75,3 +75,78 @@ def verify_with_public_key(token: str, key_content: str,
             "verified": False,
             "error": "Verification could not be completed",
         }
+
+def verify_signature_with_public_key(
+    token: str,
+    key_content: str,
+    algorithms: list[str],
+) -> dict:
+    """Verify the cryptographic signature only; do not apply JWT claim policy."""
+    if not isinstance(token, str) or not token:
+        return {"status": "error", "verified": False, "error": "A non-empty token is required"}
+    if isinstance(algorithms, (str, bytes)) or not isinstance(algorithms, (list, tuple)):
+        return {
+            "status": "error",
+            "verified": False,
+            "error": "A non-empty asymmetric algorithm allowlist is required",
+        }
+    if (
+        not algorithms
+        or any(not isinstance(alg, str) or not alg for alg in algorithms)
+        or len(set(algorithms)) != len(algorithms)
+        or set(algorithms).difference(DEFAULT_ASYMMETRIC_ALGORITHMS)
+    ):
+        return {
+            "status": "error",
+            "verified": False,
+            "error": "A valid asymmetric algorithm allowlist is required",
+        }
+    try:
+        key = _load_public_key(key_content)
+        payload = jwt.decode(
+            token,
+            key,
+            algorithms=list(algorithms),
+            options={
+                "verify_signature": True,
+                "verify_exp": False,
+                "verify_nbf": False,
+                "verify_iat": False,
+                "verify_aud": False,
+                "verify_iss": False,
+                "verify_sub": False,
+                "verify_jti": False,
+                "require": [],
+            },
+        )
+        if not isinstance(payload, dict):
+            return {
+                "status": "error",
+                "verified": False,
+                "error": "The verifier returned an unexpected payload type",
+            }
+        return {
+            "status": "valid",
+            "payload": payload,
+            "verified": True,
+            "validation": {"algorithms": list(algorithms), "mode": "signature_only"},
+        }
+    except jwt.InvalidTokenError:
+        return {
+            "status": "invalid",
+            "verified": False,
+            "error": "JWT signature verification failed",
+        }
+    except (ValueError, TypeError):
+        return {
+            "status": "error",
+            "verified": False,
+            "error": "Public key or verification configuration is invalid",
+        }
+    except Exception:
+        return {
+            "status": "error",
+            "verified": False,
+            "error": "Signature verification could not be completed",
+        }
+
