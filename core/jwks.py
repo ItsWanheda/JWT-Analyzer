@@ -318,9 +318,8 @@ def fetch_jwks(
             raise ValueError(f"JWKS endpoint returned HTTP status {response.status}")
 
         content_type = (response.getheader("Content-Type") or "").split(";", 1)[0].strip().lower()
-        if (
-            not content_type
-            or (content_type != "application/json" and not content_type.endswith("+json"))
+        if not content_type or (
+            content_type != "application/json" and not content_type.endswith("+json")
         ):
             raise ValueError("JWKS endpoint did not return a JSON content type")
         encoding = (response.getheader("Content-Encoding") or "identity").lower().strip()
