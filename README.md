@@ -43,10 +43,10 @@ Most JWT tools just decode the base64. This one actually **looks for problems**:
 |-------|---------------|
 | `none` algorithm indicator | Flags a header declaring `alg=none`; target acceptance must be verified separately |
 | Algorithm/key policy | Flags policy-review indicators; token-only inspection does not prove algorithm confusion |
-| `kid` header injection | SQLi / path traversal / command injection via the `kid` claim |
+| Suspicious `kid` values | Flags SQLi / path-traversal / command-pattern indicators; does not prove injection |
 | PII / secret scanning | Credit cards, SSNs, AWS keys, passwords leaking through payloads |
-| Brute-force attack | Cracks HS256 secrets using wordlists (multi-threaded) |
-| JWKS verification | Validates tokens against live identity providers |
+| HMAC secret testing | Bounded wordlist testing for HS256/384/512 with worker, candidate, candidate-size and timeout caps |
+| JWKS verification | Retrieves eligible public keys over guarded HTTPS and verifies signatures against compatible keys |
 | Payload diffing | Shows exactly what changed between two tokens |
 | Token forgery | Crafts new tokens with custom payloads (for auth testing) |
 
@@ -121,6 +121,19 @@ The baseline profile requires an expiry claim; the strict profile additionally r
 `Assessment.to_json()` and `Assessment.from_json()` provide deterministic JSON round-tripping for schema version 1.1. The JSON Schema is included in the package at `jwt_analyzer/assessment-v1.1.schema.json`. Findings have stable IDs, explicit limitations and deterministic severity-then-ID ordering. Decoded claims remain potentially sensitive even though the compact token itself is not stored.
 
 Policy checks over unverified claims are advisory only. A `not_verified` policy result is not a signature result and must never be used as authentication or authorization.
+
+### M2 parser, verification, and resource-safety boundaries
+
+M2 hardens the inputs and expensive operations used by the verifier:
+
+- Compact JWTs are limited to **1 MiB**. Base64URL segments must be canonical, and the decoded header and payload must be JSON objects.
+- Security-sensitive JSON rejects duplicate object keys, non-finite numbers, invalid UTF-8, lone UTF-16 surrogates and excessive structures. The parser caps nesting at **64 levels**, values at **100,000 nodes**, and integer values at **128 digits**. Valid surrogate pairs are normalized; keys that collide after normalization are rejected.
+- Public-key material is limited to **64 KiB**. Signature verification uses a supported asymmetric algorithm allowlist; do not derive trusted algorithms from an unverified JWT header.
+- JWKS retrieval is HTTPS-only by default, preserves TLS certificate/hostname verification, pins validated DNS results to the connection, does not follow redirects, and caps responses at **1 MiB** and **1,000 keys**. It uses one deadline across DNS, connect, TLS and response reads. Expired cached keys are not used as stale fallback.
+- HMAC wordlist testing supports HS256/384/512 and streams candidates through a bounded worker pool: at most **32 workers**, **1,000,000 candidates**, and **4 KiB per candidate**; the timeout is capped at **one hour**. Cancellation is cooperative: a cryptographic call already executing cannot be safely force-killed.
+- Findings distinguish confirmed local observations from heuristic indicators and unknown server-side behavior. A suspicious `kid` or declared `alg=none` is not proof that a remote verifier accepts an attack.
+
+See [JWKS retrieval security](docs/JWKS_SECURITY.md), [finding semantics](docs/SECURITY_FINDING_SEMANTICS.md), and the [v2 migration guide](docs/MIGRATING_TO_V2.md) for the detailed boundaries and operational caveats.
 
 ### Optional HTTP API and dashboard
 
@@ -265,7 +278,7 @@ Shows header, payload, and expiry status. **No signature verification.**
 ```bash
 python main.py security --token-file token.txt
 ```
-Checks for `none` alg, algorithm confusion, and `kid` injection.
+Checks for `alg=none`, suspicious `kid` patterns, and algorithm/key-policy indicators. These are evidence-based findings; token-only inspection does not prove remote verifier behavior or injection.
 
 #### `brute-force` — crack the signing secret
 ```bash
@@ -273,8 +286,12 @@ python main.py brute-force --token-file token.txt \
     --wordlist utils/wordlists/common_secrets.txt \
     --workers 8
 ```
-Tries every secret in the wordlist. Parallel by default. Only tests
-symmetric algorithms (HS256/384/512) — asymmetric ones use keys, not secrets.
+Streams candidates through a bounded worker pool. Only tests symmetric
+algorithms (HS256/384/512); asymmetric algorithms use keys, not shared secrets.
+The implementation caps workers at 32, candidate attempts at 1,000,000,
+individual candidates at 4 KiB, and the timeout at 3,600 seconds. A timeout
+stops new work and requests cooperative worker shutdown; it cannot interrupt
+a cryptographic call already executing.
 
 #### `diff` — compare two tokens
 ```bash
@@ -297,8 +314,7 @@ python main.py verify-jwks --token-file token.txt \
     --jwks-url https://auth.example.com/.well-known/jwks.json
 
 # TLS verification is always enabled; use a valid certificate and trust store.
-python main.py verify-jwks --token-file token.txt \
-    --jwks-url https://auth.example.com/.well-known/jwks.json
+# Redirects are not followed; destination and response limits are enforced.
 ```
 
 #### `forge` — create a custom token
@@ -334,7 +350,8 @@ jwt-analyzer/
 ├── .env.example                  # Documented env vars
 │
 ├── core/
-│   ├── parser.py                 # JWT parsing & claim extraction
+│   ├── parser.py                 # Bounded JWT parsing & claim extraction
+│   ├── strict_json.py             # Duplicate-safe, resource-bounded JSON decoding
 │   ├── security.py               # Vuln checks (none alg, kid injection, etc.)
 │   ├── verification.py           # RSA/ECDSA public key verification
 │   ├── forgery.py                # Token crafting
@@ -673,5 +690,8 @@ and keep the copyright notice.
 
 - [RFC 7519 — JSON Web Token](https://datatracker.ietf.org/doc/html/rfc7519)
 - [OWASP JWT Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html)
+- [JWKS retrieval security model](docs/JWKS_SECURITY.md)
+- [Security finding semantics](docs/SECURITY_FINDING_SEMANTICS.md)
+- [v2 migration guide](docs/MIGRATING_TO_V2.md)
 - [PortSwigger Web Security Academy — JWT attacks](https://portswigger.net/web-security/jwt)
 - [Auth0 JWT documentation](https://auth0.com/docs/secure/tokens/json-web-tokens)
