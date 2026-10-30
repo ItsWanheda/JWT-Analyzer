@@ -4,43 +4,39 @@ from __future__ import annotations
 
 import base64
 import binascii
-import json
 import math
 from datetime import datetime, timezone
 from typing import Any
 
+from core.strict_json import strict_json_loads
+
 MAX_TOKEN_LENGTH = 1_048_576
-_ALLOWED = frozenset(
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-)
+_ALLOWED = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_")
 
 
 def _base64url_decode(segment: str) -> bytes:
-    if not isinstance(segment, str) or not segment or any(c not in _ALLOWED for c in segment):
+    if not isinstance(segment, str) or not segment or any(
+        character not in _ALLOWED for character in segment
+    ):
         raise ValueError("JWT segment contains invalid Base64URL characters")
     if len(segment) % 4 == 1:
         raise ValueError("Invalid Base64URL segment length")
     padded = segment + "=" * ((4 - len(segment) % 4) % 4)
     try:
-        return base64.b64decode(padded, altchars=b"-_", validate=True)
+        decoded = base64.b64decode(padded, altchars=b"-_", validate=True)
     except (binascii.Error, ValueError) as exc:
         raise ValueError("Invalid Base64URL encoding") from exc
-
-
-def _reject_json_constant(value: str) -> None:
-    raise ValueError(f"JWT contains a non-finite JSON number: {value}")
+    canonical = base64.urlsafe_b64encode(decoded).rstrip(b"=").decode("ascii")
+    if canonical != segment:
+        raise ValueError("JWT segment is not canonical Base64URL")
+    return decoded
 
 
 def _json_object(segment: str, label: str) -> dict[str, Any]:
     try:
-        value = json.loads(
-            _base64url_decode(segment),
-            parse_constant=_reject_json_constant,
-        )
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError(f"Invalid JSON in JWT {label}") from exc
-    except ValueError as exc:
-        raise ValueError(f"Invalid JSON value in JWT {label}") from exc
+        value = strict_json_loads(_base64url_decode(segment), max_bytes=MAX_TOKEN_LENGTH)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid JSON value in JWT {label}: {exc}") from exc
     if not isinstance(value, dict):
         raise ValueError(f"JWT {label} must be a JSON object")
     return value

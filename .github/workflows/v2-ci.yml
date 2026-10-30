@@ -58,6 +58,16 @@ jobs:
         run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py --select E,F,B,C4,UP,SIM,RUF,N
       - name: Check formatting for security boundary and regressions
         run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py
+      - name: Lint M2 security boundaries and adversarial tests
+        run: >-
+          ruff check core/strict_json.py core/parser.py core/verification.py core/jwks.py
+          core/async_security.py tests/test_m2_*.py --select E,F,B,C4,UP,SIM,RUF,N
+      - name: Check M2 security boundary formatting
+        run: >-
+          ruff format --check core/strict_json.py core/parser.py core/verification.py
+          core/jwks.py core/async_security.py tests/test_m2_*.py
+      - name: Type-check strict JSON and parser boundary
+        run: mypy --python-version 3.12 core/strict_json.py core/parser.py
       - name: Static security scan
         run: bandit -r jwt_analyzer core utils
 

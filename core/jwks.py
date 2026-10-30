@@ -17,6 +17,8 @@ from urllib.parse import urlsplit
 
 import jwt
 
+from core.strict_json import strict_json_loads
+
 logger = logging.getLogger(__name__)
 MAX_JWKS_BYTES = 1_048_576
 MAX_JWKS_KEYS = 1000
@@ -43,7 +45,15 @@ class _JWKSCache:
     """In-memory cache with defensive copies of fetched key material."""
 
     def __init__(self, ttl: int = 3600):
-        self.ttl = max(0, ttl)
+        if (
+            isinstance(ttl, bool)
+            or not isinstance(ttl, (int, float))
+            or not math.isfinite(float(ttl))
+            or ttl < 0
+            or ttl > 86_400
+        ):
+            raise ValueError("JWKS cache TTL must be finite and between 0 and 86400 seconds")
+        self.ttl = float(ttl)
         self._store: dict[str, tuple[dict, float]] = {}
         self._lock = Lock()
 
@@ -310,9 +320,8 @@ def fetch_jwks(
 
         content_type = (response.getheader("Content-Type") or "").split(";", 1)[0].strip().lower()
         if (
-            content_type
-            and content_type != "application/json"
-            and not content_type.endswith("+json")
+            not content_type
+            or (content_type != "application/json" and not content_type.endswith("+json"))
         ):
             raise ValueError("JWKS endpoint did not return a JSON content type")
         encoding = (response.getheader("Content-Encoding") or "identity").lower().strip()
@@ -343,10 +352,7 @@ def fetch_jwks(
     finally:
         connection.close()
 
-    try:
-        data = json.loads(raw)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ValueError("JWKS response is not valid UTF-8 JSON") from exc
+    data = strict_json_loads(raw, max_bytes=MAX_JWKS_BYTES)
     if not isinstance(data, dict) or not isinstance(data.get("keys"), list):
         raise ValueError("JWKS response must be a JSON object with a keys array")
     if len(data["keys"]) > MAX_JWKS_KEYS:
@@ -363,9 +369,11 @@ def fetch_jwks(
                 raise ValueError(f"JWKS key field {field} must be a string")
         key_ops = key_data.get("key_ops")
         if key_ops is not None and (
-            not isinstance(key_ops, list) or any(not isinstance(item, str) for item in key_ops)
+            not isinstance(key_ops, list)
+            or any(not isinstance(item, str) or not item for item in key_ops)
+            or len(key_ops) != len(set(key_ops))
         ):
-            raise ValueError("JWKS key_ops must be an array of strings")
+            raise ValueError("JWKS key_ops must be an array of unique operation names")
     _cache.set(url, data)
     return copy.deepcopy(data)
 
@@ -409,8 +417,18 @@ def verify_with_jwks(
             "verified": False,
             "error": "TLS certificate verification cannot be disabled",
         }
-    if isinstance(leeway, bool) or not isinstance(leeway, (int, float)) or leeway < 0:
-        return {"status": "error", "verified": False, "error": "leeway must be non-negative"}
+    if (
+        isinstance(leeway, bool)
+        or not isinstance(leeway, (int, float))
+        or not math.isfinite(float(leeway))
+        or leeway < 0
+        or leeway > 3600
+    ):
+        return {
+            "status": "error",
+            "verified": False,
+            "error": "leeway must be finite and between 0 and 3600 seconds",
+        }
     if not isinstance(token, str) or not token or len(token) > 1_048_576:
         return {
             "status": "error",
@@ -421,6 +439,12 @@ def verify_with_jwks(
     try:
         header = jwt.get_unverified_header(token)
         kid, alg = header.get("kid"), header.get("alg")
+        if not isinstance(alg, str) or not alg:
+            return {
+                "status": "invalid",
+                "verified": False,
+                "error": "Token must contain a non-empty algorithm",
+            }
         if not isinstance(kid, str) or not kid:
             return {
                 "status": "error",
@@ -466,12 +490,24 @@ def verify_with_jwks(
                 "verified": False,
                 "error": "Selected JWK algorithm does not match JWT algorithm",
             }
-        if key_data.get("key_ops") is not None and "verify" not in key_data["key_ops"]:
-            return {
-                "status": "invalid",
-                "verified": False,
-                "error": "Selected JWK does not permit verification",
-            }
+        key_ops = key_data.get("key_ops")
+        if key_ops is not None:
+            if (
+                not isinstance(key_ops, list)
+                or any(not isinstance(item, str) or not item for item in key_ops)
+                or len(key_ops) != len(set(key_ops))
+            ):
+                return {
+                    "status": "invalid",
+                    "verified": False,
+                    "error": "Selected JWK has malformed key_ops metadata",
+                }
+            if "verify" not in key_ops:
+                return {
+                    "status": "invalid",
+                    "verified": False,
+                    "error": "Selected JWK does not permit verification",
+                }
         if key_type == "RSA":
             key = jwt.algorithms.RSAAlgorithm.from_jwk(key_data)
         elif key_type == "EC":
