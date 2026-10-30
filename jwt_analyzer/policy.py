@@ -11,15 +11,20 @@ from typing import Any
 
 from .models import Assessment, Confidence, Finding, Severity, VerificationStatus
 
-DEFAULT_ASYMMETRIC_ALGORITHMS = (
-    "RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"
-)
+DEFAULT_ASYMMETRIC_ALGORITHMS = ("RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA")
 STRICT_ALGORITHMS = ("RS256", "ES256", "EdDSA")
 KNOWN_ALGORITHMS = frozenset(
     {
-        "HS256", "HS384", "HS512",
-        "RS256", "RS384", "RS512",
-        "ES256", "ES384", "ES512", "EdDSA",
+        "HS256",
+        "HS384",
+        "HS512",
+        "RS256",
+        "RS384",
+        "RS512",
+        "ES256",
+        "ES384",
+        "ES512",
+        "EdDSA",
     }
 )
 _UNVERIFIED_POLICY_WARNING = (
@@ -95,19 +100,14 @@ def _normalize_policy(policy: AssessmentPolicy) -> None:
             raise TypeError(f"{field_name} must be a string when configured")
         if value is not None and not value.strip():
             raise ValueError(f"{field_name} must be a non-empty string when configured")
-    if not isinstance(policy.require_issuer, bool) or not isinstance(
-        policy.require_audience, bool
-    ):
+    if not isinstance(policy.require_issuer, bool) or not isinstance(policy.require_audience, bool):
         raise TypeError("require_issuer and require_audience must be booleans")
     for field_name in ("leeway_seconds", "max_future_iat_seconds"):
-        normalized = _finite_number(
-            field_name, getattr(policy, field_name), non_negative=True
-        )
+        normalized = _finite_number(field_name, getattr(policy, field_name), non_negative=True)
         object.__setattr__(policy, field_name, normalized)
     if policy.now_timestamp is not None:
         normalized_now = _finite_number("now_timestamp", policy.now_timestamp)
         object.__setattr__(policy, "now_timestamp", normalized_now)
-
 
 
 _BASELINE = AssessmentPolicy(name="baseline")
@@ -353,9 +353,7 @@ def _evaluate_time_claims(
                     verified_claims=verified,
                 )
             )
-        elif claim == "iat" and numeric_value > (
-            now + leeway + policy.max_future_iat_seconds
-        ):
+        elif claim == "iat" and numeric_value > (now + leeway + policy.max_future_iat_seconds):
             findings.append(
                 _policy_finding(
                     finding_id="jwt.policy.issued_in_future",
@@ -480,16 +478,10 @@ def evaluate_policy(
     verified = assessment.verification_status is VerificationStatus.VERIFIED
     confidence = Confidence.HIGH if verified else Confidence.MEDIUM
     findings = _evaluate_algorithm(assessment, policy, confidence, verified)
-    findings.extend(
-        _evaluate_required_claims(assessment.claims, policy, confidence, verified)
-    )
+    findings.extend(_evaluate_required_claims(assessment.claims, policy, confidence, verified))
     now = policy.now_timestamp if policy.now_timestamp is not None else time.time()
-    findings.extend(
-        _evaluate_time_claims(assessment.claims, policy, now, confidence, verified)
-    )
-    findings.extend(
-        _evaluate_issuer_audience(assessment.claims, policy, confidence, verified)
-    )
+    findings.extend(_evaluate_time_claims(assessment.claims, policy, now, confidence, verified))
+    findings.extend(_evaluate_issuer_audience(assessment.claims, policy, confidence, verified))
     non_policy_findings = [item for item in assessment.findings if item.stage != "policy"]
     combined_findings = tuple(non_policy_findings + findings)
     ids = [item.id for item in combined_findings]
@@ -519,6 +511,4 @@ def evaluate_policy(
         "leeway_seconds": policy.leeway_seconds,
         "max_future_iat_seconds": policy.max_future_iat_seconds,
     }
-    return replace(
-        assessment, findings=combined_findings, warnings=warnings, policy=metadata
-    )
+    return replace(assessment, findings=combined_findings, warnings=warnings, policy=metadata)

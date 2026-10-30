@@ -218,9 +218,7 @@ def verify_signature_with_public_key(
     else:
         status = VerificationStatus.ERROR
         claims = parsed["payload"]
-        errors = (
-            str(raw_result.get("error") or "Signature verification could not be completed."),
-        )
+        errors = (str(raw_result.get("error") or "Signature verification could not be completed."),)
 
     if status is VerificationStatus.VERIFIED:
         warnings = (
@@ -266,9 +264,7 @@ def verify_with_public_key(
     algorithm_list = _validate_verification_options(
         algorithms, key_content, issuer, audience, leeway
     )
-    assessment = verify_signature_with_public_key(
-        token, key_content, algorithms=algorithm_list
-    )
+    assessment = verify_signature_with_public_key(token, key_content, algorithms=algorithm_list)
     verification = dict(assessment.verification or {})
     verification.update(
         {

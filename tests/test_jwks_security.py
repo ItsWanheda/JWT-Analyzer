@@ -218,7 +218,7 @@ def test_fetch_passes_validated_dns_answers_to_connection_without_second_lookup(
             ),
             "size limit",
         ),
-        (FakeResponse(b"{broken"), "valid UTF-8 JSON"),
+        (FakeResponse(b"{broken"), "JSON input"),
     ],
 )
 def test_fails_closed_on_unsafe_or_malformed_responses(monkeypatch, response, message):

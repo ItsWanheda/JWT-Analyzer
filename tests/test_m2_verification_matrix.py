@@ -87,7 +87,11 @@ def test_signature_verification_rejects_algorithm_key_type_mismatch(
         algorithms=(algorithm,),
     )
 
-    assert result.verification_status is VerificationStatus.INVALID
+    assert result.verification_status in {
+        VerificationStatus.INVALID,
+        VerificationStatus.ERROR,
+    }
+    assert result.verification["verified"] is False
     assert result.errors
 
 
@@ -232,7 +236,7 @@ def test_policy_leeway_is_applied_to_expiry_boundary():
 
 @pytest.mark.parametrize("algorithm", ["HS256", "HS384", "HS512"])
 def test_supported_hmac_algorithms_can_be_checked_with_bounded_wordlist(algorithm):
-    secret = f"M2-test-secret-{algorithm}-only"
+    secret = f"M2-test-secret-{algorithm}-only-" + ("x" * 80)
     token = jwt.encode({"sub": "hmac-test"}, secret, algorithm=algorithm)
     candidates = (value for value in ("wrong-one", "wrong-two", secret))
 

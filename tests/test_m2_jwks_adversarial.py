@@ -166,10 +166,16 @@ def test_dns_change_after_validation_does_not_change_pinned_destination(monkeypa
             class Response:
                 status = 200
 
+                def __init__(self):
+                    self.read_complete = False
+
                 def getheader(self, name, default=None):
                     return {"Content-Type": "application/json"}.get(name, default)
 
                 def read1(self, _size):
+                    if self.read_complete:
+                        return b""
+                    self.read_complete = True
                     return b'{"keys":[]}'
 
             return Response()

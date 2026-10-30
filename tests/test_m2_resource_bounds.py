@@ -82,7 +82,7 @@ def test_oversized_candidate_is_skipped_without_aborting_the_stream(monkeypatch)
     monkeypatch.setattr(
         async_security.jwt,
         "decode",
-        lambda _token, secret, _algorithms: (
+        lambda _token, secret, algorithms: (
             {"sub": "bounded"} if secret == "valid-secret"
             else (_ for _ in ()).throw(jwt.InvalidTokenError("no"))
         ),
@@ -170,7 +170,7 @@ def test_timeout_stops_submission_but_waits_for_uninterruptible_crypto_call(monk
 
 
 def test_worker_threads_are_cleaned_up_after_success(monkeypatch):
-    def fake_decode(_token, secret, _algorithms):
+    def fake_decode(_token, secret, algorithms):
         if secret == "correct":
             return {"sub": "cleanup"}
         raise jwt.InvalidTokenError("not a match")

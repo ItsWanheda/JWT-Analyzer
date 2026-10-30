@@ -158,8 +158,18 @@ class Finding:
         if not isinstance(value, Mapping):
             raise TypeError("finding data must be a mapping")
         allowed = {
-            "id", "title", "description", "severity", "confidence", "category",
-            "recommendation", "observation", "impact", "limitations", "stage", "evidence",
+            "id",
+            "title",
+            "description",
+            "severity",
+            "confidence",
+            "category",
+            "recommendation",
+            "observation",
+            "impact",
+            "limitations",
+            "stage",
+            "evidence",
         }
         unknown = set(value).difference(allowed)
         if unknown:
@@ -208,9 +218,7 @@ def _normalize_findings(values: Any) -> tuple[Finding, ...]:
     ids = [item.id for item in findings]
     if len(ids) != len(set(ids)):
         raise ValueError("finding IDs must be unique within an assessment")
-    return tuple(
-        sorted(findings, key=lambda item: (_SEVERITY_ORDER[item.severity.value], item.id))
-    )
+    return tuple(sorted(findings, key=lambda item: (_SEVERITY_ORDER[item.severity.value], item.id)))
 
 
 def _normalize_text_sequence(name: str, values: Any) -> tuple[str, ...]:
@@ -260,9 +268,7 @@ class Assessment:
         object.__setattr__(self, "verification_status", status)
         object.__setattr__(self, "findings", _normalize_findings(self.findings))
         for name in ("warnings", "errors"):
-            object.__setattr__(
-                self, name, _normalize_text_sequence(name, getattr(self, name))
-            )
+            object.__setattr__(self, name, _normalize_text_sequence(name, getattr(self, name)))
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a plain JSON-compatible structure; the token is never included."""
@@ -303,8 +309,17 @@ class Assessment:
         if not isinstance(value, Mapping):
             raise TypeError("assessment data must be a mapping")
         allowed = {
-            "schema_version", "assessed_at", "verification_status", "signature_present",
-            "verification", "policy", "header", "claims", "findings", "warnings", "errors",
+            "schema_version",
+            "assessed_at",
+            "verification_status",
+            "signature_present",
+            "verification",
+            "policy",
+            "header",
+            "claims",
+            "findings",
+            "warnings",
+            "errors",
         }
         unknown = set(value).difference(allowed)
         if unknown:

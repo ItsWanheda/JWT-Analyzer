@@ -339,10 +339,10 @@ def fetch_jwks(
             if declared_length > MAX_JWKS_BYTES:
                 raise ValueError("JWKS response exceeds the 1 MiB size limit")
         raw = _read_response_body(response, connection, deadline)
-    except ValueError:
-        raise
     except ssl.SSLCertVerificationError as exc:
         raise ConnectionError("TLS certificate verification failed for JWKS endpoint") from exc
+    except ValueError:
+        raise
     except ssl.SSLError as exc:
         raise ConnectionError("TLS connection failed for JWKS endpoint") from exc
     except (socket.timeout, TimeoutError) as exc:
