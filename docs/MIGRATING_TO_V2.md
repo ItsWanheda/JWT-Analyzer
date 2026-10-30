@@ -51,6 +51,42 @@ print(assessment.to_dict())
 
 `verification_status` describes only cryptographic signature validity. `policy["status"]` reports `passed`, `failed`, or `not_verified`. Evaluating an unverified assessment remains advisory and cannot establish token authenticity or authorize access. The convenience function `verify_with_public_key()` combines signature verification with the baseline policy while preserving this distinction.
 
+## M2 parsing, verification, and resource boundaries
+
+M2 adds defensive limits at the token, key, network, and CPU-intensive boundaries. These constraints are intentional; integrations should handle the resulting validation and timeout errors rather than bypassing the checks.
+
+### JWT and JSON input
+
+- Compact JWT input is capped at **1 MiB** and Base64URL segments must use the canonical URL-safe alphabet and encoding.
+- The decoded header and payload must each be JSON objects.
+- Strict JSON decoding rejects duplicate keys, non-finite numbers, invalid UTF-8, lone UTF-16 surrogates, excessive nesting, excessive node counts and integers longer than 128 digits. The structural limits are 64 nesting levels and 100,000 values.
+- Valid escaped UTF-16 surrogate pairs are normalized to Unicode scalar values. Duplicate object keys created by normalization are rejected.
+
+### Public-key and JWK verification
+
+- Public-key/JWK input is capped at **64 KiB**.
+- Verification accepts only the supported asymmetric algorithms (`RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512`, and `EdDSA`) through an explicit allowlist.
+- JWK key type and metadata must be compatible with signature verification. Private or symmetric key material is not accepted by the public-key/JWKS verification path.
+- Do not select trusted algorithms from an unverified header. Continue to separate cryptographic signature state from the claim-policy result.
+
+### Remote JWKS retrieval
+
+JWKS retrieval is treated as an untrusted-network operation. The default path requires HTTPS, keeps certificate/hostname verification enabled, rejects redirects, validates and pins DNS answers to the connection, and enforces response and key-count limits (1 MiB and 1,000 keys). One monotonic deadline covers DNS resolution, connection, TLS negotiation and response reading. Expired cache entries are not silently used after a fetch failure.
+
+The operating-system resolver cannot be force-cancelled portably. A timed-out lookup can occupy the single daemon resolver worker until the OS resolver returns; one pending lookup is allowed and further lookups fail closed while it is busy. See [JWKS Retrieval Security Model](JWKS_SECURITY.md).
+
+### Bounded HMAC wordlist testing
+
+Only HS256, HS384 and HS512 are eligible for secret wordlist testing. Candidate input is streamed and bounded by a maximum of 32 workers, 1,000,000 candidates, 4 KiB per candidate, and a 3,600-second maximum timeout. At most one candidate per worker is pending/in flight; new work stops when the deadline or candidate budget is reached.
+
+Cancellation is cooperative. A cryptographic operation already executing in a worker cannot be safely force-interrupted; the function waits for the bounded in-flight work to finish before returning. Do not interpret a timeout as a guarantee that an individual low-level crypto call was killed at the deadline.
+
+### Finding semantics
+
+Findings now make an explicit distinction between confirmed local observations, likely indicators and unknown remote behavior. A token declaring `alg=none`, an unusual `kid`, or a possible algorithm/key-policy mismatch does not establish that a remote verifier accepts the attack. Confidence applies to the stated observation, not to unproven exploitability. See [M2 Security Finding Semantics](SECURITY_FINDING_SEMANTICS.md).
+
+The M2 regression/property suite contains 46 focused tests across five modules, with an additional DNS-deadline regression in the existing JWKS security suite. The branch CI workflow passed on Python 3.9–3.14, alongside the public API, optional service security, Docker and distribution build/install checks. This is development-branch validation, not a 2.0.0 release or a guarantee that every deployment risk is eliminated.
+
 ## Planned breaking changes
 
 The list below is the migration checklist; entries will be replaced with exact old/new examples as the implementation stabilizes.
