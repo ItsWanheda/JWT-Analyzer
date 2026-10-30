@@ -126,12 +126,9 @@ def test_parser_keeps_unusual_but_valid_unicode_claims_verbatim():
     assert parsed["payload"]["display"] == value
 
 
-
 def test_parser_accepts_and_normalizes_valid_escaped_surrogate_pairs():
     header = _segment_bytes(b'{"alg":"RS256"}')
-    payload = _segment_bytes(
-        b'{"sub":"\\ud83d\\ude00","\\ud83d\\ude80":"rocket"}'
-    )
+    payload = _segment_bytes(b'{"sub":"\\ud83d\\ude00","\\ud83d\\ude80":"rocket"}')
 
     parsed = parse_jwt(f"{header}.{payload}.")
 
