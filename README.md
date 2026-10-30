@@ -274,7 +274,7 @@ python main.py analyze --token-file token.txt
 ```
 Shows header, payload, and expiry status. **No signature verification.**
 
-#### `security` — vulnerability checks only
+#### `security` — token security indicators
 ```bash
 python main.py security --token-file token.txt
 ```
@@ -352,7 +352,7 @@ jwt-analyzer/
 ├── core/
 │   ├── parser.py                 # Bounded JWT parsing & claim extraction
 │   ├── strict_json.py             # Duplicate-safe, resource-bounded JSON decoding
-│   ├── security.py               # Vuln checks (none alg, kid injection, etc.)
+│   ├── security.py               # Token security indicators and policy checks
 │   ├── verification.py           # RSA/ECDSA public key verification
 │   ├── forgery.py                # Token crafting
 │   ├── diff.py                   # Payload comparison
@@ -524,7 +524,7 @@ A realistic pentest scenario:
 # 1. Found a JWT in the app's localStorage. Dump it.
 python main.py analyze --token-file captured.txt
 
-# 2. Quick security check - 'none' alg? weak kid? confused algorithms?
+# 2. Check token-level indicators and policy mismatches; validate target behavior separately.
 python main.py security --token-file captured.txt
 
 # 3. Try to crack the signing secret
