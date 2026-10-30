@@ -71,7 +71,11 @@ def verify_with_public_key(token: str, key_content: str,
     if algorithms is None:
         algorithms = DEFAULT_ASYMMETRIC_ALGORITHMS
     if not algorithms or any(not isinstance(alg, str) or not alg for alg in algorithms):
-        return {"status": "error", "verified": False, "error": "A non-empty algorithm allowlist is required"}
+        return {
+            "status": "error",
+            "verified": False,
+            "error": "A non-empty algorithm allowlist is required",
+        }
     if leeway < 0:
         return {"status": "error", "verified": False, "error": "leeway must be non-negative"}
     try:

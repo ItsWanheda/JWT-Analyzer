@@ -13,7 +13,6 @@ import time
 from collections.abc import Iterable, Sequence
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from threading import Event
-from typing import Optional
 
 import jwt
 from config import Config
@@ -31,9 +30,9 @@ def brute_force_parallel(
     token: str,
     wordlist: Iterable[str],
     workers: int = 8,
-    algorithms: Optional[Sequence[str]] = None,
+    algorithms: Sequence[str] | None = None,
     timeout: float = 300,
-) -> Optional[str]:
+) -> str | None:
     """Return a matching HMAC secret without copying or queueing the whole wordlist.
 
     Input is consumed incrementally. At most the worker limit candidates are in flight,
@@ -86,13 +85,13 @@ def brute_force_parallel(
     attempts = 0
     submitted = 0
     pending: dict[Future, None] = {}
-    found: Optional[str] = None
+    found: str | None = None
     pool = ThreadPoolExecutor(
         max_workers=worker_limit,
         thread_name_prefix="jwt-audit",
     )
 
-    def try_one(secret: str) -> tuple[Optional[str], int]:
+    def try_one(secret: str) -> tuple[str | None, int]:
         if stop_event.is_set() or time.monotonic() >= deadline:
             return None, 0
         if not isinstance(secret, str) or not secret:

@@ -1,6 +1,5 @@
 """M2 adversarial JWKS key selection, metadata, TLS, cache, and DNS tests."""
 
-import json
 import socket
 import ssl
 
@@ -281,7 +280,7 @@ def test_jwks_json_rejects_duplicate_keys_and_non_finite_values(monkeypatch):
             def request(self, *_args, **_kwargs):
                 pass
 
-            def getresponse(self):
+            def getresponse(self, response=response):
                 return response
 
             def close(self):
