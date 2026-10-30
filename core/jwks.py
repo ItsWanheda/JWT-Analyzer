@@ -223,11 +223,7 @@ def _validate_jwks_url(
 
     if not allow_private_hosts and (hostname == "localhost" or hostname.endswith(".localhost")):
         raise ValueError("JWKS URL may not target localhost")
-    dns_deadline = (
-        deadline
-        if deadline is not None
-        else time.monotonic() + DNS_RESOLUTION_TIMEOUT_SECONDS
-    )
+    dns_deadline = deadline if deadline is not None else time.monotonic() + DNS_RESOLUTION_TIMEOUT_SECONDS
     remaining = dns_deadline - time.monotonic()
     try:
         addresses = _dns_resolver.resolve(hostname, port, remaining)

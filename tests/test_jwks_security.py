@@ -313,7 +313,6 @@ def test_cache_eviction_keeps_memory_bounded():
     assert newest_url in core.jwks._cache._store
 
 
-
 def test_dns_resolution_is_included_in_total_jwks_deadline(monkeypatch):
     started = threading.Event()
     release = threading.Event()
