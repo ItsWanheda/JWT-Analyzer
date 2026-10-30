@@ -103,9 +103,7 @@ def _normalize_policy(policy: AssessmentPolicy) -> None:
     if not isinstance(policy.require_issuer, bool) or not isinstance(policy.require_audience, bool):
         raise TypeError("require_issuer and require_audience must be booleans")
     for field_name in ("leeway_seconds", "max_future_iat_seconds"):
-        numeric_value = _finite_number(
-            field_name, getattr(policy, field_name), non_negative=True
-        )
+        numeric_value = _finite_number(field_name, getattr(policy, field_name), non_negative=True)
         object.__setattr__(policy, field_name, numeric_value)
     if policy.now_timestamp is not None:
         normalized_now = _finite_number("now_timestamp", policy.now_timestamp)
