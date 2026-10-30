@@ -49,13 +49,17 @@ Issues:
 ### M2 — Cryptographic verification and security intelligence
 
 Issues:
-- [ ] **M2-01 — Verification matrix**: RSA, ECDSA, Ed25519/OKP and supported HMAC tests, key/algorithm mismatch tests, malformed keys, expired/not-yet-valid claims, issuer/audience validation, and explicit algorithm allowlists.
-- [ ] **M2-02 — JWKS adversarial tests**: SSRF, redirects, DNS changes, TLS failures, content-type and body limits, duplicate `kid`, ambiguous keys, key-use/key-ops/algorithm mismatches, cache expiry and outage behavior.
-- [ ] **M2-03 — Bound all expensive work**: test brute-force worker limits, queue bounds, deadlines, cancellation, cleanup, memory limits and behavior when a crypto call cannot be interrupted.
-- [ ] **M2-04 — Calibrate severities/confidence**: document every rule; tests must distinguish confirmed local facts, likely indicators and unknown server-side behavior.
-- [ ] **M2-05 — Property/fuzz testing**: parser and JSON/JWK boundaries, oversized inputs, unusual Unicode, numeric edge cases and non-object JSON values.
+- [x] **M2-01 — Verification matrix**: RSA, ECDSA, Ed25519/OKP and supported HMAC tests, key/algorithm mismatch tests, malformed keys, expired/not-yet-valid claims, issuer/audience validation, and explicit algorithm allowlists.
+- [x] **M2-02 — JWKS adversarial tests**: SSRF, redirects, DNS changes, TLS failures, content-type and body limits, duplicate `kid`, ambiguous keys, key-use/key-ops/algorithm mismatches, cache expiry and outage behavior.
+- [x] **M2-03 — Bound all expensive work**: test brute-force worker limits, queue bounds, deadlines, cancellation, cleanup, memory limits and behavior when a crypto call cannot be interrupted.
+- [x] **M2-04 — Calibrate severities/confidence**: document every rule; tests must distinguish confirmed local facts, likely indicators and unknown server-side behavior.
+- [x] **M2-05 — Property/fuzz testing**: parser and JSON/JWK boundaries, oversized inputs, unusual Unicode, numeric edge cases and non-object JSON values.
 
 **Acceptance:** all key-type and negative tests pass; no algorithm confusion from attacker-controlled header data; all network and CPU-intensive operations have bounded limits; findings include limitations and reproducible evidence.
+
+**M2 completion:** Implemented and verified on `v2.0.0` in commit `9b24aa511882bba60ffe56bf7e748c28253f2715`. The five M2 test modules contain 46 focused regression/property tests. The full CI workflow passed across Python 3.9–3.14, public API and M2 quality gates, optional HTTP-service security tests, Docker validation, and clean distribution build/install.
+
+**Operational boundary:** The OS DNS resolver cannot be force-cancelled portably. JWKS callers now share one absolute deadline across DNS, connect, TLS, and response reading. A stuck OS resolver can occupy the single daemon DNS worker; one pending request is permitted and additional lookups fail closed rather than expanding the worker pool. See `docs/JWKS_SECURITY.md`.
 
 ### M3 — Stable public Python API and CLI v2
 
