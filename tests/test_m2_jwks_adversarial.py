@@ -269,9 +269,7 @@ def test_jwks_json_rejects_duplicate_keys_and_non_finite_values(monkeypatch):
             },
         )()
 
-        monkeypatch.setattr(
-            core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [PUBLIC_V4]
-        )
+        monkeypatch.setattr(core.jwks.socket, "getaddrinfo", lambda *_args, **_kwargs: [PUBLIC_V4])
 
         class Connection:
             def __init__(self, *_args, **_kwargs):

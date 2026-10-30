@@ -240,23 +240,29 @@ def test_supported_hmac_algorithms_can_be_checked_with_bounded_wordlist(algorith
     token = jwt.encode({"sub": "hmac-test"}, secret, algorithm=algorithm)
     candidates = (value for value in ("wrong-one", "wrong-two", secret))
 
-    assert brute_force_parallel(
-        token,
-        candidates,
-        workers=4,
-        algorithms=(algorithm,),
-        timeout=2,
-    ) == secret
+    assert (
+        brute_force_parallel(
+            token,
+            candidates,
+            workers=4,
+            algorithms=(algorithm,),
+            timeout=2,
+        )
+        == secret
+    )
 
 
 def test_asymmetric_algorithms_are_not_available_to_hmac_secret_testing():
     private, algorithm, _ = _make_key("RSA")
     token = jwt.encode({"sub": "no-hmac"}, private, algorithm=algorithm)
 
-    assert brute_force_parallel(
-        token,
-        ["candidate"],
-        workers=1,
-        algorithms=("RS256",),
-        timeout=2,
-    ) is None
+    assert (
+        brute_force_parallel(
+            token,
+            ["candidate"],
+            workers=1,
+            algorithms=("RS256",),
+            timeout=2,
+        )
+        is None
+    )

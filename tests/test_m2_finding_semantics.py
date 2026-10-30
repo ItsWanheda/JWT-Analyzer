@@ -19,9 +19,11 @@ from jwt_analyzer import (
 
 
 def _segment(value):
-    return base64.urlsafe_b64encode(
-        json.dumps(value, separators=(",", ":")).encode("utf-8")
-    ).decode("ascii").rstrip("=")
+    return (
+        base64.urlsafe_b64encode(json.dumps(value, separators=(",", ":")).encode("utf-8"))
+        .decode("ascii")
+        .rstrip("=")
+    )
 
 
 def _token(header, claims, signature="c2lnbmF0dXJl"):
@@ -69,10 +71,7 @@ def test_unverified_policy_findings_keep_conditional_confidence_and_limits():
         assessment,
         get_policy_profile("baseline", now_timestamp=1_800_000_000),
     )
-    finding = next(
-        item for item in result.findings
-        if item.id == "jwt.policy.algorithm_not_allowed"
-    )
+    finding = next(item for item in result.findings if item.id == "jwt.policy.algorithm_not_allowed")
 
     assert result.verification_status is VerificationStatus.NOT_ATTEMPTED
     assert result.policy["status"] == "not_verified"
@@ -84,10 +83,14 @@ def test_unverified_policy_findings_keep_conditional_confidence_and_limits():
 
 def test_verified_policy_mismatch_has_reproducible_local_evidence_and_limits():
     private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    public_pem = private.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("ascii")
+    public_pem = (
+        private.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("ascii")
+    )
     token = jwt.encode(
         {
             "sub": "verified",
@@ -111,9 +114,7 @@ def test_verified_policy_mismatch_has_reproducible_local_evidence_and_limits():
             now_timestamp=1_800_000_000,
         ),
     )
-    finding = next(
-        item for item in result.findings if item.id == "jwt.policy.issuer_mismatch"
-    )
+    finding = next(item for item in result.findings if item.id == "jwt.policy.issuer_mismatch")
 
     assert result.verification_status is VerificationStatus.VERIFIED
     assert result.policy["status"] == "failed"

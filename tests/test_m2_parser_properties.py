@@ -90,7 +90,7 @@ def test_parser_handles_deterministic_unicode_and_numeric_corpus():
         payload = {
             "sub": f"property-{index}",
             "label": text,
-            "counter": rng.randint(-10**12, 10**12),
+            "counter": rng.randint(-(10**12), 10**12),
             "fraction": rng.uniform(-1_000_000, 1_000_000),
             "exp": 4_102_444_800,
         }

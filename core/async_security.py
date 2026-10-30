@@ -69,9 +69,7 @@ def brute_force_parallel(
         return None
     allowed = set(Config.SUPPORTED_SYMMETRIC_ALGORITHMS)
     selected_algorithms = tuple(
-        dict.fromkeys(
-            alg for alg in algorithms if isinstance(alg, str) and alg in allowed
-        )
+        dict.fromkeys(alg for alg in algorithms if isinstance(alg, str) and alg in allowed)
     )
     if not selected_algorithms:
         return None

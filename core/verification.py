@@ -1,4 +1,5 @@
 """Cryptographic JWT verification helpers."""
+
 from typing import Optional
 
 import jwt
@@ -62,11 +63,14 @@ def _load_public_key(key_content: str):
     return serialization.load_pem_public_key(key_content.encode("utf-8"))
 
 
-def verify_with_public_key(token: str, key_content: str,
-                           algorithms: Optional[list] = None,
-                           issuer: Optional[str] = None,
-                           audience: Optional[str] = None,
-                           leeway: int = 0) -> dict:
+def verify_with_public_key(
+    token: str,
+    key_content: str,
+    algorithms: Optional[list] = None,
+    issuer: Optional[str] = None,
+    audience: Optional[str] = None,
+    leeway: int = 0,
+) -> dict:
     """Verify signature and optional issuer/audience claims using an allowlist."""
     if algorithms is None:
         algorithms = DEFAULT_ASYMMETRIC_ALGORITHMS
@@ -80,13 +84,31 @@ def verify_with_public_key(token: str, key_content: str,
         return {"status": "error", "verified": False, "error": "leeway must be non-negative"}
     try:
         key = _load_public_key(key_content)
-        payload = jwt.decode(token, key, algorithms=list(algorithms), issuer=issuer,
-                             audience=audience, leeway=leeway,
-                             options={"verify_signature": True, "verify_exp": True,
-                                      "verify_nbf": True, "verify_iat": True})
-        return {"status": "valid", "payload": payload, "verified": True,
-                "validation": {"algorithms": list(algorithms), "issuer": issuer,
-                               "audience": audience, "leeway_seconds": leeway}}
+        payload = jwt.decode(
+            token,
+            key,
+            algorithms=list(algorithms),
+            issuer=issuer,
+            audience=audience,
+            leeway=leeway,
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+                "verify_nbf": True,
+                "verify_iat": True,
+            },
+        )
+        return {
+            "status": "valid",
+            "payload": payload,
+            "verified": True,
+            "validation": {
+                "algorithms": list(algorithms),
+                "issuer": issuer,
+                "audience": audience,
+                "leeway_seconds": leeway,
+            },
+        }
     except jwt.InvalidTokenError:
         return {
             "status": "invalid",
@@ -105,6 +127,7 @@ def verify_with_public_key(token: str, key_content: str,
             "verified": False,
             "error": "Verification could not be completed",
         }
+
 
 def verify_signature_with_public_key(
     token: str,
@@ -209,4 +232,3 @@ def verify_signature_with_public_key(
             "verified": False,
             "error": "Signature verification could not be completed",
         }
-

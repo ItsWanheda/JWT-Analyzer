@@ -15,8 +15,10 @@ _ALLOWED = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 
 
 def _base64url_decode(segment: str) -> bytes:
-    if not isinstance(segment, str) or not segment or any(
-        character not in _ALLOWED for character in segment
+    if (
+        not isinstance(segment, str)
+        or not segment
+        or any(character not in _ALLOWED for character in segment)
     ):
         raise ValueError("JWT segment contains invalid Base64URL characters")
     if len(segment) % 4 == 1:

@@ -68,13 +68,16 @@ def test_candidate_budget_stops_stream_consumption(monkeypatch):
             consumed.append(index)
             yield f"candidate-{index}"
 
-    assert async_security.brute_force_parallel(
-        "header.payload.signature",
-        words(),
-        workers=1,
-        algorithms=("HS256",),
-        timeout=3,
-    ) is None
+    assert (
+        async_security.brute_force_parallel(
+            "header.payload.signature",
+            words(),
+            workers=1,
+            algorithms=("HS256",),
+            timeout=3,
+        )
+        is None
+    )
     assert consumed == [0, 1, 2]
 
 
@@ -83,7 +86,8 @@ def test_oversized_candidate_is_skipped_without_aborting_the_stream(monkeypatch)
         async_security.jwt,
         "decode",
         lambda _token, secret, algorithms: (
-            {"sub": "bounded"} if secret == "valid-secret"
+            {"sub": "bounded"}
+            if secret == "valid-secret"
             else (_ for _ in ()).throw(jwt.InvalidTokenError("no"))
         ),
     )
@@ -101,34 +105,46 @@ def test_oversized_candidate_is_skipped_without_aborting_the_stream(monkeypatch)
 
 @pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf"), 3601])
 def test_invalid_or_excessive_timeouts_are_rejected(timeout):
-    assert async_security.brute_force_parallel(
-        "header.payload.signature",
-        ["candidate"],
-        workers=1,
-        algorithms=("HS256",),
-        timeout=timeout,
-    ) is None
+    assert (
+        async_security.brute_force_parallel(
+            "header.payload.signature",
+            ["candidate"],
+            workers=1,
+            algorithms=("HS256",),
+            timeout=timeout,
+        )
+        is None
+    )
 
 
 def test_invalid_worker_and_algorithm_inputs_fail_closed():
-    assert async_security.brute_force_parallel(
-        "header.payload.signature",
-        ["candidate"],
-        workers=True,
-        algorithms=("HS256",),
-    ) is None
-    assert async_security.brute_force_parallel(
-        "header.payload.signature",
-        ["candidate"],
-        workers=0,
-        algorithms=("HS256",),
-    ) is None
-    assert async_security.brute_force_parallel(
-        "header.payload.signature",
-        ["candidate"],
-        workers=1,
-        algorithms=("RS256",),
-    ) is None
+    assert (
+        async_security.brute_force_parallel(
+            "header.payload.signature",
+            ["candidate"],
+            workers=True,
+            algorithms=("HS256",),
+        )
+        is None
+    )
+    assert (
+        async_security.brute_force_parallel(
+            "header.payload.signature",
+            ["candidate"],
+            workers=0,
+            algorithms=("HS256",),
+        )
+        is None
+    )
+    assert (
+        async_security.brute_force_parallel(
+            "header.payload.signature",
+            ["candidate"],
+            workers=1,
+            algorithms=("RS256",),
+        )
+        is None
+    )
 
 
 def test_timeout_stops_submission_but_waits_for_uninterruptible_crypto_call(monkeypatch):
@@ -186,6 +202,7 @@ def test_worker_threads_are_cleaned_up_after_success(monkeypatch):
 
     assert result == "correct"
     assert not [
-        thread for thread in threading.enumerate()
+        thread
+        for thread in threading.enumerate()
         if thread.name.startswith("jwt-audit") and thread.is_alive()
     ]
