@@ -284,4 +284,3 @@ def verify_with_public_key(
         leeway_seconds=leeway,
     )
     return evaluate_policy(assessment, policy)
-

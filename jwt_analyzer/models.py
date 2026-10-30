@@ -229,6 +229,7 @@ def _normalize_text_sequence(name: str, values: Any) -> tuple[str, ...]:
         raise ValueError(f"{name} must contain non-empty strings")
     return normalized
 
+
 @dataclass(frozen=True)
 class Assessment:
     """A versioned assessment; no field stores the original compact JWT string."""
