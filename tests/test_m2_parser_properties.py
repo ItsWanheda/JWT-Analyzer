@@ -141,7 +141,7 @@ def test_parser_accepts_and_normalizes_valid_escaped_surrogate_pairs():
 
 def test_parser_rejects_keys_that_collide_after_unicode_normalization():
     header = _segment_bytes(b'{"alg":"RS256"}')
-    payload = _segment_bytes('{"\\ud83d\\ude00":"escaped","😀":"literal"}'.encode("utf-8"))
+    payload = _segment_bytes('{"\\ud83d\\ude00":"escaped","😀":"literal"}'.encode())
 
     with pytest.raises(ValueError, match="Duplicate JSON object key"):
         parse_jwt(f"{header}.{payload}.")
