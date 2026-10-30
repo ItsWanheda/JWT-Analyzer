@@ -27,6 +27,19 @@ All notable changes to this project will be documented in this file.
 
 > M1 work remains unreleased development functionality.
 
+### M2 cryptographic verification and security intelligence
+
+- Harden JWT parsing with canonical Base64URL validation, a 1 MiB compact-token limit, object-only header/payload JSON, and strict JSON decoding that rejects duplicate keys, non-finite numbers, excessive integer digits, excessive nesting/node counts, invalid UTF-8, and unpaired UTF-16 surrogates.
+- Normalize valid escaped UTF-16 surrogate pairs to Unicode scalar values and reject object keys that collide after normalization.
+- Harden public-key and JWK handling with a 64 KiB key-material limit, supported asymmetric-algorithm allowlisting, key-type/algorithm compatibility checks, and validation of JWK `use`, `key_ops`, and `alg` metadata.
+- Harden JWKS fetching with HTTPS/TLS verification, validated DNS pinning, redirect and proxy-tunnel rejection, bounded DNS fan-out and cache growth, a shared DNS/connect/TLS/read deadline, 1 MiB response and 1,000-key limits, strict content-type/JSON checks, and no stale-cache fallback after expiry.
+- Bound HMAC wordlist testing to 32 workers, 1,000,000 submitted candidates, 4 KiB per candidate and a maximum 3,600-second timeout. Candidate input is streamed and the pending queue is bounded by the active worker count.
+- Clarify finding semantics: local facts, heuristic indicators and unknown remote behavior are distinct. `alg=none`, suspicious `kid` patterns and algorithm/key-policy observations do not prove a remote verifier is exploitable.
+- Add 46 focused regression/property tests across five M2 test modules and extend the existing JWKS security suite with a shared-deadline DNS regression test.
+- Document JWKS resolver and brute-force cancellation limitations in `docs/JWKS_SECURITY.md` and the relevant implementation guidance.
+
+> M2 is complete on the `v2.0.0` development branch. It remains unreleased; this entry is not a release announcement.
+
 ### Added
 - Introduce the public `jwt_analyzer` Python namespace with normalized `Assessment` and `Finding` models.
 - Add `inspect_token()` for structural inspection that explicitly leaves verification as `not_attempted`.
@@ -42,7 +55,8 @@ All notable changes to this project will be documented in this file.
 - Update README examples to stop recommending disabled TLS verification.
 
 ### Validation
-- CI is being added on the v2 branch; passing results are required before the release-candidate milestone.
+- The v2 CI workflow passed on Python 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14, including public API quality checks, optional HTTP-service security tests, Docker validation, and clean distribution build/install. [Workflow run](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/41091451380).
+- CI success verifies the committed test and build matrix; it is not a claim that every possible JWT deployment or security issue has been eliminated.
 - No release, tag, or package publication is included in this development work.
 
 ---
