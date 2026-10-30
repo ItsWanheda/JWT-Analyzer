@@ -71,7 +71,8 @@ def test_unverified_policy_findings_keep_conditional_confidence_and_limits():
         assessment,
         get_policy_profile("baseline", now_timestamp=1_800_000_000),
     )
-    finding = next(item for item in result.findings if item.id == "jwt.policy.algorithm_not_allowed")
+    finding_id = "jwt.policy.algorithm_not_allowed"
+    finding = next(item for item in result.findings if item.id == finding_id)
 
     assert result.verification_status is VerificationStatus.NOT_ATTEMPTED
     assert result.policy["status"] == "not_verified"
