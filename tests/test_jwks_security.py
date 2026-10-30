@@ -2,6 +2,8 @@
 
 import json
 import socket
+import threading
+import time
 from unittest.mock import Mock
 
 import pytest
@@ -309,3 +311,41 @@ def test_cache_eviction_keeps_memory_bounded():
     assert "https://cache-0.example.test/keys" not in core.jwks._cache._store
     newest_url = f"https://cache-{core.jwks.MAX_JWKS_CACHE_ENTRIES + 9}.example.test/keys"
     assert newest_url in core.jwks._cache._store
+
+
+
+def test_dns_resolution_is_included_in_total_jwks_deadline(monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+    result = []
+
+    def blocked_resolver(*_args, **_kwargs):
+        started.set()
+        release.wait(timeout=2)
+        return [PUBLIC_V4]
+
+    def fetch():
+        try:
+            core.jwks.fetch_jwks(
+                "https://slow-dns.example.test/keys",
+                timeout=0.1,
+            )
+        except Exception as exc:
+            result.append(exc)
+
+    monkeypatch.setattr(core.jwks.socket, "getaddrinfo", blocked_resolver)
+    began = time.monotonic()
+    request_thread = threading.Thread(target=fetch)
+    try:
+        request_thread.start()
+        assert started.wait(timeout=1)
+        request_thread.join(timeout=1)
+        elapsed = time.monotonic() - began
+        assert not request_thread.is_alive()
+        assert len(result) == 1
+        assert isinstance(result[0], ConnectionError)
+        assert "DNS resolution timed out" in str(result[0])
+        assert elapsed < 0.75
+    finally:
+        release.set()
+        request_thread.join(timeout=1)

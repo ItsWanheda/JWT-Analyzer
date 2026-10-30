@@ -16,12 +16,12 @@ Confidence measures certainty in the stated observation, not exploitability. Sev
 
 | Stable finding ID | Observation | Default severity | Confidence | Evidence required | Explicit limitation |
 | --- | --- | --- | --- | --- | --- |
-| \`jwt.algorithm.none_declared\` | The decoded header contains \`alg=none\`. | Medium | High | Header algorithm and whether a signature segment is present. | This does not prove that any verifier accepts unsigned tokens. |
-| \`jwt.algorithm.missing\` | The header has no non-empty string algorithm. | Low | High | Header field type. | This describes the supplied header, not remote verifier behavior. |
-| \`jwt.claim.exp_missing\` | The decoded payload has no \`exp\` claim. | Medium | High | Presence/absence of the claim. | Whether a verifier requires expiry is unknown until its policy is checked. |
-| \`jwt.header.kid_suspicious_indicator\` | A \`kid\` string matches a known suspicious-input pattern. | Low | Low | Matched heuristic indicators only; do not expose unbounded values. | Pattern matching does not prove SQL, path, or command injection. |
+| `jwt.algorithm.none_declared` | The decoded header contains `alg=none`. | Medium | High | Header algorithm and whether a signature segment is present. | This does not prove that any verifier accepts unsigned tokens. |
+| `jwt.algorithm.missing` | The header has no non-empty string algorithm. | Low | High | Header field type. | This describes the supplied header, not remote verifier behavior. |
+| `jwt.claim.exp_missing` | The decoded payload has no `exp` claim. | Medium | High | Presence/absence of the claim. | Whether a verifier requires expiry is unknown until its policy is checked. |
+| `jwt.header.kid_suspicious_indicator` | A `kid` string matches a known suspicious-input pattern. | Low | Low | Matched heuristic indicators only; do not expose unbounded values. | Pattern matching does not prove SQL, path, or command injection. |
 
-These are token observations. They remain useful even when the token has not been verified, but decoded claim values remain attacker-controlled.
+These are token observations. They remain useful even when the token has not been verified, but decoded claim values remain attacker-controlled. Valid escaped UTF-16 surrogate pairs in JSON are normalized to Unicode scalar values; lone surrogates and keys that collide after normalization are rejected.
 
 ## Claim-policy rules
 
@@ -29,19 +29,19 @@ Policy findings are conditional on the selected local policy profile. They do no
 
 | Stable finding ID | Policy condition | Default severity | Confidence after valid signature | Confidence before signature verification |
 | --- | --- | --- | --- | --- |
-| \`jwt.policy.algorithm_missing\` | Header algorithm is absent or invalid. | High | High | Medium |
-| \`jwt.policy.algorithm_not_allowed\` | Header algorithm is outside the policy allowlist. | High | High | Medium |
-| \`jwt.policy.claim_missing.*\` | A configured required claim is absent or empty. | Medium | High | Medium |
-| \`jwt.policy.time_claim_invalid.*\` | A configured time claim is not a finite NumericDate. | Medium | High | Medium |
-| \`jwt.policy.token_expired\` | \`exp\` is at or before the policy-adjusted time. | High | High | Medium |
-| \`jwt.policy.token_not_yet_valid\` | \`nbf\` is later than the policy-adjusted time. | Medium | High | Medium |
-| \`jwt.policy.issued_in_future\` | \`iat\` exceeds the configured future-time tolerance. | Medium | High | Medium |
-| \`jwt.policy.issuer_missing\` | The profile requires a non-empty string \`iss\`. | Medium | High | Medium |
-| \`jwt.policy.issuer_mismatch\` | \`iss\` differs from the configured issuer. | High | High | Medium |
-| \`jwt.policy.audience_missing\` | The profile requires a valid \`aud\` value. | Medium | High | Medium |
-| \`jwt.policy.audience_mismatch\` | \`aud\` does not contain the configured audience. | High | High | Medium |
+| `jwt.policy.algorithm_missing` | Header algorithm is absent or invalid. | High | High | Medium |
+| `jwt.policy.algorithm_not_allowed` | Header algorithm is outside the policy allowlist. | High | High | Medium |
+| `jwt.policy.claim_missing.*` | A configured required claim is absent or empty. | Medium | High | Medium |
+| `jwt.policy.time_claim_invalid.*` | A configured time claim is not a finite NumericDate. | Medium | High | Medium |
+| `jwt.policy.token_expired` | `exp` is at or before the policy-adjusted time. | High | High | Medium |
+| `jwt.policy.token_not_yet_valid` | `nbf` is later than the policy-adjusted time. | Medium | High | Medium |
+| `jwt.policy.issued_in_future` | `iat` exceeds the configured future-time tolerance. | Medium | High | Medium |
+| `jwt.policy.issuer_missing` | The profile requires a non-empty string `iss`. | Medium | High | Medium |
+| `jwt.policy.issuer_mismatch` | `iss` differs from the configured issuer. | High | High | Medium |
+| `jwt.policy.audience_missing` | The profile requires a valid `aud` value. | Medium | High | Medium |
+| `jwt.policy.audience_mismatch` | `aud` does not contain the configured audience. | High | High | Medium |
 
-Before verification, policy evaluation is explicitly advisory and reports \`policy.status=not_verified\` with \`compliant=null\`. A policy match on unverified claims is not proof of authenticity. After signature verification, policy findings describe conformance to the local issuer, audience, time, required-claim, and algorithm rules; they still do not prove application authorization.
+Before verification, policy evaluation is explicitly advisory and reports `policy.status=not_verified` with `compliant=null`. A policy match on unverified claims is not proof of authenticity. After signature verification, policy findings describe conformance to the local issuer, audience, time, required-claim, and algorithm rules; they still do not prove application authorization.
 
 ## Verification and network failures
 
@@ -57,4 +57,4 @@ Every finding must keep a stable machine-readable ID and include:
 - limitations that state what was not tested or established; and
 - actionable remediation that does not recommend weakening algorithm, TLS, destination, input-size, or redaction controls.
 
-Tests in \`tests/test_m2_finding_semantics.py\` enforce the critical distinctions between confirmed local facts, low-confidence heuristics, unverified policy indicators, and verified-signature policy mismatches.
+Tests in `tests/test_m2_finding_semantics.py` enforce the critical distinctions between confirmed local facts, low-confidence heuristics, unverified policy indicators, and verified-signature policy mismatches.

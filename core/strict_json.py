@@ -38,9 +38,48 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _normalize_string(value: str) -> str:
+    """Normalize valid escaped UTF-16 pairs and reject lone surrogates."""
+    normalized: list[str] = []
+    index = 0
+    while index < len(value):
+        codepoint = ord(value[index])
+        if 0xD800 <= codepoint <= 0xDBFF:
+            if index + 1 >= len(value):
+                raise ValueError("JSON strings must not contain unpaired UTF-16 surrogates")
+            low = ord(value[index + 1])
+            if not 0xDC00 <= low <= 0xDFFF:
+                raise ValueError("JSON strings must not contain unpaired UTF-16 surrogates")
+            scalar = 0x10000 + ((codepoint - 0xD800) << 10) + (low - 0xDC00)
+            normalized.append(chr(scalar))
+            index += 2
+            continue
+        if 0xDC00 <= codepoint <= 0xDFFF:
+            raise ValueError("JSON strings must not contain unpaired UTF-16 surrogates")
+        normalized.append(value[index])
+        index += 1
+    return "".join(normalized)
+
+
 def _validate_string(value: str) -> None:
-    if any(0xD800 <= ord(char) <= 0xDFFF for char in value):
-        raise ValueError("JSON strings must not contain unpaired UTF-16 surrogates")
+    _normalize_string(value)
+
+
+def _normalize_tree(value: Any) -> Any:
+    """Normalize JSON strings and reject keys that collide after normalization."""
+    if isinstance(value, str):
+        return _normalize_string(value)
+    if isinstance(value, list):
+        return [_normalize_tree(item) for item in value]
+    if isinstance(value, dict):
+        normalized: dict[str, Any] = {}
+        for key, item in value.items():
+            normalized_key = _normalize_string(key)
+            if normalized_key in normalized:
+                raise ValueError("Duplicate JSON object key after Unicode normalization")
+            normalized[normalized_key] = _normalize_tree(item)
+        return normalized
+    return value
 
 
 def _validate_tree(value: Any) -> None:
@@ -106,4 +145,4 @@ def strict_json_loads(
     except (json.JSONDecodeError, RecursionError) as exc:
         raise ValueError("JSON input is malformed or too deeply nested") from exc
     _validate_tree(value)
-    return value
+    return _normalize_tree(value)

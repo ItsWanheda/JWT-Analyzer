@@ -124,3 +124,24 @@ def test_parser_keeps_unusual_but_valid_unicode_claims_verbatim():
     parsed = parse_jwt(token)
 
     assert parsed["payload"]["display"] == value
+
+
+
+def test_parser_accepts_and_normalizes_valid_escaped_surrogate_pairs():
+    header = _segment_bytes(b'{"alg":"RS256"}')
+    payload = _segment_bytes(
+        b'{"sub":"\\ud83d\\ude00","\\ud83d\\ude80":"rocket"}'
+    )
+
+    parsed = parse_jwt(f"{header}.{payload}.")
+
+    assert parsed["payload"]["sub"] == "😀"
+    assert parsed["payload"]["🚀"] == "rocket"
+
+
+def test_parser_rejects_keys_that_collide_after_unicode_normalization():
+    header = _segment_bytes(b'{"alg":"RS256"}')
+    payload = _segment_bytes('{"\\ud83d\\ude00":"escaped","😀":"literal"}'.encode("utf-8"))
+
+    with pytest.raises(ValueError, match="Duplicate JSON object key"):
+        parse_jwt(f"{header}.{payload}.")

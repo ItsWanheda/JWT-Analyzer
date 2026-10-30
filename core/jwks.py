@@ -5,12 +5,13 @@ import http.client
 import ipaddress
 import logging
 import math
+from queue import Full, Queue
 import re
 import socket
 import ssl
 import time
 from dataclasses import dataclass
-from threading import Lock
+from threading import Event, Lock, Thread
 from typing import Optional
 from urllib.parse import urlsplit
 
@@ -27,6 +28,78 @@ MAX_JWKS_READ_CHUNK_SIZE = 64 * 1024
 _DEFAULT_ALGORITHMS = frozenset({"RS256", "RS384", "RS512", "ES256", "ES384", "ES512", "EdDSA"})
 _PRIVATE_JWK_MEMBERS = frozenset({"d", "p", "q", "dp", "dq", "qi", "oth", "k"})
 _NUMERIC_HOST_RE = re.compile(r"(?i)(?:0x[0-9a-f]+|[0-9]+)(?:\.(?:0x[0-9a-f]+|[0-9]+))*\Z")
+
+
+DNS_RESOLUTION_TIMEOUT_SECONDS = 5.0
+
+
+@dataclass
+class _DNSRequest:
+    hostname: str
+    port: int
+    completed: Event
+    addresses: Optional[tuple] = None
+    error: Optional[BaseException] = None
+    cancelled: bool = False
+
+
+class _BoundedDNSResolver:
+    """One daemon resolver and one pending slot bound caller wait and resource use.
+
+    The operating-system resolver itself cannot be force-cancelled portably.
+    A stalled lookup may occupy the single daemon worker, but callers time out,
+    and additional lookups fail closed rather than creating more resolver threads.
+    """
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._requests: Queue = Queue(maxsize=1)
+        self._worker: Optional[Thread] = None
+
+    def _run(self) -> None:
+        while True:
+            request = self._requests.get()
+            try:
+                if not request.cancelled:
+                    request.addresses = tuple(
+                        socket.getaddrinfo(
+                            request.hostname,
+                            request.port,
+                            type=socket.SOCK_STREAM,
+                        )
+                    )
+            except BaseException as exc:
+                request.error = exc
+            finally:
+                request.completed.set()
+                self._requests.task_done()
+
+    def resolve(self, hostname: str, port: int, timeout: float) -> tuple:
+        if timeout <= 0 or not math.isfinite(float(timeout)):
+            raise TimeoutError("JWKS DNS resolution exceeded its request deadline")
+        request = _DNSRequest(hostname, port, Event())
+        with self._lock:
+            if self._worker is None or not self._worker.is_alive():
+                self._worker = Thread(
+                    target=self._run,
+                    name="jwt-jwks-dns",
+                    daemon=True,
+                )
+                self._worker.start()
+            try:
+                self._requests.put_nowait(request)
+            except Full as exc:
+                raise TimeoutError("JWKS DNS resolver is busy; failing closed") from exc
+
+        if not request.completed.wait(timeout):
+            request.cancelled = True
+            raise TimeoutError("JWKS DNS resolution exceeded its request deadline")
+        if request.error is not None:
+            raise request.error
+        return request.addresses or ()
+
+
+_dns_resolver = _BoundedDNSResolver()
 
 
 @dataclass(frozen=True)
@@ -88,7 +161,11 @@ def clear_cache() -> None:
     _cache.clear()
 
 
-def _validate_jwks_url(url: str, allow_private_hosts: bool = False) -> _JWKSLocation:
+def _validate_jwks_url(
+    url: str,
+    allow_private_hosts: bool = False,
+    deadline: Optional[float] = None,
+) -> _JWKSLocation:
     """Validate URL syntax and DNS answers, and return the pinned destination.
 
     By default all resolved addresses must be globally routable. Mixed public
@@ -146,8 +223,16 @@ def _validate_jwks_url(url: str, allow_private_hosts: bool = False) -> _JWKSLoca
 
     if not allow_private_hosts and (hostname == "localhost" or hostname.endswith(".localhost")):
         raise ValueError("JWKS URL may not target localhost")
+    dns_deadline = (
+        deadline
+        if deadline is not None
+        else time.monotonic() + DNS_RESOLUTION_TIMEOUT_SECONDS
+    )
+    remaining = dns_deadline - time.monotonic()
     try:
-        addresses = tuple(socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM))
+        addresses = _dns_resolver.resolve(hostname, port, remaining)
+    except TimeoutError as exc:
+        raise ConnectionError("JWKS DNS resolution timed out; failing closed") from exc
     except (OSError, UnicodeError) as exc:
         raise ValueError("JWKS hostname could not be resolved") from exc
     if not addresses:
@@ -282,14 +367,15 @@ def fetch_jwks(
     if not verify_ssl:
         raise ValueError("TLS certificate verification cannot be disabled")
 
-    # Validate on cache hits too; an entry fetched with the explicit private-host
-    # override must never bypass the default policy later.
-    destination = _validate_jwks_url(url, allow_private_hosts)
+    # Include DNS resolution in the same absolute deadline as connect, TLS, and
+    # response reading. Validate on cache hits too so cached data cannot bypass
+    # the destination policy.
+    deadline = time.monotonic() + float(timeout)
+    destination = _validate_jwks_url(url, allow_private_hosts, deadline=deadline)
     cached = _cache.get(url)
     if cached is not None:
         return cached
 
-    deadline = time.monotonic() + float(timeout)
     connection = _PinnedHTTPSConnection(
         destination.hostname,
         destination.port,
