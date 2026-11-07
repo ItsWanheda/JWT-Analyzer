@@ -15,3 +15,7 @@ class ConfigurationError(JWTAnalyzerError, ValueError):
 
 class BatchLimitError(JWTAnalyzerError, ValueError):
     """Raised when a batch exceeds its configured item limit."""
+
+
+class ReportValidationError(JWTAnalyzerError, ValueError):
+    """Raised when a generated or supplied report fails schema validation."""
