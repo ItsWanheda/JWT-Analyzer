@@ -97,9 +97,7 @@ def validate_sarif_report(report: dict[str, Any]) -> None:
         raise ReportValidationError("SARIF output does not conform to SARIF 2.1.0") from exc
 
 
-def _prepared_assessment(
-    assessment: Assessment, *, include_sensitive: bool
-) -> dict[str, Any]:
+def _prepared_assessment(assessment: Assessment, *, include_sensitive: bool) -> dict[str, Any]:
     if not isinstance(assessment, Assessment):
         raise TypeError("assessment must be an Assessment instance")
     raw = assessment.to_dict()
@@ -109,9 +107,7 @@ def _prepared_assessment(
     return exported
 
 
-def render_json_report(
-    assessment: Assessment, *, include_sensitive: bool = False
-) -> str:
+def render_json_report(assessment: Assessment, *, include_sensitive: bool = False) -> str:
     """Render the normalized assessment in the versioned, schema-validated JSON envelope."""
     exported = _prepared_assessment(assessment, include_sensitive=include_sensitive)
     report = {
@@ -124,9 +120,7 @@ def render_json_report(
     return json.dumps(report, ensure_ascii=False, allow_nan=False, sort_keys=True, indent=2)
 
 
-def render_html_report(
-    assessment: Assessment, *, include_sensitive: bool = False
-) -> str:
+def render_html_report(assessment: Assessment, *, include_sensitive: bool = False) -> str:
     """Render a self-contained HTML report; every dynamic value is HTML-escaped."""
     data = _prepared_assessment(assessment, include_sensitive=include_sensitive)
     findings = data["findings"]
@@ -135,7 +129,7 @@ def render_html_report(
         for level in ("critical", "high", "medium", "low", "info")
     }
     cards = "".join(
-        f'<li><strong>{level.title()}:</strong> {counts[level]}</li>'
+        f"<li><strong>{level.title()}:</strong> {counts[level]}</li>"
         for level in ("critical", "high", "medium", "low", "info")
     )
     rows = []
@@ -151,9 +145,7 @@ def render_html_report(
         )
     if not rows:
         rows.append('<tr><td colspan="4">No findings were reported.</td></tr>')
-    assessment_json = html.escape(
-        json.dumps(data, ensure_ascii=False, sort_keys=True, indent=2)
-    )
+    assessment_json = html.escape(json.dumps(data, ensure_ascii=False, sort_keys=True, indent=2))
     redaction_label = "Applied" if not include_sensitive else "Disabled by explicit opt-in"
     return f"""<!doctype html>
 <html lang="en">
@@ -188,9 +180,7 @@ pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f8fa;padding:1rem
 </body></html>"""
 
 
-def _sarif_document(
-    assessment_data: dict[str, Any], *, redaction_applied: bool
-) -> dict[str, Any]:
+def _sarif_document(assessment_data: dict[str, Any], *, redaction_applied: bool) -> dict[str, Any]:
     findings = assessment_data["findings"]
     rules = []
     results = []
@@ -217,7 +207,7 @@ def _sarif_document(
             "ruleIndex": index,
             "level": _SEVERITY_LEVEL[severity],
             "kind": "fail",
-            "message": {"text": f'{finding["title"]}: {finding["observation"]}'},
+            "message": {"text": f"{finding['title']}: {finding['observation']}"},
             "partialFingerprints": {
                 "jwtAnalyzer/v1": hashlib.sha256(rule_id.encode("utf-8")).hexdigest()
             },
@@ -259,9 +249,7 @@ def _sarif_document(
     }
 
 
-def render_sarif_report(
-    assessment: Assessment, *, include_sensitive: bool = False
-) -> str:
+def render_sarif_report(assessment: Assessment, *, include_sensitive: bool = False) -> str:
     """Render SARIF 2.1.0 with stable rule IDs and matching finding severities."""
     data = _prepared_assessment(assessment, include_sensitive=include_sensitive)
     report = _sarif_document(data, redaction_applied=not include_sensitive)
@@ -296,8 +284,7 @@ def threshold_exceeded(assessment: Assessment, fail_on: str = "high") -> bool:
         return False
     threshold = _SEVERITY_RANK[fail_on]
     return any(
-        _SEVERITY_RANK[finding.severity.value] >= threshold
-        for finding in assessment.findings
+        _SEVERITY_RANK[finding.severity.value] >= threshold for finding in assessment.findings
     )
 
 
