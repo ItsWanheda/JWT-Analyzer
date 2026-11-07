@@ -32,7 +32,7 @@ def test_inspect_cli_emits_one_machine_readable_json_document(tmp_path):
     result = CliRunner().invoke(cli, ["inspect", "--token-file", str(token_file)])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.stdout)
+    payload = json.loads(result.output)
     assert payload["status"] == "ok"
     assert payload["assessment"]["verification_status"] == "not_attempted"
 
@@ -44,7 +44,7 @@ def test_inspect_cli_structured_errors_go_to_stderr(tmp_path):
     result = CliRunner().invoke(cli, ["inspect", "--token-file", str(token_file)])
 
     assert result.exit_code == 1
-    error = json.loads(result.stderr)
+    error = json.loads(result.output)
     assert error["status"] == "error"
     assert error["error"]["code"] == "invalid_token"
 
