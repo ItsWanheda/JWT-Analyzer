@@ -92,14 +92,14 @@ Issues:
 
 ### M5 — Optional HTTP service
 
-**Initial implementation on branch `v2.0.0`:** an opt-in FastAPI/Uvicorn extra now exposes `/api/v1/health`, `/api/v1/inspect`, and `/api/v1/verify`, plus a same-origin `/dashboard`. It defaults to loopback, can require bearer authentication, checks Host values, caps body size, rate-limits assessment routes, adds security headers/CSP, and does not persist request bodies. See [HTTP service documentation](HTTP_SERVICE.md). This is a first slice, not completion of the milestone.
+**Implementation on `feat/m5-secure-http-service`:** the optional FastAPI/Uvicorn service now has strict typed request contracts and a generated local OpenAPI document; liveness/readiness endpoints; loopback-first CLI startup; constant-time bearer authentication; exact Host allowlists; bounded body size, request duration, rate and assessment concurrency; safe error envelopes; request IDs and body-free structured logs; and an explicit inline-key-only verification contract that rejects remote JWK references. The implementation is under validation; the milestone remains open until the expanded Python 3.9–3.14 service matrix passes. See [HTTP service documentation](HTTP_SERVICE.md).
 
 Issues:
-- [ ] **M5-01 — Versioned service contract**: optional install extra, `/api/v1` health and assessment routes, request/response schemas and OpenAPI docs.
-- [ ] **M5-02 — Secure service defaults**: bind to loopback by default; require explicit opt-in to expose remotely; auth, rate limits, body size, timeout and concurrency limits; no persistent token storage by default.
-- [ ] **M5-03 — SSRF boundary**: untrusted requests cannot ask the service to fetch arbitrary JWKS/URLs without policy and egress restrictions; no redirects and explicit destination allowlists.
-- [ ] **M5-04 — Lifecycle and telemetry**: clean shutdown, readiness/liveness, structured redacted logs, no tokens in traces, defined error envelopes.
-- [ ] **M5-05 — Service abuse tests**: auth bypass, request flooding, oversized bodies, slow clients, SSRF, malformed schemas, CORS and exception leakage.
+- [ ] **M5-01 — Versioned service contract**: optional install extra; typed, strict request bodies; versioned health/assessment routes; local OpenAPI document and response/error schemas.
+- [ ] **M5-02 — Secure service defaults**: loopback bind by default; explicit remote opt-in; 32-character minimum bearer secret; exact Host allowlist; bounded rate, body size, request lifetime and concurrent assessment work; no persistent token storage.
+- [ ] **M5-03 — SSRF boundary**: verification accepts inline PEM or one public JWK only; reject URL inputs, JWK Sets and remote-reference members; no endpoint performs outbound fetches.
+- [ ] **M5-04 — Lifecycle and telemetry**: startup/shutdown readiness, liveness, request IDs, structured body-free logs, sanitized JSON errors, bounded Uvicorn shutdown.
+- [ ] **M5-05 — Service abuse tests**: auth, malformed/extra fields, request flooding, declared and streamed oversized bodies, slow clients, remote JWK references, host validation, no-CORS behavior and exception leakage.
 
 **Acceptance:** service is optional and absent from the default CLI dependency path; safe default bind; authenticated/authorized remote use; rate/size/time caps and abuse tests pass; raw tokens are not persisted or logged.
 
