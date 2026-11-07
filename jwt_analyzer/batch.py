@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .api import inspect_token
+from .exceptions import BatchLimitError
 from .models import Assessment
 
 
@@ -56,7 +57,7 @@ def iter_assessments(
 
     for index, token in enumerate(tokens):
         if index >= max_items:
-            raise ValueError(f"batch exceeds the configured limit of {max_items} items")
+            raise BatchLimitError(f"batch exceeds the configured limit of {max_items} items")
         try:
             if not isinstance(token, str):
                 raise TypeError("token input must be a string")
