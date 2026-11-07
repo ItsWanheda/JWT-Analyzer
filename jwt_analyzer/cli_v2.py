@@ -12,7 +12,7 @@ import click
 
 from . import __version__, evaluate_policy, inspect_token, iter_assessments
 from .config import load_config
-from .exceptions import ConfigurationError
+from .exceptions import BatchLimitError, ConfigurationError, TokenAssessmentError
 from .models import Assessment
 
 _MAX_TOKEN_LINE_BYTES = 1_048_576
@@ -22,11 +22,16 @@ def _write_json(value: Any, stream: TextIO) -> None:
     stream.write(json.dumps(value, ensure_ascii=False, separators=(",", ":")) + "\n")
 
 
-def _error(code: str, message: str, *, stream: TextIO = sys.stderr) -> None:
-    _write_json({"schema_version": "1", "status": "error", "error": {
-        "code": code,
-        "message": message,
-    }}, stream)
+def _error(code: str, message: str, *, stream: TextIO | None = None) -> None:
+    output = sys.stderr if stream is None else stream
+    _write_json(
+        {
+            "schema_version": "1",
+            "status": "error",
+            "error": {"code": code, "message": message},
+        },
+        output,
+    )
 
 
 def _load_token(path: Path) -> str:
@@ -80,7 +85,7 @@ def inspect_command(token_file: Path, config_path: Path | None, evaluate_claim_p
     except click.ClickException as exc:
         _error("input_error", exc.format_message())
         raise click.exceptions.Exit(2)
-    except ValueError:
+    except TokenAssessmentError:
         _error("invalid_token", "token is malformed or violates parser limits")
         raise click.exceptions.Exit(1)
 
@@ -147,7 +152,7 @@ def batch_command(input_file: Path, config_path: Path | None, evaluate_claim_pol
     except (OSError, UnicodeError):
         _error("input_error", "batch input file could not be read as UTF-8")
         raise click.exceptions.Exit(2)
-    except ValueError:
+    except BatchLimitError:
         _error("batch_limit_exceeded", "batch exceeds the configured item limit")
         raise click.exceptions.Exit(2)
 
