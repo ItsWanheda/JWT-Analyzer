@@ -242,7 +242,10 @@ class MaxRequestBodyMiddleware:
         ]
         if len(lengths) > 1:
             await _send_json_error(
-                send, 400, "invalid_content_length", "Invalid Content-Length header.",
+                send,
+                400,
+                "invalid_content_length",
+                "Invalid Content-Length header.",
                 scope.get("state", {}).get("request_id"),
             )
             return
@@ -250,12 +253,12 @@ class MaxRequestBodyMiddleware:
             raw_length = lengths[0]
             if not raw_length.isdigit():
                 await _send_json_error(
-                send,
-                400,
-                "invalid_content_length",
-                "Invalid Content-Length header.",
-                scope.get("state", {}).get("request_id"),
-            )
+                    send,
+                    400,
+                    "invalid_content_length",
+                    "Invalid Content-Length header.",
+                    scope.get("state", {}).get("request_id"),
+                )
                 return
             if int(raw_length) > self.max_body_bytes:
                 await _send_json_error(
