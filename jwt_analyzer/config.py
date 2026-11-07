@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import yaml
 
@@ -62,10 +63,7 @@ def _read_config_file(path: Path) -> Mapping[str, Any]:
         raise ConfigurationError("configuration file must be UTF-8") from exc
 
     try:
-        if path.suffix.lower() == ".json":
-            data = json.loads(text)
-        else:
-            data = yaml.safe_load(text)
+        data = json.loads(text) if path.suffix.lower() == ".json" else yaml.safe_load(text)
     except (ValueError, yaml.YAMLError) as exc:
         raise ConfigurationError("configuration file contains invalid JSON or YAML") from exc
 
