@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from .api import inspect_token
-from .exceptions import TokenAssessmentError
 from .models import Assessment
 
 
