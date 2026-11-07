@@ -78,7 +78,11 @@ def cli() -> None:
     is_flag=True,
     help="Evaluate the configured claim policy (advisory until verified).",
 )
-def inspect_command(token_file: Path, config_path: Path | None, evaluate_claim_policy: bool) -> None:
+def inspect_command(
+    token_file: Path,
+    config_path: Path | None,
+    evaluate_claim_policy: bool,
+) -> None:
     """Structurally inspect one token; does not verify its signature."""
     try:
         config = load_config(config_path)
@@ -121,9 +125,22 @@ def _token_lines(stream: TextIO) -> Iterator[str]:
     type=click.Path(path_type=Path, exists=True, dir_okay=False, readable=True),
     help="UTF-8 file containing one compact JWT per line.",
 )
-@click.option("--config", "config_path", type=click.Path(path_type=Path, exists=True, dir_okay=False))
-@click.option("--evaluate-policy", is_flag=True, help="Evaluate the configured claim policy (advisory until verified).")
-def batch_command(input_file: Path, config_path: Path | None, evaluate_claim_policy: bool) -> None:
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+)
+@click.option(
+    "--evaluate-policy",
+    "evaluate_claim_policy",
+    is_flag=True,
+    help="Evaluate the configured claim policy (advisory until verified).",
+)
+def batch_command(
+    input_file: Path,
+    config_path: Path | None,
+    evaluate_claim_policy: bool,
+) -> None:
     """Stream newline-delimited tokens and emit one JSON result per item."""
     try:
         config = load_config(config_path)
