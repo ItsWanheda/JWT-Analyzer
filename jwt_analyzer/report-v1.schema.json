@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jwt-analyzer.invalid/schemas/report-v1.schema.json",
+  "title": "JWT Analyzer JSON Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_schema_version",
+    "tool",
+    "redaction_applied",
+    "assessment"
+  ],
+  "properties": {
+    "report_schema_version": {
+      "const": "1.0"
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "const": "JWT Analyzer"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "redaction_applied": {
+      "type": "boolean"
+    },
+    "assessment": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "assessed_at",
+        "findings"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": "1.1"
+        },
+        "assessed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "findings": {
+          "type": "array"
+        }
+      }
+    }
+  }
+}
