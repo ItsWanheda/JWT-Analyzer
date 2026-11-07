@@ -67,8 +67,17 @@ def cli() -> None:
     required=True,
     type=click.Path(path_type=Path, exists=True, dir_okay=False, readable=True),
 )
-@click.option("--config", "config_path", type=click.Path(path_type=Path, exists=True, dir_okay=False))
-@click.option("--evaluate-policy", is_flag=True, help="Evaluate the configured claim policy (advisory until verified).")
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+)
+@click.option(
+    "--evaluate-policy",
+    "evaluate_claim_policy",
+    is_flag=True,
+    help="Evaluate the configured claim policy (advisory until verified).",
+)
 def inspect_command(token_file: Path, config_path: Path | None, evaluate_claim_policy: bool) -> None:
     """Structurally inspect one token; does not verify its signature."""
     try:
@@ -81,13 +90,13 @@ def inspect_command(token_file: Path, config_path: Path | None, evaluate_claim_p
         _write_json(_assessment_payload(assessment), sys.stdout)
     except ConfigurationError:
         _error("invalid_configuration", "configuration is invalid")
-        raise click.exceptions.Exit(2)
+        raise click.exceptions.Exit(2) from None
     except click.ClickException as exc:
         _error("input_error", exc.format_message())
-        raise click.exceptions.Exit(2)
+        raise click.exceptions.Exit(2) from None
     except TokenAssessmentError:
         _error("invalid_token", "token is malformed or violates parser limits")
-        raise click.exceptions.Exit(1)
+        raise click.exceptions.Exit(1) from None
 
 
 def _token_lines(stream: TextIO) -> Iterator[str]:
@@ -124,14 +133,16 @@ def batch_command(input_file: Path, config_path: Path | None, evaluate_claim_pol
             failed = 0
             processed = 0
             for result in results:
-                if evaluate_claim_policy and result.assessment is not None:
-                    result = replace(result, assessment=evaluate_policy(result.assessment, config.policy))
+                item_result = result
+                if evaluate_claim_policy and item_result.assessment is not None:
+                    evaluated = evaluate_policy(item_result.assessment, config.policy)
+                    item_result = replace(item_result, assessment=evaluated)
                 processed += 1
-                if result.succeeded:
+                if item_result.succeeded:
                     succeeded += 1
                 else:
                     failed += 1
-                _write_json({"schema_version": "1", **result.to_dict()}, sys.stdout)
+                _write_json({"schema_version": "1", **item_result.to_dict()}, sys.stdout)
         _write_json(
             {
                 "schema_version": "1",
@@ -145,16 +156,16 @@ def batch_command(input_file: Path, config_path: Path | None, evaluate_claim_pol
             sys.stdout,
         )
         if failed:
-            raise click.exceptions.Exit(1)
+            raise click.exceptions.Exit(1) from None
     except ConfigurationError:
         _error("invalid_configuration", "configuration is invalid")
-        raise click.exceptions.Exit(2)
+        raise click.exceptions.Exit(2) from None
     except (OSError, UnicodeError):
         _error("input_error", "batch input file could not be read as UTF-8")
-        raise click.exceptions.Exit(2)
+        raise click.exceptions.Exit(2) from None
     except BatchLimitError:
         _error("batch_limit_exceeded", "batch exceeds the configured item limit")
-        raise click.exceptions.Exit(2)
+        raise click.exceptions.Exit(2) from None
 
 
 if __name__ == "__main__":
