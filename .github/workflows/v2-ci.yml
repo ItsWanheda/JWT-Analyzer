@@ -7,6 +7,7 @@ on:
       - "v2.0.0/**"
       - "v2.0.0-m0-*"
       - "feat/m1-*"
+      - "feat/m4-*"
   pull_request:
     branches:
       - main
@@ -56,9 +57,9 @@ jobs:
       - name: Type-check public API
         run: mypy --python-version 3.12 jwt_analyzer
       - name: Lint JWKS hardening and regression tests
-        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py --select E,F,B,C4,UP,SIM,RUF,N
+        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py --select E,F,B,C4,UP,SIM,RUF,N
       - name: Check formatting for security boundary and regressions
-        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py
+        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py
       - name: Lint M2 security boundaries and adversarial tests
         run: >-
           ruff check core/strict_json.py core/parser.py core/verification.py core/jwks.py
@@ -115,6 +116,8 @@ jobs:
               "main.py", "config.py", "core/jwks.py",
               "jwt_analyzer/__init__.py", "jwt_analyzer/api.py", "jwt_analyzer/batch.py",
               "jwt_analyzer/config.py", "jwt_analyzer/cli_v2.py", "jwt_analyzer/exceptions.py",
+              "jwt_analyzer/reporting.py", "jwt_analyzer/report-v1.schema.json",
+              "jwt_analyzer/sarif-2.1.0.schema.json",
               "utils/wordlists/common_secrets.txt",
           }
           assert not (required - wheel_files), sorted(required - wheel_files)
@@ -138,6 +141,7 @@ jobs:
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -c "from importlib.resources import files; from jwt_analyzer import Assessment, Finding, inspect_token; assert files('utils').joinpath('wordlists', 'common_secrets.txt').is_file(); print('public API and starter wordlist import OK')"
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer" --version
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer-v2" --version
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer-v2" report --help >/dev/null
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" - <<'PY'
           import base64
           import json
