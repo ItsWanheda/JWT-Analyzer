@@ -15,6 +15,7 @@ from core.verification import (
     verify_signature_with_public_key as _verify_signature_with_public_key,
 )
 
+from .exceptions import TokenAssessmentError
 from .models import Assessment, Confidence, Finding, Severity, VerificationStatus
 from .policy import evaluate_policy, get_policy_profile
 
@@ -37,7 +38,10 @@ def inspect_token(token: str) -> Assessment:
     Raises:
         ValueError: If the token is malformed or exceeds parser limits.
     """
-    parsed = parse_jwt(token)
+    try:
+        parsed = parse_jwt(token)
+    except (TypeError, ValueError) as exc:
+        raise TokenAssessmentError("token is malformed or violates parser limits") from exc
     header = parsed["header"]
     claims = parsed["payload"]
     findings: list[Finding] = []
