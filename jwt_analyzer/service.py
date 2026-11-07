@@ -195,7 +195,7 @@ async def _send_json_error(
     status: int,
     code: str,
     message: str,
-    request_id: Optional[str] = None,
+    request_id: Optional[str] = None,  # noqa: UP045 - PEP 604 union syntax is not runtime-safe for Pydantic v1
 ) -> None:
     body = json.dumps(
         {
@@ -294,6 +294,7 @@ class MaxRequestBodyMiddleware:
                     413,
                     "request_too_large",
                     "Request body exceeds the configured size limit.",
+                    scope.get("state", {}).get("request_id"),
                 )
 
 
@@ -592,10 +593,10 @@ class _AsyncSemaphore:
 
     def __init__(self, limit: int) -> None:
         self.limit = limit
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._semaphore: Optional[asyncio.Semaphore] = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None  # noqa: UP045 - Python 3.9 compatibility
+        self._semaphore: Optional[asyncio.Semaphore] = None  # noqa: UP045 - Python 3.9 compatibility
 
-    async def __aenter__(self) -> "_AsyncSemaphore":
+    async def __aenter__(self) -> _AsyncSemaphore:
         loop = asyncio.get_running_loop()
         semaphore = self._semaphore
         if semaphore is None or self._loop is not loop:
