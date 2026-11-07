@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import replace
 from collections.abc import Iterator
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, TextIO
 
