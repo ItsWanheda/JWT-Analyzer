@@ -52,9 +52,7 @@ _MAX_REQUEST_BYTES = 8 * 1024 * 1024
 _MAX_CONCURRENT_ASSESSMENTS = 32
 _MAX_REQUEST_TIMEOUT_SECONDS = 120.0
 _LOGGER = logging.getLogger("jwt_analyzer.service")
-_ALLOWED_JWK_MEMBERS = frozenset(
-    {"kty", "use", "key_ops", "alg", "kid", "n", "e", "crv", "x", "y"}
-)
+_ALLOWED_JWK_MEMBERS = frozenset({"kty", "use", "key_ops", "alg", "kid", "n", "e", "crv", "x", "y"})
 
 
 class InspectRequest(BaseModel):
@@ -87,8 +85,8 @@ class VerifyRequest(BaseModel):
         max_items=len(DEFAULT_ASYMMETRIC_ALGORITHMS),
         description="Explicit allowlist of supported asymmetric JWT algorithms.",
     )
-    issuer: Optional[StrictStr] = Field(default=None, max_length=2048)
-    audience: Optional[StrictStr] = Field(default=None, max_length=2048)
+    issuer: Optional[StrictStr] = Field(default=None, max_length=2048)  # noqa: UP045
+    audience: Optional[StrictStr] = Field(default=None, max_length=2048)  # noqa: UP045
     leeway: StrictInt = Field(default=0, ge=0, le=86_400)
 
     class Config:
@@ -103,7 +101,7 @@ class HealthResponse(BaseModel):
 class ErrorDetail(BaseModel):
     code: str
     message: str
-    request_id: Optional[str] = None
+    request_id: Optional[str] = None  # noqa: UP045
 
 
 class ErrorResponse(BaseModel):
@@ -251,7 +249,13 @@ class MaxRequestBodyMiddleware:
         if lengths:
             raw_length = lengths[0]
             if not raw_length.isdigit():
-                await _send_json_error(send, 400, "invalid_content_length", "Invalid Content-Length header.")
+                await _send_json_error(
+                send,
+                400,
+                "invalid_content_length",
+                "Invalid Content-Length header.",
+                scope.get("state", {}).get("request_id"),
+            )
                 return
             if int(raw_length) > self.max_body_bytes:
                 await _send_json_error(
@@ -514,9 +518,9 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, secure_send)
 
 
-def _auth_dependency(api_token: Optional[str]) -> Callable[..., Any]:
+def _auth_dependency(api_token: str | None) -> Callable[..., Any]:
     async def require_bearer_token(
-        authorization: Optional[str] = Header(default=None),
+        authorization: Optional[str] = Header(default=None),  # noqa: UP045
     ) -> None:
         if api_token is None:
             return
@@ -583,6 +587,30 @@ def _validate_algorithm_allowlist(algorithms: Sequence[str]) -> None:
         raise ValueError("Algorithm allowlist contains unsupported values.")
 
 
+class _AsyncSemaphore:
+    """Create an asyncio semaphore lazily on the active application event loop."""
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
+        self._semaphore: Optional[asyncio.Semaphore] = None
+
+    async def __aenter__(self) -> "_AsyncSemaphore":
+        loop = asyncio.get_running_loop()
+        semaphore = self._semaphore
+        if semaphore is None or self._loop is not loop:
+            semaphore = asyncio.Semaphore(self.limit)
+            self._semaphore = semaphore
+            self._loop = loop
+        await semaphore.acquire()
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        semaphore = self._semaphore
+        if semaphore is not None:
+            semaphore.release()
+
+
 async def _run_bounded(
     request: Request,
     function: Callable[..., Any],
@@ -609,12 +637,12 @@ def _request_validation_status(exc: RequestValidationError) -> tuple[int, str]:
 
 def create_app(
     *,
-    api_token: Optional[str] = None,
+    api_token: str | None = None,
     max_request_bytes: int = DEFAULT_MAX_REQUEST_BYTES,
     requests_per_minute: int = _DEFAULT_RATE_PER_MINUTE,
     request_timeout_seconds: float = _DEFAULT_REQUEST_TIMEOUT_SECONDS,
     max_concurrent_assessments: int = _DEFAULT_MAX_CONCURRENT_ASSESSMENTS,
-    allowed_hosts: Optional[Sequence[str]] = None,
+    allowed_hosts: Sequence[str] | None = None,
 ) -> FastAPI:
     """Create the optional HTTP API with bounded inputs, time and concurrency.
 
@@ -684,7 +712,7 @@ def create_app(
         lifespan=lifespan,
     )
     app.state.ready = True
-    app.state.assessment_semaphore = asyncio.Semaphore(max_concurrent_assessments)
+    app.state.assessment_semaphore = _AsyncSemaphore(max_concurrent_assessments)
     authorize = _auth_dependency(api_token)
 
     app.add_middleware(MaxRequestBodyMiddleware, max_body_bytes=max_request_bytes)
@@ -705,7 +733,9 @@ def create_app(
     @app.exception_handler(HTTPException)
     async def handle_http_error(request: Request, exc: HTTPException) -> JSONResponse:
         code = "unauthorized" if exc.status_code == 401 else "http_error"
-        message = exc.detail if isinstance(exc.detail, str) else "The request could not be completed."
+        message = (
+            exc.detail if isinstance(exc.detail, str) else "The request could not be completed."
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content=_error_payload(code, message, request),
@@ -861,7 +891,7 @@ def _is_loopback_host(host: str) -> bool:
         return False
 
 
-def main(argv: Optional[list[str]] = None) -> None:
+def main(argv: list[str] | None = None) -> None:
     """Run the service with loopback-only defaults and explicit remote opt-in."""
     parser = argparse.ArgumentParser(description="Run the optional JWT Analyzer HTTP service.")
     parser.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1).")
