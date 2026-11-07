@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import html
 import json
@@ -14,11 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft7Validator, Draft202012Validator, FormatChecker
+from utils.report import redact_sensitive_data
 
 from . import __version__
 from .exceptions import ReportValidationError
 from .models import ASSESSMENT_SCHEMA_VERSION, Assessment
-from utils.report import redact_sensitive_data
 
 _REPORT_SCHEMA_VERSION = "1.0"
 _SEVERITY_LEVEL = {
@@ -72,14 +73,13 @@ def _validate_assessment_data(data: dict[str, Any]) -> None:
 
 def validate_json_report(report: dict[str, Any]) -> None:
     """Validate the report envelope and its nested normalized assessment."""
+    if not isinstance(report, dict) or not isinstance(report.get("assessment"), dict):
+        raise ReportValidationError("JSON report does not conform to report schema v1.0")
     try:
         schema = _load_schema("report-v1.schema.json")
         Draft202012Validator.check_schema(schema)
         Draft202012Validator(schema, format_checker=FormatChecker()).validate(report)
-        assessment = report["assessment"]
-        if not isinstance(assessment, dict):
-            raise ValueError("assessment must be an object")
-        _validate_assessment_data(assessment)
+        _validate_assessment_data(report["assessment"])
     except ReportValidationError:
         raise
     except Exception as exc:
@@ -162,10 +162,13 @@ def render_html_report(
 <meta name="generator" content="JWT Analyzer {html.escape(__version__)}">
 <title>JWT Analyzer assessment report</title>
 <style>
-body{{font-family:system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#20242a}}
+body{{font-family:system-ui,sans-serif;max-width:1100px;margin:2rem auto;
+  padding:0 1rem;color:#20242a}}
 table{{border-collapse:collapse;width:100%;margin:1.5rem 0}}
-th,td{{border:1px solid #d0d7de;padding:.65rem;text-align:left;vertical-align:top;overflow-wrap:anywhere}}
-th{{background:#f6f8fa}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f8fa;padding:1rem}}
+th,td{{border:1px solid #d0d7de;padding:.65rem;text-align:left;
+  vertical-align:top;overflow-wrap:anywhere}}
+th{{background:#f6f8fa}}
+pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f8fa;padding:1rem}}
 </style>
 </head>
 <body>
@@ -179,7 +182,7 @@ th{{background:#f6f8fa}}pre{{white-space:pre-wrap;overflow-wrap:anywhere;backgro
 <table><thead><tr><th>Severity</th><th>Finding</th><th>Description</th><th>Recommendation</th></tr></thead>
 <tbody>{"".join(rows)}</tbody></table>
 <h2>Normalized assessment data</h2><pre>{assessment_json}</pre>
-<p>Decoded JWT claims are untrusted unless signature verification and application policy checks succeeded.</p>
+<p>Decoded JWT claims are untrusted unless signature verification and application policy checks\n  succeeded.</p>
 </body></html>"""
 
 
@@ -309,9 +312,7 @@ def write_report(output_path: str | os.PathLike[str], content: str) -> Path:
             os.fsync(stream.fileno())
         os.replace(temporary_name, target)
     except Exception:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(temporary_name)
-        except OSError:
-            pass
         raise
     return target
