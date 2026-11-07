@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Validate exported JSON against vendored JSON Schemas and validate SARIF using the vendored SARIF 2.1.0 schema; keep validation offline and deterministic.
 - Add the jwt-analyzer-v2 report command with file output, explicit severity-based CI thresholds, safe default redaction, and a deliberate --include-sensitive opt-in.
 - Add tests for cross-format finding consistency, HTML injection, Unicode, schema failures, threshold boundaries, CLI exit codes, and sensitive-value export behavior.
+- Validate M4 in [v2 CI run #42368541600](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42368541600): Python 3.9–3.14 matrix (195 passed, 1 optional-service test skipped in the core matrix), separate HTTP service security tests, Ruff, mypy, Bandit, wheel/sdist build and clean install, report CLI smoke test, and Docker wordlist validation all passed.
 
 ### M3 public API and CLI development
 
