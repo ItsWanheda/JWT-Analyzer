@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, TextIO
 
 import click
 
-from . import __version__, inspect_token, iter_assessments
+from . import __version__, evaluate_policy, inspect_token, iter_assessments
 from .config import load_config
 from .exceptions import ConfigurationError
 from .models import Assessment
@@ -62,12 +63,15 @@ def cli() -> None:
     type=click.Path(path_type=Path, exists=True, dir_okay=False, readable=True),
 )
 @click.option("--config", "config_path", type=click.Path(path_type=Path, exists=True, dir_okay=False))
-def inspect_command(token_file: Path, config_path: Path | None) -> None:
+@click.option("--evaluate-policy", is_flag=True, help="Evaluate the configured claim policy (advisory until verified).")
+def inspect_command(token_file: Path, config_path: Path | None, evaluate_claim_policy: bool) -> None:
     """Structurally inspect one token; does not verify its signature."""
     try:
-        load_config(config_path)
+        config = load_config(config_path)
         token = _load_token(token_file)
         assessment = inspect_token(token)
+        if evaluate_claim_policy:
+            assessment = evaluate_policy(assessment, config.policy)
         _write_json(_assessment_payload(assessment), sys.stdout)
     except ConfigurationError:
         _error("invalid_configuration", "configuration is invalid")
@@ -98,7 +102,8 @@ def _token_lines(stream: TextIO):
     help="UTF-8 file containing one compact JWT per line.",
 )
 @click.option("--config", "config_path", type=click.Path(path_type=Path, exists=True, dir_okay=False))
-def batch_command(input_file: Path, config_path: Path | None) -> None:
+@click.option("--evaluate-policy", is_flag=True, help="Evaluate the configured claim policy (advisory until verified).")
+def batch_command(input_file: Path, config_path: Path | None, evaluate_claim_policy: bool) -> None:
     """Stream newline-delimited tokens and emit one JSON result per item."""
     try:
         config = load_config(config_path)
@@ -108,6 +113,8 @@ def batch_command(input_file: Path, config_path: Path | None) -> None:
             failed = 0
             processed = 0
             for result in results:
+                if evaluate_claim_policy and result.assessment is not None:
+                    result = replace(result, assessment=evaluate_policy(result.assessment, config.policy))
                 processed += 1
                 if result.succeeded:
                     succeeded += 1
