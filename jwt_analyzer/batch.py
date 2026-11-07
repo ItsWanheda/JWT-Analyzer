@@ -58,20 +58,24 @@ def iter_assessments(
     for index, token in enumerate(tokens):
         if index >= max_items:
             raise BatchLimitError(f"batch exceeds the configured limit of {max_items} items")
+        if not isinstance(token, str):
+            yield BatchResult(
+                index=index,
+                error_code="invalid_input",
+                error="Each batch item must be a compact JWT string.",
+            )
+            continue
         try:
-            if not isinstance(token, str):
-                raise TypeError("token input must be a string")
             yield BatchResult(index=index, assessment=inspect_token(token))
-        except (TypeError, ValueError) as exc:
-            code = "invalid_input" if isinstance(exc, TypeError) else "invalid_token"
+        except ValueError:
+            code = "invalid_token"
             # Parser messages are intentionally not forwarded: they may contain
             # attacker-controlled data in future parser implementations.
-            message = (
-                "Each batch item must be a compact JWT string."
-                if code == "invalid_input"
-                else "The token is malformed or violates parser limits."
+            yield BatchResult(
+                index=index,
+                error_code=code,
+                error="The token is malformed or violates parser limits.",
             )
-            yield BatchResult(index=index, error_code=code, error=message)
 
 
 def assess_many(tokens: Iterable[str], *, max_items: int = 10_000) -> Iterator[BatchResult]:
