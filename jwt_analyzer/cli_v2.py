@@ -13,10 +13,17 @@ import click
 
 from . import __version__, evaluate_policy, inspect_token, iter_assessments
 from .config import load_config
-from .exceptions import BatchLimitError, ConfigurationError, TokenAssessmentError
+from .exceptions import (
+    BatchLimitError,
+    ConfigurationError,
+    ReportValidationError,
+    TokenAssessmentError,
+)
 from .models import Assessment
+from .reporting import render_report, threshold_exceeded, write_report
 
 _MAX_TOKEN_LINE_BYTES = 1_048_576
+_MAX_REPORT_FILE_BYTES = 5_242_880
 
 
 def _write_json(value: Any, stream: TextIO) -> None:
@@ -184,6 +191,126 @@ def batch_command(
     except BatchLimitError:
         _error("batch_limit_exceeded", "batch exceeds the configured item limit")
         raise click.exceptions.Exit(2) from None
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("assessment report contains duplicate JSON keys")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"unsupported JSON numeric constant: {value}")
+
+
+def _load_assessment(path: Path) -> Assessment:
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ValueError("assessment file could not be read") from exc
+    if len(raw) > _MAX_REPORT_FILE_BYTES:
+        raise ValueError("assessment file exceeds the 5 MiB limit")
+    try:
+        parsed = json.loads(
+            raw.decode("utf-8-sig"),
+            object_pairs_hook=_unique_json_object,
+            parse_constant=_reject_json_constant,
+        )
+    except ValueError as exc:
+        raise ValueError("assessment file must contain strict UTF-8 JSON") from exc
+    if not isinstance(parsed, dict):
+        raise TypeError("assessment file root must be an object")
+    value = parsed.get("assessment", parsed)
+    if not isinstance(value, dict):
+        raise TypeError("assessment field must be an object")
+    try:
+        return Assessment.from_dict(value)
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("assessment file does not match schema v1.1") from exc
+
+
+@cli.command("report")
+@click.option(
+    "--assessment-file",
+    required=True,
+    type=click.Path(path_type=Path, exists=True, dir_okay=False, readable=True),
+    help="JSON assessment or inspect-command JSON envelope.",
+)
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+)
+@click.option(
+    "--format",
+    "report_format",
+    type=click.Choice(["json", "html", "sarif"], case_sensitive=False),
+    default="json",
+    show_default=True,
+)
+@click.option("--output", "output_path", type=click.Path(path_type=Path, dir_okay=False))
+@click.option(
+    "--fail-on",
+    type=click.Choice(["none", "info", "low", "medium", "high", "critical"], case_sensitive=False),
+    default=None,
+    help="Fail with exit code 1 when a finding meets this severity (or higher).",
+)
+@click.option(
+    "--include-sensitive",
+    is_flag=True,
+    help="Include sensitive claim/evidence values; use only for controlled local output.",
+)
+def report_command(  # noqa: PLR0917
+    assessment_file: Path,
+    config_path: Path | None,
+    report_format: str,
+    output_path: Path | None,
+    fail_on: str | None,
+    include_sensitive: bool,
+) -> None:
+    """Render a validated JSON, HTML, or SARIF report from an assessment."""
+    try:
+        config = load_config(config_path)
+    except ConfigurationError:
+        _error("invalid_configuration", "configuration is invalid")
+        raise click.exceptions.Exit(2) from None
+
+    try:
+        assessment = _load_assessment(assessment_file)
+    except (OSError, ValueError, TypeError):
+        _error("invalid_assessment", "assessment file is invalid or exceeds the input limit")
+        raise click.exceptions.Exit(2) from None
+
+    try:
+        content = render_report(
+            assessment,
+            report_format.lower(),
+            include_sensitive=include_sensitive,
+        )
+    except ReportValidationError:
+        _error("invalid_report", "assessment or generated report failed schema validation")
+        raise click.exceptions.Exit(2) from None
+    except (TypeError, ValueError):
+        _error("invalid_report", "report format or assessment is invalid")
+        raise click.exceptions.Exit(2) from None
+
+    if output_path is not None:
+        try:
+            write_report(output_path, content)
+        except OSError:
+            _error("output_error", "report could not be written to the requested path")
+            raise click.exceptions.Exit(2) from None
+    else:
+        sys.stdout.write(content)
+        if not content.endswith("\n"):
+            sys.stdout.write("\n")
+
+    effective_threshold = (fail_on or config.fail_on_severity).lower()
+    if threshold_exceeded(assessment, effective_threshold):
+        raise click.exceptions.Exit(1) from None
 
 
 if __name__ == "__main__":

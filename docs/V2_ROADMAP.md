@@ -79,12 +79,16 @@ Issues:
 ### M4 — Reporting and CI integrations
 
 Issues:
-- [ ] **M4-01 — Shared reporter interface**: JSON, HTML and SARIF share the same normalized assessment and severity semantics.
-- [ ] **M4-02 — Validate report schemas**: JSON schema, SARIF 2.1.0 validation, deterministic fixtures, escaping, Unicode and redaction regression tests.
-- [ ] **M4-03 — CI thresholds**: policy-defined fail thresholds with documented exit codes; do not fail a pipeline on informational findings unless configured.
-- [ ] **M4-04 — Secret-safe exports**: redaction defaults, explicit opt-in for sensitive fields, report metadata, and no secret values in logs.
+- [x] **M4-01 — Shared reporter interface**: JSON, HTML and SARIF share the same normalized assessment and severity semantics; public renderers use the versioned assessment v1.1 model.
+- [x] **M4-02 — Validate report schemas**: validate the JSON report envelope and nested assessment with vendored schemas; validate SARIF 2.1.0 offline; add deterministic fixtures, escaping, Unicode and redaction regression tests.
+- [x] **M4-03 — CI thresholds**: configurable severity threshold (none, info, low, medium, high, critical) and documented exit codes; default to high, so informational findings do not fail CI unless explicitly configured.
+- [x] **M4-04 — Secret-safe exports**: redact sensitive values by default across JSON, HTML and SARIF; require explicit --include-sensitive opt-in; include safe report metadata and never log token or credential values.
 
 **Acceptance:** output formats agree on counts/severity; report renderers are resistant to HTML injection; SARIF validates against its schema; threshold behavior is covered by integration tests.
+
+**M4 completion:** Implemented on `feat/m4-reporting-ci-integrations` and validated in [v2 CI run #42368541600](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42368541600). The full Python 3.9–3.14 matrix passed with 195 tests passed and one optional-service test skipped in the core matrix; the separate optional HTTP service security job passed. Ruff lint/format, mypy, Bandit, wheel/sdist validation, clean wheel installation including both reporting schemas, the installed report-command smoke check, and Docker wordlist validation passed.
+
+**Operational boundary:** JSON, HTML and SARIF reports use the normalized Assessment v1.1 contract. Sensitive values remain redacted unless the caller explicitly opts in with `--include-sensitive` or `include_sensitive=True`. The default CI threshold is `high`; informational findings do not fail a build unless a stricter threshold is configured. No code-scanning source locations are fabricated for token assessments.
 
 ### M5 — Optional HTTP service
 

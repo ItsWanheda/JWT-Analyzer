@@ -19,7 +19,9 @@ from .exceptions import ConfigurationError
 from .policy import AssessmentPolicy, get_policy_profile
 
 _MAX_CONFIG_BYTES = 1_048_576
-_ALLOWED_ROOT_KEYS = frozenset({"policy", "policy_options", "max_batch_items", "wordlist_path"})
+_ALLOWED_ROOT_KEYS = frozenset(
+    {"policy", "policy_options", "max_batch_items", "wordlist_path", "fail_on_severity"}
+)
 _ALLOWED_POLICY_KEYS = frozenset(
     {
         "accepted_algorithms",
@@ -42,6 +44,7 @@ class AnalyzerConfig:
     policy: AssessmentPolicy
     max_batch_items: int = 10_000
     wordlist_path: Path | None = None
+    fail_on_severity: str = "high"
 
 
 def _positive_integer(name: str, value: Any) -> int:
@@ -88,6 +91,7 @@ def load_config(
       JWT_ANALYZER_POLICY
       JWT_ANALYZER_MAX_BATCH_ITEMS
       JWT_ANALYZER_WORDLIST_PATH
+      JWT_ANALYZER_FAIL_ON_SEVERITY
     """
     env = os.environ if environ is None else environ
     values: dict[str, Any] = {
@@ -95,6 +99,7 @@ def load_config(
         "policy_options": {},
         "max_batch_items": 10_000,
         "wordlist_path": None,
+        "fail_on_severity": "high",
     }
     if path is not None:
         values.update(_read_config_file(Path(path)))
@@ -108,6 +113,8 @@ def load_config(
             raise ConfigurationError("JWT_ANALYZER_MAX_BATCH_ITEMS must be an integer") from exc
     if "JWT_ANALYZER_WORDLIST_PATH" in env:
         values["wordlist_path"] = env["JWT_ANALYZER_WORDLIST_PATH"]
+    if "JWT_ANALYZER_FAIL_ON_SEVERITY" in env:
+        values["fail_on_severity"] = env["JWT_ANALYZER_FAIL_ON_SEVERITY"]
 
     profile = values["policy"]
     if not isinstance(profile, str):
@@ -128,8 +135,16 @@ def load_config(
     if wordlist is not None and (not isinstance(wordlist, str) or not wordlist.strip()):
         raise ConfigurationError("wordlist_path must be a non-empty path string or null")
 
+    fail_on_severity = values["fail_on_severity"]
+    allowed_thresholds = {"none", "info", "low", "medium", "high", "critical"}
+    if not isinstance(fail_on_severity, str) or fail_on_severity not in allowed_thresholds:
+        raise ConfigurationError(
+            "fail_on_severity must be none, info, low, medium, high, or critical"
+        )
+
     return AnalyzerConfig(
         policy=policy,
         max_batch_items=max_batch_items,
         wordlist_path=Path(wordlist).expanduser() if wordlist else None,
+        fail_on_severity=fail_on_severity,
     )
