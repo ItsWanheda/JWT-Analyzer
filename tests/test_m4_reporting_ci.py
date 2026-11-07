@@ -171,5 +171,5 @@ def test_report_cli_rejects_duplicate_json_keys(tmp_path):
     source.write_text('{"schema_version":"1","schema_version":"2"}', encoding="utf-8")
     result = CliRunner().invoke(cli, ["report", "--assessment-file", str(source)])
     assert result.exit_code == 2
-    error = json.loads(result.stderr)
+    error = json.loads(result.output)
     assert error["error"]["code"] == "invalid_assessment"
