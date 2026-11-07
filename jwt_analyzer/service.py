@@ -59,7 +59,6 @@ class InspectRequest(BaseModel):
     """Versioned inspect request contract."""
 
     token: StrictStr = Field(
-        ...,
         min_length=1,
         max_length=MAX_TOKEN_LENGTH,
         description="Compact serialized JWT. Inspection does not verify its signature.",
@@ -72,15 +71,13 @@ class InspectRequest(BaseModel):
 class VerifyRequest(BaseModel):
     """Versioned verification request contract."""
 
-    token: StrictStr = Field(..., min_length=1, max_length=MAX_TOKEN_LENGTH)
+    token: StrictStr = Field(min_length=1, max_length=MAX_TOKEN_LENGTH)
     public_key: StrictStr = Field(
-        ...,
         min_length=1,
         max_length=MAX_PUBLIC_KEY_BYTES,
         description="Inline PEM public key or a single public JWK JSON object; URLs are forbidden.",
     )
     algorithms: list[StrictStr] = Field(
-        ...,
         min_items=1,
         max_items=len(DEFAULT_ASYMMETRIC_ALGORITHMS),
         description="Explicit allowlist of supported asymmetric JWT algorithms.",
