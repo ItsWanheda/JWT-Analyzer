@@ -73,6 +73,7 @@ Changelog = "https://github.com/ItsWanheda/jwt-analyzer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 jwt-analyzer = "main:cli"
+jwt-analyzer-v2 = "jwt_analyzer.cli_v2:cli"
 jwt-analyzer-api = "jwt_analyzer.service:main"
 
 # Keep the legacy CLI and internal compatibility modules in the wheel while
