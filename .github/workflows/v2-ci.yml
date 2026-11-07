@@ -113,7 +113,8 @@ jobs:
               wheel_files = set(archive.namelist())
           required = {
               "main.py", "config.py", "core/jwks.py",
-              "jwt_analyzer/__init__.py", "jwt_analyzer/api.py",
+              "jwt_analyzer/__init__.py", "jwt_analyzer/api.py", "jwt_analyzer/batch.py",
+              "jwt_analyzer/config.py", "jwt_analyzer/cli_v2.py", "jwt_analyzer/exceptions.py",
               "utils/wordlists/common_secrets.txt",
           }
           assert not (required - wheel_files), sorted(required - wheel_files)
@@ -136,6 +137,7 @@ jobs:
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -c "from importlib.metadata import version; assert version('jwt-analyzer') == '2.0.0.dev0'"
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -c "from importlib.resources import files; from jwt_analyzer import Assessment, Finding, inspect_token; assert files('utils').joinpath('wordlists', 'common_secrets.txt').is_file(); print('public API and starter wordlist import OK')"
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer" --version
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer-v2" --version
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" - <<'PY'
           import base64
           import json
