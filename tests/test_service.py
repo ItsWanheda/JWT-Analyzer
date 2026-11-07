@@ -251,7 +251,6 @@ def test_request_body_limit_is_enforced_before_json_parsing():
 
 
 def test_streamed_request_body_limit_applies_without_content_length():
-    app = create_app(max_request_bytes=32)
     messages = [
         {"type": "http.request", "body": b'{"token":"x"}', "more_body": True},
         {"type": "http.request", "body": b" " * 64, "more_body": False},
@@ -263,6 +262,16 @@ def test_streamed_request_body_limit_applies_without_content_length():
 
     async def send(message):
         sent.append(message)
+
+    async def drain_request(scope, request_receive, response_send):
+        while True:
+            message = await request_receive()
+            if message.get("type") == "http.request" and not message.get("more_body", False):
+                break
+        await response_send(
+            {"type": "http.response.start", "status": 200, "headers": []}
+        )
+        await response_send({"type": "http.response.body", "body": b"ok"})
 
     scope = {
         "type": "http",
@@ -277,13 +286,16 @@ def test_streamed_request_body_limit_applies_without_content_length():
         "headers": [(b"host", b"127.0.0.1"), (b"content-type", b"application/json")],
         "client": ("127.0.0.1", 12345),
         "server": ("127.0.0.1", 80),
+        "state": {"request_id": "test-request"},
     }
-    asyncio.run(app(scope, receive, send))
+    middleware = service.MaxRequestBodyMiddleware(drain_request, max_body_bytes=32)
+    asyncio.run(middleware(scope, receive, send))
 
-    start = next(message for message in sent if message["type"] == "http.response.start")
-    body = next(message for message in sent if message["type"] == "http.response.body")
-    assert start["status"] == 413
-    assert b"request_too_large" in body["body"]
+    start_message = next(message for message in sent if message["type"] == "http.response.start")
+    body_message = next(message for message in sent if message["type"] == "http.response.body")
+    assert start_message["status"] == 413
+    assert b"request_too_large" in body_message["body"]
+    assert b"test-request" in body_message["body"]
 
 
 def test_request_timeout_middleware_stops_slow_body_readers():
