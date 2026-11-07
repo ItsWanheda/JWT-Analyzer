@@ -69,9 +69,7 @@ def test_sarif_report_validates_and_preserves_severity_semantics():
         "note",
         "note",
     ]
-    assert [item["ruleId"] for item in run["results"]] == [
-        item.id for item in assessment.findings
-    ]
+    assert [item["ruleId"] for item in run["results"]] == [item.id for item in assessment.findings]
     assert run["properties"]["redactionApplied"] is True
     assert "person@example.test" not in json.dumps(data)
 
