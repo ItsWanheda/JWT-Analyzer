@@ -47,7 +47,7 @@ class AnalyzerConfig:
 def _positive_integer(name: str, value: Any) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 1:
         raise ConfigurationError(f"{name} must be a positive integer")
-    return value
+    return int(value)
 
 
 def _read_config_file(path: Path) -> Mapping[str, Any]:
