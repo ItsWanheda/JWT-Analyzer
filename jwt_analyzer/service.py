@@ -408,6 +408,61 @@ class RequestContextMiddleware:
             _LOGGER.info(json.dumps(record, separators=(",", ":")))
 
 
+class SafeErrorMiddleware:
+    """Convert unexpected application failures into redacted JSON responses."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        response_started = False
+
+        async def tracked_send(message: Message) -> None:
+            nonlocal response_started
+            if message.get("type") == "http.response.start":
+                response_started = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, tracked_send)
+        except Exception as exc:
+            state = scope.get("state", {})
+            request_id = state.get("request_id")
+            _LOGGER.error(
+                json.dumps(
+                    {
+                        "event": "request_failed",
+                        "request_id": request_id,
+                        "exception_type": type(exc).__name__,
+                    },
+                    separators=(",", ":"),
+                )
+            )
+            if not response_started:
+                body = json.dumps(
+                    {
+                        "error": {
+                            "code": "internal_error",
+                            "message": "An internal error occurred. No request data was recorded.",
+                            "request_id": request_id,
+                        }
+                    },
+                    separators=(",", ":"),
+                ).encode("utf-8")
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 500,
+                        "headers": [
+                            (b"content-type", b"application/json"),
+                            (b"content-length", str(len(body)).encode("ascii")),
+                            (b"cache-control", b"no-store"),
+                        ],
+                    }
+                )
+                await send({"type": "http.response.body", "body": body})
+
+
 class SecurityHeadersMiddleware:
     """Set safe response headers without overriding route-specific dashboard CSP."""
 
@@ -602,6 +657,7 @@ def create_app(
     app.state.assessment_semaphore = asyncio.Semaphore(max_concurrent_assessments)
     authorize = _auth_dependency(api_token)
 
+    app.add_middleware(SafeErrorMiddleware)
     app.add_middleware(MaxRequestBodyMiddleware, max_body_bytes=max_request_bytes)
     app.add_middleware(RequestRateLimitMiddleware, requests_per_minute=requests_per_minute)
     app.add_middleware(
@@ -637,27 +693,6 @@ def create_app(
         return JSONResponse(
             status_code=status_code,
             content=_error_payload(code, messages[status_code], request),
-        )
-
-    @app.exception_handler(Exception)
-    async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
-        _LOGGER.error(
-            json.dumps(
-                {
-                    "event": "request_failed",
-                    "request_id": getattr(request.state, "request_id", None),
-                    "exception_type": type(exc).__name__,
-                },
-                separators=(",", ":"),
-            )
-        )
-        return JSONResponse(
-            status_code=500,
-            content=_error_payload(
-                "internal_error",
-                "An internal error occurred. No request data was recorded.",
-                request,
-            ),
         )
 
     @app.get(
