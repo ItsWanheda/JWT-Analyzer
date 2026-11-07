@@ -6,7 +6,7 @@ import json
 import sys
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any, Iterator, TextIO
 
 import click
 
@@ -71,6 +71,7 @@ def inspect_command(token_file: Path, config_path: Path | None, evaluate_claim_p
         token = _load_token(token_file)
         assessment = inspect_token(token)
         if evaluate_claim_policy:
+            # Structural claims remain untrusted; evaluate_policy marks this result advisory.
             assessment = evaluate_policy(assessment, config.policy)
         _write_json(_assessment_payload(assessment), sys.stdout)
     except ConfigurationError:
@@ -84,14 +85,19 @@ def inspect_command(token_file: Path, config_path: Path | None, evaluate_claim_p
         raise click.exceptions.Exit(1)
 
 
-def _token_lines(stream: TextIO):
-    for line in stream:
+def _token_lines(stream: TextIO) -> Iterator[str]:
+    while True:
+        line = stream.readline(_MAX_TOKEN_LINE_BYTES + 2)
+        if not line:
+            return
         if len(line.encode("utf-8")) > _MAX_TOKEN_LINE_BYTES:
-            yield None
-        else:
-            token = line.strip()
-            if token:
-                yield token
+            while line and not line.endswith("\\n"):
+                line = stream.readline(65_536)
+            yield "\\x00"
+            continue
+        token = line.strip()
+        if token:
+            yield token
 
 
 @cli.command("batch")
