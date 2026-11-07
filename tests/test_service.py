@@ -253,8 +253,8 @@ def test_request_body_limit_is_enforced_before_json_parsing():
 def test_streamed_request_body_limit_applies_without_content_length():
     app = create_app(max_request_bytes=32)
     messages = [
-        {"type": "http.request", "body": b'{"token":"12345678901234567890"', "more_body": True},
-        {"type": "http.request", "body": b'xxxxxxxxxxxxxxxxxxxxxxxx', "more_body": False},
+        {"type": "http.request", "body": b'{"token":"x"}', "more_body": True},
+        {"type": "http.request", "body": b" " * 64, "more_body": False},
     ]
     sent = []
 
