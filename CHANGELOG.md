@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased — v2.0.0 development]
 
+### M5 optional HTTP service hardening
+
+- Publish strict, typed request contracts and a generated local OpenAPI document for the versioned health, inspect and verify endpoints.
+- Add liveness/readiness probes, lifecycle handling, safe JSON error envelopes, server-generated request IDs and structured request logs that exclude bodies, claims, keys and bearer credentials.
+- Enforce loopback-first remote exposure controls, minimum bearer-secret strength, exact Host validation, bounded declared/streamed bodies, request deadlines, per-peer rate limits and bounded concurrent assessment work.
+- Keep verification network-free: accept inline PEM public keys or one public JWK only; reject JWK Sets, URL input, remote-reference JWK members and undeclared URL parameters.
+- Expand service security regression tests and run the optional HTTP-service suite across Python 3.9–3.14. Validation results will be recorded after the branch CI matrix completes.
+
 ### M4 reporting and CI integrations
 
 - Add a stable public reporting API for JSON report envelope v1.0, escaped HTML and SARIF 2.1.0, all derived from the normalized assessment v1.1 model.
