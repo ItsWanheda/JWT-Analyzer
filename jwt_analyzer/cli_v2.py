@@ -222,10 +222,10 @@ def _load_assessment(path: Path) -> Assessment:
     except ValueError as exc:
         raise ValueError("assessment file must contain strict UTF-8 JSON") from exc
     if not isinstance(parsed, dict):
-        raise ValueError("assessment file root must be an object")
+        raise TypeError("assessment file root must be an object")
     value = parsed.get("assessment", parsed)
     if not isinstance(value, dict):
-        raise ValueError("assessment field must be an object")
+        raise TypeError("assessment field must be an object")
     try:
         return Assessment.from_dict(value)
     except (KeyError, TypeError, ValueError) as exc:
@@ -254,7 +254,9 @@ def _load_assessment(path: Path) -> Assessment:
 @click.option("--output", "output_path", type=click.Path(path_type=Path, dir_okay=False))
 @click.option(
     "--fail-on",
-    type=click.Choice(["none", "info", "low", "medium", "high", "critical"], case_sensitive=False),
+    type=click.Choice(
+        ["none", "info", "low", "medium", "high", "critical"], case_sensitive=False
+    ),
     default=None,
     help="Fail with exit code 1 when a finding meets this severity (or higher).",
 )
@@ -263,7 +265,7 @@ def _load_assessment(path: Path) -> Assessment:
     is_flag=True,
     help="Include sensitive claim/evidence values; use only for controlled local output.",
 )
-def report_command(
+def report_command(  # noqa: PLR0917
     assessment_file: Path,
     config_path: Path | None,
     report_format: str,
