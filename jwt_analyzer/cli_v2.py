@@ -254,9 +254,7 @@ def _load_assessment(path: Path) -> Assessment:
 @click.option("--output", "output_path", type=click.Path(path_type=Path, dir_okay=False))
 @click.option(
     "--fail-on",
-    type=click.Choice(
-        ["none", "info", "low", "medium", "high", "critical"], case_sensitive=False
-    ),
+    type=click.Choice(["none", "info", "low", "medium", "high", "critical"], case_sensitive=False),
     default=None,
     help="Fail with exit code 1 when a finding meets this severity (or higher).",
 )
