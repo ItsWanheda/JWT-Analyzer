@@ -64,13 +64,17 @@ Issues:
 ### M3 — Stable public Python API and CLI v2
 
 Issues:
-- [ ] **M3-01 — Public API stability**: document `jwt_analyzer` imports; annotate public functions; explicit exceptions; API compatibility tests; no accidental exports from internal modules.
-- [ ] **M3-02 — Versioned CLI contract**: stable commands, argument validation, structured error format and exit-code contract; support JSON output on stdout for scripting.
-- [ ] **M3-03 — Batch assessment**: stream files and batches without unbounded memory use; per-item outcomes; safe partial failures and machine-readable summaries.
-- [ ] **M3-04 — Configuration and policy loading**: validate config schemas, merge precedence, environment overrides, path handling and safe defaults.
-- [ ] **M3-05 — Migration aliases and removals**: add only time-bounded compatibility aliases that do not weaken security; document removed flags and changed output fields.
+- [x] **M3-01 — Public API stability**: document the supported `jwt_analyzer` import surface; expose an explicit `__all__`; provide stable public exception types; normalize malformed-token inspection failures; test exports and API behavior.
+- [x] **M3-02 — Versioned CLI contract**: add the `jwt-analyzer-v2` entry point; define inspect and batch commands, structured JSON stdout/stderr, stable error codes, and exit-code behavior; keep legacy CLI behavior separate during migration.
+- [x] **M3-03 — Batch assessment**: stream token inputs and per-item outcomes without materializing the batch; continue after malformed items; enforce a hard configurable item limit; provide machine-readable summaries.
+- [x] **M3-04 — Configuration and policy loading**: validate JSON/YAML configuration with safe YAML loading and a 1 MiB file cap; reject unknown keys; support defaults < config file < environment precedence; expose validated policy profiles and batch limits.
+- [x] **M3-05 — Migration aliases and removals**: document the public compatibility boundary, new CLI contract, configuration, exit codes, legacy behavior, and security-sensitive migration constraints. Existing CLI commands are retained rather than redirected to incompatible output or insecure aliases.
 
 **Acceptance:** CLI golden tests and API contract tests pass on supported Python versions; stdout/stderr behavior and exit codes are documented; large batches are bounded; no ambiguous decode-versus-verify semantics.
+
+**M3 completion:** Implemented on `feat/m3-stable-api-cli` and validated in [v2 CI run #42365419623](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42365419623). All six Python versions (3.9–3.14) passed with 186 tests passed and one optional-service test skipped in the core matrix; the separate optional HTTP service job passed. Public API lint/format/type checks, Bandit, wheel/sdist build and clean-install checks, the installed `jwt-analyzer-v2` version smoke test, and Docker wordlist validation passed.
+
+**Operational boundary:** `jwt-analyzer-v2 inspect` and batch inspection do not verify signatures. `--evaluate-policy` evaluates decoded claims as advisory until cryptographic verification succeeds. The existing `jwt-analyzer` legacy CLI remains available during the migration period; its output is not the v2 JSON contract.
 
 ### M4 — Reporting and CI integrations
 
