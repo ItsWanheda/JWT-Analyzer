@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased — v2.0.0 development]
 
+### M3 public API and CLI development
+
+- Define stable public exception types and make malformed-token inspection errors consistent.
+- Add lazy bounded batch assessment with per-item outcomes and a hard item cap.
+- Add validated JSON/YAML configuration with safe parsing, a 1 MiB input limit, explicit key allowlists, and defaults < file < environment precedence.
+- Add the versioned `jwt-analyzer-v2` CLI with machine-readable JSON stdout, structured JSON stderr errors, documented exit codes, and newline-delimited streaming batch input.
+- Add focused M3 API, batch, configuration, and CLI contract tests. These changes remain unreleased development work pending CI validation.
+
 ### M0 security-baseline hardening
 
 - Pin JWKS HTTPS connections to validated DNS address tuples while preserving TLS hostname verification; reject mixed public/private DNS answers, non-canonical numeric IP forms, redirects, compressed/oversized bodies, private JWK material, and malformed key metadata.
