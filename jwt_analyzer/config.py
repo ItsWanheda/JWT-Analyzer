@@ -117,9 +117,7 @@ def load_config(
         raise ConfigurationError("policy_options must be an object")
     unknown_policy = set(options).difference(_ALLOWED_POLICY_KEYS)
     if unknown_policy:
-        raise ConfigurationError(
-            "unknown policy option(s): " + ", ".join(sorted(unknown_policy))
-        )
+        raise ConfigurationError("unknown policy option(s): " + ", ".join(sorted(unknown_policy)))
     try:
         policy = get_policy_profile(profile, **options)
     except (TypeError, ValueError) as exc:
