@@ -91,9 +91,9 @@ def _token_lines(stream: TextIO) -> Iterator[str]:
         if not line:
             return
         if len(line.encode("utf-8")) > _MAX_TOKEN_LINE_BYTES:
-            while line and not line.endswith("\\n"):
+            while line and not line.endswith("\n"):
                 line = stream.readline(65_536)
-            yield "\\x00"
+            yield "\x00"
             continue
         token = line.strip()
         if token:
