@@ -19,7 +19,7 @@ import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from threading import Lock
-from typing import Any
+from typing import Any, Optional
 
 try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -87,8 +87,8 @@ class VerifyRequest(BaseModel):
         max_items=len(DEFAULT_ASYMMETRIC_ALGORITHMS),
         description="Explicit allowlist of supported asymmetric JWT algorithms.",
     )
-    issuer: StrictStr | None = Field(default=None, max_length=2048)
-    audience: StrictStr | None = Field(default=None, max_length=2048)
+    issuer: Optional[StrictStr] = Field(default=None, max_length=2048)
+    audience: Optional[StrictStr] = Field(default=None, max_length=2048)
     leeway: StrictInt = Field(default=0, ge=0, le=86_400)
 
     class Config:
@@ -103,7 +103,7 @@ class HealthResponse(BaseModel):
 class ErrorDetail(BaseModel):
     code: str
     message: str
-    request_id: str | None = None
+    request_id: Optional[str] = None
 
 
 class ErrorResponse(BaseModel):
@@ -457,6 +457,10 @@ class SafeErrorMiddleware:
                             (b"content-type", b"application/json"),
                             (b"content-length", str(len(body)).encode("ascii")),
                             (b"cache-control", b"no-store"),
+                            (b"x-content-type-options", b"nosniff"),
+                            (b"x-frame-options", b"DENY"),
+                            (b"referrer-policy", b"no-referrer"),
+                            (b"x-request-id", str(request_id or "").encode("ascii")),
                         ],
                     }
                 )
@@ -492,9 +496,9 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, secure_send)
 
 
-def _auth_dependency(api_token: str | None) -> Callable[..., Any]:
+def _auth_dependency(api_token: Optional[str]) -> Callable[..., Any]:
     async def require_bearer_token(
-        authorization: str | None = Header(default=None),
+        authorization: Optional[str] = Header(default=None),
     ) -> None:
         if api_token is None:
             return
@@ -587,12 +591,12 @@ def _request_validation_status(exc: RequestValidationError) -> tuple[int, str]:
 
 def create_app(
     *,
-    api_token: str | None = None,
+    api_token: Optional[str] = None,
     max_request_bytes: int = DEFAULT_MAX_REQUEST_BYTES,
     requests_per_minute: int = _DEFAULT_RATE_PER_MINUTE,
     request_timeout_seconds: float = _DEFAULT_REQUEST_TIMEOUT_SECONDS,
     max_concurrent_assessments: int = _DEFAULT_MAX_CONCURRENT_ASSESSMENTS,
-    allowed_hosts: Sequence[str] | None = None,
+    allowed_hosts: Optional[Sequence[str]] = None,
 ) -> FastAPI:
     """Create the optional HTTP API with bounded inputs, time and concurrency.
 
@@ -665,7 +669,6 @@ def create_app(
     app.state.assessment_semaphore = asyncio.Semaphore(max_concurrent_assessments)
     authorize = _auth_dependency(api_token)
 
-    app.add_middleware(SafeErrorMiddleware)
     app.add_middleware(MaxRequestBodyMiddleware, max_body_bytes=max_request_bytes)
     app.add_middleware(RequestRateLimitMiddleware, requests_per_minute=requests_per_minute)
     app.add_middleware(
@@ -676,6 +679,10 @@ def create_app(
     app.add_middleware(RequestTimeoutMiddleware, timeout_seconds=float(request_timeout_seconds))
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
+    # Added last so the safe error boundary wraps every other middleware. In
+    # particular, the body-limit middleware must see and translate its own
+    # streamed-body sentinel before the generic exception boundary.
+    app.add_middleware(SafeErrorMiddleware)
 
     @app.exception_handler(HTTPException)
     async def handle_http_error(request: Request, exc: HTTPException) -> JSONResponse:
@@ -836,7 +843,7 @@ def _is_loopback_host(host: str) -> bool:
         return False
 
 
-def main(argv: list[str] | None = None) -> None:
+def main(argv: Optional[list[str]] = None) -> None:
     """Run the service with loopback-only defaults and explicit remote opt-in."""
     parser = argparse.ArgumentParser(description="Run the optional JWT Analyzer HTTP service.")
     parser.add_argument("--host", default="127.0.0.1", help="Bind host (default: 127.0.0.1).")
