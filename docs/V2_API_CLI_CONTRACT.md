@@ -21,7 +21,7 @@ Install the project and invoke jwt-analyzer-v2. The existing jwt-analyzer entry 
 
 ### Inspect one token
 
-    jwt-analyzer-v2 inspect --token-file token.jwt
+    jwt-analyzer-v2 inspect --token-file token.jwt --evaluate-policy
 
 Stdout contains exactly one compact JSON document with schema_version (CLI envelope version 1), status=ok, and assessment (normalized Assessment schema v1.1).
 
@@ -31,7 +31,7 @@ The input is UTF-8, one compact JWT per non-empty line:
 
     jwt-analyzer-v2 batch --input-file tokens.txt
 
-The command emits one JSON line per input item, then one final summary line. It does not collect the whole batch in memory. Blank lines are ignored. Per-item results have status=succeeded or status=failed; the summary has status=complete or status=partial.
+The command emits one JSON line per input item, then one final summary line. Add --evaluate-policy to apply the configured claim policy; inspection remains unverified, so these policy results are advisory. It does not collect the whole batch in memory. Blank lines are ignored. Per-item results have status=succeeded or status=failed; the summary has status=complete or status=partial.
 
 ### Exit codes and streams
 
