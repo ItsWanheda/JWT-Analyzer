@@ -87,6 +87,16 @@ Findings now make an explicit distinction between confirmed local observations, 
 
 The M2 regression/property suite contains 46 focused tests across five modules, with an additional DNS-deadline regression in the existing JWKS security suite. The branch CI workflow passed on Python 3.9–3.14, alongside the public API, optional service security, Docker and distribution build/install checks. This is development-branch validation, not a 2.0.0 release or a guarantee that every deployment risk is eliminated.
 
+## M3 public API, CLI, batch, and configuration contract
+
+The current development implementation introduces the `jwt-analyzer-v2` command. It keeps the existing `jwt-analyzer` entry point intact during the transition. See [V2 API and CLI Contract](V2_API_CLI_CONTRACT.md) for the supported imports, JSON envelope, exit codes, batch format, and configuration precedence.
+
+New automation should use `jwt-analyzer-v2 inspect --token-file ...` or `jwt-analyzer-v2 batch --input-file ...`. Batch input is one compact JWT per non-empty UTF-8 line; results are streamed as JSON Lines. A malformed item is reported independently and does not stop later items. The default batch cap is 10,000 items and may be lowered through configuration.
+
+The public `jwt_analyzer` namespace is the compatibility boundary. Imports from `core.*`, `utils.*`, `config.Config`, or `main.py` are legacy implementation details. Public token parsing errors use `TokenAssessmentError`; configuration failures use `ConfigurationError`; batch cap failures use `BatchLimitError`.
+
+The legacy CLI is retained in this development transition rather than silently changing its output format. The new JSON contract is a separate entry point; no legacy alias may weaken verification constraints, input limits, or redaction. No legacy command is removed by this work.
+
 ## Planned breaking changes
 
 The list below is the migration checklist; entries will be replaced with exact old/new examples as the implementation stabilizes.
