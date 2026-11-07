@@ -1,6 +1,10 @@
 """Security and contract tests for the optional HTTP service."""
+
+import asyncio
 import base64
 import json
+import logging
+import time
 
 import pytest
 
@@ -13,7 +17,13 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
 from core.parser import MAX_TOKEN_LENGTH
-from jwt_analyzer.service import _WindowRateLimiter, create_app, main
+from jwt_analyzer import service
+from jwt_analyzer.service import (
+    _WindowRateLimiter,
+    RequestTimeoutMiddleware,
+    create_app,
+    main,
+)
 
 
 def _client(app):
@@ -21,6 +31,7 @@ def _client(app):
         app,
         base_url="http://127.0.0.1",
         headers={"host": "127.0.0.1"},
+        raise_server_exceptions=False,
     )
 
 
@@ -48,19 +59,42 @@ def _rsa_key_pair():
     return private_key, public_key.decode("ascii")
 
 
-def test_health_endpoint_and_security_headers():
+def test_health_probes_openapi_and_security_headers():
     client = _client(create_app())
-    response = client.get("/api/v1/health")
 
-    assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-    assert "cache-control" in response.headers
-    assert response.headers["cache-control"] == "no-store"
-    assert response.headers["x-content-type-options"] == "nosniff"
-    assert "content-security-policy" in response.headers
+    health = client.get("/api/v1/health")
+    assert health.status_code == 200
+    assert health.json()["status"] == "ok"
+    assert health.headers["cache-control"] == "no-store"
+    assert health.headers["x-content-type-options"] == "nosniff"
+    assert health.headers["x-frame-options"] == "DENY"
+    assert health.headers["x-request-id"]
+
+    assert client.get("/api/v1/health/live").json()["status"] == "alive"
+    assert client.get("/api/v1/health/ready").json()["status"] == "ready"
+
+    spec_response = client.get("/api/v1/openapi.json")
+    assert spec_response.status_code == 200
+    spec = spec_response.json()
+    assert "/api/v1/inspect" in spec["paths"]
+    assert "/api/v1/verify" in spec["paths"]
+    assert "/api/v1/health/ready" in spec["paths"]
+    assert not any("jwks" in path.lower() for path in spec["paths"])
+    assert spec["components"]["schemas"]["InspectRequest"]["additionalProperties"] is False
+    assert spec["components"]["schemas"]["VerifyRequest"]["additionalProperties"] is False
 
 
-def test_inspect_endpoint_returns_structured_assessment_without_original_token():
+def test_readiness_fails_closed_during_shutdown():
+    app = create_app()
+    client = _client(app)
+    app.state.ready = False
+
+    response = client.get("/api/v1/health/ready")
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "http_error"
+
+
+def test_inspect_returns_assessment_without_original_token():
     client = _client(create_app())
     token = _token()
     response = client.post("/api/v1/inspect", json={"token": token})
@@ -74,26 +108,38 @@ def test_inspect_endpoint_returns_structured_assessment_without_original_token()
     assert response.headers["cache-control"] == "no-store"
 
 
-def test_authentication_is_required_when_token_is_configured():
-    token = "t" * 40
-    client = _client(create_app(api_token=token))
-    payload = {"token": _token()}
+def test_authentication_protects_both_assessment_routes():
+    api_token = "t" * 40
+    client = _client(create_app(api_token=api_token))
+    inspect_payload = {"token": _token()}
+    verify_payload = {
+        "token": _token(),
+        "public_key": "-----BEGIN PUBLIC KEY-----",
+        "algorithms": ["RS256"],
+    }
 
-    assert client.post("/api/v1/inspect", json=payload).status_code == 401
-    assert client.post(
-        "/api/v1/inspect",
-        json=payload,
-        headers={"Authorization": "Bearer wrong-token"},
-    ).status_code == 401
-    accepted = client.post(
-        "/api/v1/inspect",
-        json=payload,
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert accepted.status_code == 200
+    for payload, route in (
+        (inspect_payload, "/api/v1/inspect"),
+        (verify_payload, "/api/v1/verify"),
+    ):
+        missing = client.post(route, json=payload)
+        wrong = client.post(
+            route,
+            json=payload,
+            headers={"Authorization": "Bearer wrong-token"},
+        )
+        accepted = client.post(
+            route,
+            json=payload,
+            headers={"Authorization": "Bearer " + api_token},
+        )
+        assert missing.status_code == 401
+        assert wrong.status_code == 401
+        assert accepted.status_code != 401
+        assert missing.headers["www-authenticate"] == "Bearer"
 
 
-def test_verify_endpoint_uses_explicit_key_and_asymmetric_allowlist():
+def test_verify_uses_inline_public_key_and_asymmetric_allowlist():
     private_key, public_key = _rsa_key_pair()
     compact = jwt.encode(
         {
@@ -128,7 +174,72 @@ def test_verify_endpoint_uses_explicit_key_and_asymmetric_allowlist():
     assert rejected.status_code == 422
 
 
-def test_request_body_limit_applies_before_json_parsing():
+@pytest.mark.parametrize(
+    "key_content",
+    [
+        "https://attacker.example/key.pem",
+        '{"kty":"RSA","n":"AQAB","e":"AQAB","x5u":"http://127.0.0.1:8080/internal"}',
+        '{"kty":"RSA","n":"AQAB","e":"AQAB","jku":"http://169.254.169.254/latest/"}',
+        '{"kty":"RSA","n":"AQAB","e":"AQAB","url":"http://127.0.0.1/"}',
+        '{"keys":[]}',
+    ],
+)
+def test_verify_rejects_remote_key_references_and_key_sets(key_content):
+    client = _client(create_app())
+    response = client.post(
+        "/api/v1/verify",
+        json={"token": _token(), "public_key": key_content, "algorithms": ["RS256"]},
+    )
+
+    assert response.status_code == 422
+    assert "remote" not in response.text.lower() or "forbidden" in response.text.lower()
+
+
+def test_unknown_jwks_url_fields_are_rejected_without_echoing_input():
+    client = _client(create_app())
+    remote_url = "http://169.254.169.254/latest/meta-data/"
+    response = client.post(
+        "/api/v1/verify",
+        json={
+            "token": _token(),
+            "public_key": "-----BEGIN PUBLIC KEY-----",
+            "algorithms": ["RS256"],
+            "jwks_url": remote_url,
+        },
+    )
+
+    assert response.status_code == 422
+    assert remote_url not in response.text
+    assert response.json()["error"]["code"] == "invalid_request"
+
+
+def test_request_schema_is_strict_and_validation_errors_do_not_echo_tokens():
+    client = _client(create_app())
+    secret = "sensitive-request-body-value"
+    response = client.post(
+        "/api/v1/inspect",
+        json={"token": secret, "unexpected": "must-not-be-accepted"},
+    )
+
+    assert response.status_code == 422
+    assert secret not in response.text
+    assert "must-not-be-accepted" not in response.text
+    assert response.json()["error"]["code"] == "invalid_request"
+
+
+def test_malformed_json_uses_stable_error_envelope():
+    client = _client(create_app())
+    response = client.post(
+        "/api/v1/inspect",
+        content=b'{"token":',
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "invalid_json"
+
+
+def test_request_body_limit_is_enforced_before_json_parsing():
     client = _client(create_app(max_request_bytes=96))
     response = client.post(
         "/api/v1/inspect",
@@ -137,7 +248,65 @@ def test_request_body_limit_applies_before_json_parsing():
     )
 
     assert response.status_code == 413
-    assert "size limit" in response.json()["detail"].lower()
+    assert response.json()["error"]["code"] == "request_too_large"
+
+
+def test_streamed_request_body_limit_applies_without_content_length():
+    app = create_app(max_request_bytes=32)
+    messages = [
+        {"type": "http.request", "body": b'{"token":"12345678901234567890"', "more_body": True},
+        {"type": "http.request", "body": b'xxxxxxxxxxxxxxxxxxxxxxxx', "more_body": False},
+    ]
+    sent = []
+
+    async def receive():
+        return messages.pop(0)
+
+    async def send(message):
+        sent.append(message)
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/v1/inspect",
+        "raw_path": b"/api/v1/inspect",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [(b"host", b"127.0.0.1"), (b"content-type", b"application/json")],
+        "client": ("127.0.0.1", 12345),
+        "server": ("127.0.0.1", 80),
+    }
+    asyncio.run(app(scope, receive, send))
+
+    start = next(message for message in sent if message["type"] == "http.response.start")
+    body = next(message for message in sent if message["type"] == "http.response.body")
+    assert start["status"] == 413
+    assert b"request_too_large" in body["body"]
+
+
+def test_request_timeout_middleware_stops_slow_body_readers():
+    async def slow_app(scope, receive, send):
+        await receive()
+
+    async def blocked_receive():
+        await asyncio.sleep(0.2)
+        return {"type": "http.disconnect"}
+
+    async def capture_send(message):
+        sent.append(message)
+
+    sent = []
+    scope = {"type": "http"}
+    middleware = RequestTimeoutMiddleware(slow_app, timeout_seconds=0.01)
+    asyncio.run(middleware(scope, blocked_receive, capture_send))
+
+    start = next(message for message in sent if message["type"] == "http.response.start")
+    body = next(message for message in sent if message["type"] == "http.response.body")
+    assert start["status"] == 408
+    assert b"request_timeout" in body["body"]
 
 
 def test_request_rate_limit_is_applied_to_assessment_routes():
@@ -147,7 +316,7 @@ def test_request_rate_limit_is_applied_to_assessment_routes():
 
     assert first.status_code == 200
     assert second.status_code == 429
-
+    assert second.json()["error"]["code"] == "rate_limited"
 
 
 def test_untrusted_host_header_is_rejected():
@@ -161,7 +330,6 @@ def test_untrusted_host_header_is_rejected():
     assert response.status_code == 400
 
 
-
 def test_dashboard_uses_nonce_csp_and_text_only_result_rendering():
     client = _client(create_app())
     response = client.get("/dashboard")
@@ -169,7 +337,7 @@ def test_dashboard_uses_nonce_csp_and_text_only_result_rendering():
     assert response.status_code == 200
     csp = response.headers["content-security-policy"]
     assert "script-src 'nonce-" in csp
-    assert "nonce=\"" in response.text
+    assert 'nonce="' in response.text
     assert "result.textContent = JSON.stringify(data, null, 2)" in response.text
     assert "localStorage" not in response.text
     assert "sessionStorage" not in response.text
@@ -183,6 +351,7 @@ def test_large_jwt_is_rejected_even_when_json_body_is_under_request_cap():
     )
 
     assert response.status_code == 413
+    assert response.json()["error"]["code"] == "payload_too_large"
 
 
 def test_remote_bind_requires_explicit_opt_in_bearer_secret_and_host_allowlist():
@@ -212,20 +381,85 @@ def test_remote_bind_requires_explicit_opt_in_bearer_secret_and_host_allowlist()
                 "*",
             ]
         )
-
+    with pytest.raises(SystemExit):
+        main(
+            [
+                "--host",
+                "0.0.0.0",
+                "--allow-remote",
+                "--api-token",
+                "short",
+                "--allowed-host",
+                "analyzer.internal.example",
+            ]
+        )
 
 
 def test_rate_limiter_caps_client_state():
     limiter = _WindowRateLimiter(limit=1)
     for index in range(4096):
-        assert limiter.allow(f"client-{index}") is True
+        assert limiter.allow("client-" + str(index)) is True
 
     assert len(limiter._counts) == 4096
     assert limiter.allow("new-client") is False
     assert len(limiter._counts) == 4096
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"api_token": "short"},
+        {"max_request_bytes": 8 * 1024 * 1024 + 1},
+        {"requests_per_minute": 0},
+        {"request_timeout_seconds": 0},
+        {"max_concurrent_assessments": 0},
+        {"max_concurrent_assessments": 33},
+        {"allowed_hosts": ["*"]},
+    ],
+)
+def test_app_configuration_rejects_unsafe_or_out_of_range_values(kwargs):
+    with pytest.raises(ValueError):
+        create_app(**kwargs)
+
 
 def test_empty_auth_token_is_rejected():
     with pytest.raises(ValueError):
-        create_app(api_token="   ")
+        create_app(api_token=" ")
+
+
+def test_unexpected_exceptions_do_not_leak_data_to_responses_or_logs(monkeypatch, caplog):
+    secret = "do-not-log-this-token"
+
+    def explode(_token):
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(service, "inspect_token", explode)
+    caplog.set_level(logging.INFO, logger="jwt_analyzer.service")
+    client = _client(create_app())
+    response = client.post("/api/v1/inspect", json={"token": _token()})
+
+    assert response.status_code == 500
+    assert secret not in response.text
+    assert secret not in caplog.text
+    assert response.json()["error"]["code"] == "internal_error"
+    assert response.headers["x-request-id"]
+
+
+def test_access_logs_are_structured_and_do_not_include_request_bodies(caplog):
+    token = _token(claims={"sub": "log-secret-marker", "exp": 4102444800})
+    caplog.set_level(logging.INFO, logger="jwt_analyzer.service")
+    client = _client(create_app())
+    response = client.post("/api/v1/inspect", json={"token": token})
+
+    assert response.status_code == 200
+    assert '"event":"http_request"' in caplog.text
+    assert '"status_code":200' in caplog.text
+    assert token not in caplog.text
+    assert "log-secret-marker" not in caplog.text
+
+
+def test_lifecycle_marks_app_unready_after_shutdown():
+    app = create_app()
+    with TestClient(app, base_url="http://127.0.0.1", headers={"host": "127.0.0.1"}) as client:
+        assert client.get("/api/v1/health/ready").status_code == 200
+    assert app.state.ready is False
