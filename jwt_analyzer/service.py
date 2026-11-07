@@ -192,9 +192,21 @@ _DASHBOARD_HTML = """<!doctype html>
 """
 
 
-async def _send_json_error(send: Send, status: int, code: str, message: str) -> None:
+async def _send_json_error(
+    send: Send,
+    status: int,
+    code: str,
+    message: str,
+    request_id: Optional[str] = None,
+) -> None:
     body = json.dumps(
-        {"error": {"code": code, "message": message}},
+        {
+            "error": {
+                "code": code,
+                "message": message,
+                "request_id": request_id,
+            }
+        },
         separators=(",", ":"),
     ).encode("utf-8")
     await send(
@@ -231,7 +243,10 @@ class MaxRequestBodyMiddleware:
             value for name, value in scope.get("headers", []) if name.lower() == b"content-length"
         ]
         if len(lengths) > 1:
-            await _send_json_error(send, 400, "invalid_content_length", "Invalid Content-Length header.")
+            await _send_json_error(
+                send, 400, "invalid_content_length", "Invalid Content-Length header.",
+                scope.get("state", {}).get("request_id"),
+            )
             return
         if lengths:
             raw_length = lengths[0]
@@ -244,6 +259,7 @@ class MaxRequestBodyMiddleware:
                     413,
                     "request_too_large",
                     "Request body exceeds the configured size limit.",
+                    scope.get("state", {}).get("request_id"),
                 )
                 return
 
@@ -326,6 +342,7 @@ class RequestRateLimitMiddleware:
                         429,
                         "rate_limited",
                         "Request rate limit exceeded; retry in a later window.",
+                        scope.get("state", {}).get("request_id"),
                     )
                     return
         await self.app(scope, receive, send)
@@ -363,6 +380,7 @@ class RequestTimeoutMiddleware:
                     408,
                     "request_timeout",
                     "Request exceeded the configured time limit.",
+                    scope.get("state", {}).get("request_id"),
                 )
 
 
