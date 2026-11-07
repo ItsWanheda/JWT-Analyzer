@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 - Add lazy bounded batch assessment with per-item outcomes and a hard item cap.
 - Add validated JSON/YAML configuration with safe parsing, a 1 MiB input limit, explicit key allowlists, and defaults < file < environment precedence.
 - Add the versioned `jwt-analyzer-v2` CLI with machine-readable JSON stdout, structured JSON stderr errors, documented exit codes, and newline-delimited streaming batch input.
-- Add focused M3 API, batch, configuration, and CLI contract tests. These changes remain unreleased development work pending CI validation.
+- Add focused M3 API, batch, configuration, and CLI contract tests. The M3 implementation passed the six-version Python matrix (186 passed, one optional-service test skipped), public API quality checks, Bandit, distribution build/clean-install, installed v2 CLI smoke test, and Docker validation. See [CI run #42365419623](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42365419623). This remains unreleased development work.
 
 ### M0 security-baseline hardening
 
