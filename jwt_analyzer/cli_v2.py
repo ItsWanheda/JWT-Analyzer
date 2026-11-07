@@ -65,7 +65,7 @@ def cli() -> None:
 def inspect_command(token_file: Path, config_path: Path | None) -> None:
     """Structurally inspect one token; does not verify its signature."""
     try:
-        config = load_config(config_path)
+        load_config(config_path)
         token = _load_token(token_file)
         assessment = inspect_token(token)
         _write_json(_assessment_payload(assessment), sys.stdout)
