@@ -428,7 +428,7 @@ class SafeErrorMiddleware:
         except Exception as exc:
             state = scope.get("state", {})
             request_id = state.get("request_id")
-            _LOGGER.error(
+            _LOGGER.error(  # noqa: TRY400 - intentionally omit exception/traceback text
                 json.dumps(
                     {
                         "event": "request_failed",
@@ -537,20 +537,28 @@ def _validate_inline_public_key(value: str) -> None:
     stripped = value.strip()
     if not stripped.startswith("{"):
         if "://" in stripped or not (
-            stripped.startswith("-----BEGIN PUBLIC KEY-----")
-            or stripped.startswith("-----BEGIN RSA PUBLIC KEY-----")
+            stripped.startswith(("-----BEGIN PUBLIC KEY-----", "-----BEGIN RSA PUBLIC KEY-----"))
         ):
             raise ValueError("Only inline PEM public keys or a single public JWK are accepted.")
         return
 
     jwk = strict_json_loads(stripped, max_bytes=MAX_PUBLIC_KEY_BYTES)
     if not isinstance(jwk, dict):
-        raise ValueError("A public JWK must be a JSON object.")
+        raise TypeError("A public JWK must be a JSON object.")
     unknown_members = set(jwk).difference(_ALLOWED_JWK_MEMBERS)
     if unknown_members:
         raise ValueError("JWK contains unsupported members; remote key references are forbidden.")
     if "kty" not in jwk:
         raise ValueError("A public JWK must include kty.")
+
+
+def _validate_algorithm_allowlist(algorithms: Sequence[str]) -> None:
+    """Reject duplicate or unsupported verification algorithms."""
+    if len(set(algorithms)) != len(algorithms):
+        raise ValueError("Algorithm allowlist contains duplicates.")
+    unsupported = set(algorithms).difference(DEFAULT_ASYMMETRIC_ALGORITHMS)
+    if unsupported:
+        raise ValueError("Algorithm allowlist contains unsupported values.")
 
 
 async def _run_bounded(
@@ -774,11 +782,7 @@ def create_app(
     ) -> JSONResponse:
         try:
             _validate_inline_public_key(payload.public_key)
-            if len(set(payload.algorithms)) != len(payload.algorithms):
-                raise ValueError("Algorithm allowlist contains duplicates.")
-            unsupported = set(payload.algorithms).difference(DEFAULT_ASYMMETRIC_ALGORITHMS)
-            if unsupported:
-                raise ValueError("Algorithm allowlist contains unsupported values.")
+            _validate_algorithm_allowlist(payload.algorithms)
             assessment = await _run_bounded(
                 request,
                 verify_with_public_key,
