@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import replace
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Iterator, TextIO
+from typing import Any, TextIO
 
 import click
 
