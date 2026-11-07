@@ -81,7 +81,7 @@ def inspect_command(token_file: Path, config_path: Path | None) -> None:
 
 
 def _token_lines(stream: TextIO):
-    for line_number, line in enumerate(stream, start=1):
+    for line in stream:
         if len(line.encode("utf-8")) > _MAX_TOKEN_LINE_BYTES:
             yield None
         else:
