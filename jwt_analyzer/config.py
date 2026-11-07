@@ -19,7 +19,9 @@ from .exceptions import ConfigurationError
 from .policy import AssessmentPolicy, get_policy_profile
 
 _MAX_CONFIG_BYTES = 1_048_576
-_ALLOWED_ROOT_KEYS = frozenset({"policy", "policy_options", "max_batch_items", "wordlist_path", "fail_on_severity"})
+_ALLOWED_ROOT_KEYS = frozenset(
+    {"policy", "policy_options", "max_batch_items", "wordlist_path", "fail_on_severity"}
+)
 _ALLOWED_POLICY_KEYS = frozenset(
     {
         "accepted_algorithms",
