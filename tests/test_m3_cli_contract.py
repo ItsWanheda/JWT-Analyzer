@@ -73,4 +73,4 @@ def test_batch_cli_obeys_configured_item_limit(tmp_path):
     )
 
     assert result.exit_code == 2
-    assert json.loads(result.stderr)["error"]["code"] == "batch_limit_exceeded"
+    assert json.loads(result.output)["error"]["code"] == "batch_limit_exceeded"
