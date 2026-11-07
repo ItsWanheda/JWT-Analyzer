@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft7Validator, Draft202012Validator, FormatChecker
+
 from utils.report import redact_sensitive_data
 
 from . import __version__
@@ -182,7 +183,8 @@ pre{{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f8fa;padding:1rem
 <table><thead><tr><th>Severity</th><th>Finding</th><th>Description</th><th>Recommendation</th></tr></thead>
 <tbody>{"".join(rows)}</tbody></table>
 <h2>Normalized assessment data</h2><pre>{assessment_json}</pre>
-<p>Decoded JWT claims are untrusted unless signature verification and application policy checks\n  succeeded.</p>
+<p>Decoded JWT claims are untrusted unless signature verification and application
+  policy checks succeeded.</p>
 </body></html>"""
 
 
