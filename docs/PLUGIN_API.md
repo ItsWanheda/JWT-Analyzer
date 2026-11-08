@@ -16,8 +16,10 @@ modules. Code is imported only when the operator explicitly calls
 `PluginManager.load_enabled([...])`. The manager never scans the current working
 directory, imports arbitrary files, or automatically enables discovered plugins.
 
-Plugins receive a normalized `Assessment`, not the original compact JWT string.
-Assessment claims and evidence may still contain sensitive values. Treat the
+Plugins receive a fresh normalized `Assessment` snapshot for each invocation, not
+the original compact JWT string. Mutations to one plugin's snapshot do not affect
+the caller's assessment or another plugin's input. Assessment claims and evidence
+may still contain sensitive values. Treat the
 input as confidential and do not log or transmit it.
 
 ## Contract
