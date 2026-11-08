@@ -4,17 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased] — v2.0.0
+## [Unreleased]
+
+_No unreleased changes yet._
+
+## [2.0.0] — 2026-11-08
 
 ### v2.0.0 release validation
 
 - Expand the v1.2.x to v2 migration guide with concrete command and Python API examples, exact configuration/environment mappings, report/schema behavior, plugin and service migration notes, and a no-equivalent command table.
 - Add the v2.0.0 release notes and operator checklist, covering supported runtimes, breaking changes, security boundaries, artifact verification, production upgrade, rollback, independent review, and release authorization.
 - Add an 18-combination editable/wheel/sdist smoke matrix across Linux, Windows, macOS and CPython 3.9–3.14.
-- Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations with repository/signer verification. Artifacts are retained as workflow artifacts; no PyPI or Docker publication occurs.
+- Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations with repository/signer verification. CI artifacts are retained with the workflow; registry publication is a separate distribution step.
 - Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue.
 - Replace the service dependency's vulnerable Starlette <1.0 ceiling with FastAPI >=0.149 and Starlette >=1.3.1 on Python 3.10+, while retaining core CLI/API support for Python 3.9; service tests now run on Python 3.10–3.14.
-- M6-05 is complete. M7-02 (cross-platform clean installs) and M7-03 (supply-chain verification) are complete; M7-01 operator migration review, M7-04 independent security review, and M7-05 maintainer/operator approval remain open.
+- M6-05 and the M7 acceptance reviews (M7-01 migration review, M7-04 independent security review, and M7-05 maintainer/operator approval) are complete, as confirmed by the project maintainer on 2026-11-08. M7-02 and M7-03 technical validation are recorded below.
 
 ### M6 dashboard and plugin ecosystem (integrated; all acceptance gates validated)
 
@@ -47,7 +51,7 @@ All notable changes to this project will be documented in this file.
 - Add lazy bounded batch assessment with per-item outcomes and a hard item cap.
 - Add validated JSON/YAML configuration with safe parsing, a 1 MiB input limit, explicit key allowlists, and defaults < file < environment precedence.
 - Add the versioned `jwt-analyzer-v2` CLI with machine-readable JSON stdout, structured JSON stderr errors, documented exit codes, and newline-delimited streaming batch input.
-- Add focused M3 API, batch, configuration, and CLI contract tests. The M3 implementation passed the six-version Python matrix (186 passed, one optional-service test skipped), public API quality checks, Bandit, distribution build/clean-install, installed v2 CLI smoke test, and Docker validation. See [CI run #42365419623](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42365419623). This remains unreleased development work.
+- Add focused M3 API, batch, configuration, and CLI contract tests. The M3 implementation passed the six-version Python matrix (186 passed, one optional-service test skipped), public API quality checks, Bandit, distribution build/clean-install, installed v2 CLI smoke test, and Docker validation. See [CI run #42365419623](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42365419623). This work is included in the v2.0.0 stable source release.
 
 ### M0 security-baseline hardening
 
@@ -58,7 +62,7 @@ All notable changes to this project will be documented in this file.
 - Add best-effort redaction for JWT-like strings, common credentials, sensitive claim identifiers, PII patterns and scanner match excerpts in report/log paths; stop echoing malformed token contents in file-read errors.
 - Expand CI for JWKS adversarial cases, isolated wheel installation, CLI smoke testing, static security scanning and Docker starter-wordlist presence.
 
-> This section documents unreleased branch work. It is not a release announcement.
+> Historical milestone entries are retained for traceability; the v2.0.0 release is recorded at the top of this changelog.
 
 ### M1 shared assessment engine and result contract
 
@@ -68,7 +72,7 @@ All notable changes to this project will be documented in this file.
 - Keep signature validity independent from issuer, audience and lifetime policy outcomes; unverified policy evaluations are explicitly advisory.
 - Add JSON Schema, canonical fixture and regression tests for malformed claims, policy profiles, and signature/policy separation.
 
-> M1 work remains unreleased development functionality.
+> M1 functionality is included in the v2.0.0 stable release.
 
 ### M2 cryptographic verification and security intelligence
 
@@ -81,7 +85,7 @@ All notable changes to this project will be documented in this file.
 - Add 46 focused regression/property tests across five M2 test modules and extend the existing JWKS security suite with a shared-deadline DNS regression test.
 - Document JWKS resolver and brute-force cancellation limitations in `docs/JWKS_SECURITY.md` and the relevant implementation guidance.
 
-> M2 is complete on the `v2.0.0` development branch. It remains unreleased; this entry is not a release announcement.
+> M2 is included in the v2.0.0 stable release.
 
 ### Added
 - Introduce the public `jwt_analyzer` Python namespace with normalized `Assessment` and `Finding` models.
@@ -91,7 +95,7 @@ All notable changes to this project will be documented in this file.
 - Add a v2 milestone roadmap, migration checklist, and branch CI workflow.
 
 ### Changed
-- Move the development package version to `2.0.0.dev0`; no PyPI/Docker publication or release tag is created.
+- During development, package metadata was set to `2.0.0.dev0`; the stable v2.0.0 source release was subsequently integrated into `main`.
 - Correct CLI finding semantics so `alg=none` is a token-header indicator, not a confirmed server-side signature bypass.
 - Correct the missing-`exp` check so numeric timestamp zero is not confused with an absent claim.
 - Correct wheel discovery and package metadata for the public API and required legacy modules.
@@ -100,7 +104,7 @@ All notable changes to this project will be documented in this file.
 ### Validation
 - The v2 CI workflow passed on Python 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14, including public API quality checks, optional HTTP-service security tests, Docker validation, and clean distribution build/install. [Workflow run](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/41091451380).
 - CI success verifies the committed test and build matrix; it is not a claim that every possible JWT deployment or security issue has been eliminated.
-- No release, tag, or package publication is included in this development work.
+- The original development change did not create a tag or publish a package; stable source integration was completed later through the v2.0.0 release process.
 
 ---
 
@@ -269,7 +273,6 @@ Patch release — fixes discovered during first-run validation on Python 3.14 / 
 - `verify_rsa` snake_case command — use `verify-rsa` instead
 
 ---
-## [Unreleased]
 
 ## [1.0.0] - 2026-01-10
 
