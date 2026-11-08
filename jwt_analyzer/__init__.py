@@ -52,7 +52,6 @@ __all__ = [
     "ConfigurationError",
     "Finding",
     "JWTAnalyzerError",
-    "PLUGIN_API_VERSION",
     "PluginManager",
     "PluginManifest",
     "PluginRun",
