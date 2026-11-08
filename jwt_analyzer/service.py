@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import secrets
+import sys
 import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
@@ -30,10 +31,23 @@ try:
     from starlette.middleware.trustedhost import TrustedHostMiddleware
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
 except ImportError as exc:  # pragma: no cover - depends on optional install extra
+    if sys.version_info < (3, 10):
+        raise ImportError(
+            "The optional HTTP service requires Python 3.10 or newer to use "
+            "security-patched FastAPI/Starlette releases. The core CLI and Python API "
+            "continue to support Python 3.9."
+        ) from exc
     raise ImportError(
         "The JWT Analyzer HTTP service is optional; install it with "
         "pip install jwt-analyzer[service]."
     ) from exc
+
+if sys.version_info < (3, 10):  # pragma: no cover - framework compatibility guard
+    raise RuntimeError(
+        "The optional HTTP service requires Python 3.10 or newer to use "
+        "security-patched FastAPI/Starlette releases. The core CLI and Python API "
+        "continue to support Python 3.9."
+    )
 
 from core.parser import MAX_TOKEN_LENGTH
 from core.strict_json import strict_json_loads

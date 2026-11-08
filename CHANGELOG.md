@@ -4,9 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased — v2.0.0 development]
+## [Unreleased] — v2.0.0
 
-### M6 dashboard and plugin ecosystem (implementation in progress)
+### v2.0.0 release validation
+
+- Expand the v1.2.x to v2 migration guide with concrete command and Python API examples, exact configuration/environment mappings, report/schema behavior, plugin and service migration notes, and a no-equivalent command table.
+- Add the v2.0.0 release notes and operator checklist, covering supported runtimes, breaking changes, security boundaries, artifact verification, production upgrade, rollback, independent review, and release authorization.
+- Add an 18-combination editable/wheel/sdist smoke matrix across Linux, Windows, macOS and CPython 3.9–3.14.
+- Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations with repository/signer verification. Artifacts are retained as workflow artifacts; no PyPI or Docker publication occurs.
+- Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue.
+- Replace the service dependency's vulnerable Starlette <1.0 ceiling with FastAPI >=0.149 and Starlette >=1.3.1 on Python 3.10+, while retaining core CLI/API support for Python 3.9; service tests now run on Python 3.10–3.14.
+- M6-05 is complete. M7-02 (cross-platform clean installs) and M7-03 (supply-chain verification) are complete; M7-01 operator migration review, M7-04 independent security review, and M7-05 maintainer/operator approval remain open.
+
+### M6 dashboard and plugin ecosystem (integrated; all acceptance gates validated)
 
 - Expand the same-origin dashboard with local JWT file selection or paste, separate inspect and explicit public-key verification workflows, local finding comparison, and JSON/HTML/SARIF export.
 - Route report generation through the shared schema-validated M4 renderer; redact by default and require explicit opt-in for sensitive exports.
@@ -21,7 +31,7 @@ All notable changes to this project will be documented in this file.
 - Add liveness/readiness probes, lifecycle handling, safe JSON error envelopes, server-generated request IDs and structured request logs that exclude bodies, claims, keys and bearer credentials.
 - Enforce loopback-first remote exposure controls, minimum bearer-secret strength, exact Host validation, bounded declared/streamed bodies, request deadlines, per-peer rate limits and bounded concurrent assessment work.
 - Keep verification network-free: accept inline PEM public keys or one public JWK only; reject JWK Sets, URL input, remote-reference JWK members and undeclared URL parameters.
-- Expand service security regression tests and run the optional HTTP-service suite across Python 3.9–3.14. Validation results will be recorded after the branch CI matrix completes.
+- The original M5 service matrix included Python 3.9–3.14. M7 raises the optional HTTP-service minimum to Python 3.10 to use patched FastAPI/Starlette releases; the core CLI/API still support Python 3.9–3.14, and service security tests now cover Python 3.10–3.14.
 
 ### M4 reporting and CI integrations
 

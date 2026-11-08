@@ -56,10 +56,14 @@ def dashboard_url():
 
 def _signed_token():
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    public_key = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("ascii")
+    public_key = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("ascii")
+    )
     token = jwt.encode(
         {
             "sub": "e2e-user",
@@ -107,7 +111,7 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
                 "buffer": token.encode("utf-8"),
             }
         )
-        assert page.locator("#jwt").input_value() == token
+        expect(page.locator("#jwt")).to_have_value(token)
         assert not any(url.endswith("/api/v1/inspect") for url in requests)
         page.get_by_role("button", name="Inspect token").click()
         expect(page.locator("#status")).to_contain_text("Inspection completed")
@@ -142,7 +146,7 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
             severity=Severity.LOW,
             confidence=Confidence.HIGH,
         )
-        second = replace(first, findings=first.findings + (extra,))
+        second = replace(first, findings=(*first.findings, extra))
         page.locator("#compare-a").fill(json.dumps(first.to_dict()))
         page.locator("#compare-b").fill(json.dumps(second.to_dict()))
         page.get_by_role("button", name="Compare findings").click()

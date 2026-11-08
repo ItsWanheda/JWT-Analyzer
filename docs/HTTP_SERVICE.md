@@ -1,10 +1,10 @@
 # Optional HTTP Service and Dashboard
 
-**Status:** unreleased v2 development functionality. The service is an opt-in interface over the shared assessment engine. It is not an authentication server, an authorization decision point, or a remote JWKS resolver.
+**Release status — UNRELEASED: v2.0.0.** The service is an optional interface over the shared assessment engine. It is not an authentication server, an authorization decision point, or a remote JWKS resolver.
 
 ## Install and run locally
 
-The HTTP service is an optional dependency group; the default CLI and Python API do not import FastAPI or Pydantic.
+The HTTP service is an optional dependency group; the default CLI and Python API do not import FastAPI or Pydantic. The core analyzer supports CPython 3.9–3.14, but the optional service requires CPython 3.10 or newer. Starlette's security fixes for the current advisory set are available on the 1.x line, while upstream Starlette 0.50.0 dropped Python 3.9 support. On Python 3.9 the service extra deliberately omits the framework dependencies; importing or launching the service fails with an explicit compatibility message rather than resolving to the vulnerable pre-1.0 framework line.
 
 Install the service extra in an isolated environment:
 
@@ -143,7 +143,7 @@ A cryptographically invalid signature is a completed verification result and is 
 
 Before remote use, terminate TLS, configure upstream request and connection limits, set a high-entropy bearer token through a secret manager, specify exact Host values, and apply a trusted edge rate limit. Keep the service behind a private network or authenticated gateway. Do not upload raw request logs or unredacted assessment responses to shared systems.
 
-This optional service is an initial v2 development interface. It still requires independent security review and deployment-specific testing before public production exposure. It must not be used as an authentication server or as the sole basis for authorization decisions.
+This optional service requires independent security review and deployment-specific testing before public production exposure. It must not be used as an authentication server or as the sole basis for authorization decisions.
 
 
 ## Dashboard assessment and exports

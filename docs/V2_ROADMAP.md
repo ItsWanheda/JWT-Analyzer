@@ -92,7 +92,7 @@ Issues:
 
 ### M5 — Optional HTTP service
 
-**Implementation on `feat/m5-secure-http-service`, corrected and validated on `feat/m6-dashboard-plugin-ecosystem`:** the optional FastAPI/Uvicorn service has strict typed request contracts and a generated local OpenAPI document; liveness/readiness endpoints; loopback-first CLI startup; constant-time bearer authentication; exact Host allowlists; bounded body size, request duration, rate and assessment concurrency; safe error envelopes; request IDs and body-free structured logs; and an explicit inline-key-only verification contract that rejects remote JWK references. The M5 quality and Python 3.9–3.14 service gates now pass. See [HTTP service documentation](HTTP_SERVICE.md).
+**Implementation on `feat/m5-secure-http-service`, corrected and validated on `feat/m6-dashboard-plugin-ecosystem`:** the optional FastAPI/Uvicorn service has strict typed request contracts and a generated local OpenAPI document; liveness/readiness endpoints; loopback-first CLI startup; constant-time bearer authentication; exact Host allowlists; bounded body size, request duration, rate and assessment concurrency; safe error envelopes; request IDs and body-free structured logs; and an explicit inline-key-only verification contract that rejects remote JWK references. The original M5 service matrix included Python 3.9–3.14. M7 deliberately raises the optional-service minimum to Python 3.10 to use security-patched Starlette releases; core CLI/API support remains Python 3.9–3.14, while the optional service is tested on Python 3.10–3.14. See [HTTP service documentation](HTTP_SERVICE.md).
 
 Issues:
 - [x] **M5-01 — Versioned service contract**: optional install extra; typed, strict request bodies; versioned health/assessment routes; local OpenAPI document and response/error schemas.
@@ -103,32 +103,36 @@ Issues:
 
 **Acceptance:** service is optional and absent from the default CLI dependency path; safe default bind; authenticated/authorized remote use; rate/size/time caps and abuse tests pass; raw tokens are not persisted or logged.
 
-**M5 completion:** implementation and the expanded Python 3.9–3.14 core/service matrices passed on the M6 development branch, including Ruff, formatting, mypy, Bandit, wheel/sdist build and clean install, and Docker wordlist validation. See [CI run #42459044683](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42459044683). This run includes the final M5 Pydantic validator and formatting corrections. The base `v2.0.0` branch remains unchanged; these validated corrections are carried on the feature branch.
+**M5 completion:** the service implementation and security tests passed before M7 dependency hardening. M7 now supports the optional service on Python 3.10–3.14 to use security-patched FastAPI/Starlette, while the core CLI/API remain supported on Python 3.9–3.14. The updated full suite passed all six core versions, five service versions, the 18 Linux/Windows/macOS install combinations, quality, E2E, packaging and Docker checks in [v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs).
 
 
 ### M6 — Graphical dashboard and extension ecosystem
 
-**M6 implementation in progress on `feat/m6-dashboard-plugin-ecosystem`:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. Chromium browser E2E and accessibility checks are being added to CI; the milestone remains open until that job and the full matrix pass.
+**M6 implementation integrated into `v2.0.0`; all M6 gates validated:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. The corrected Chromium browser E2E/accessibility suite and all core/service/security/quality/package/Docker jobs passed in [full CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) on candidate commit `a2640e9` (33/33 jobs). The earlier RUF005 issue is resolved.
 
 Issues:
 - [x] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
 - [x] **M6-02 — Safe UI state and exports**: redact by default; make sensitive-data visibility deliberate; no token persistence by default; CSP and HTML sanitization.
 - [x] **M6-03 — Versioned plugin contract**: entry-point discovery, declared capabilities, schema/versioning, deterministic execution and error isolation.
 - [x] **M6-04 — Plugin trust boundary**: plugins are executable code; never auto-load arbitrary files from a working directory; require explicit enablement and document trust/sandbox limitations.
-- [ ] **M6-05 — E2E/accessibility testing**: keyboard navigation, screen reader labels, responsive layout, service/API failure states, auth and cross-site scripting regression suite.
+- [x] **M6-05 — E2E/accessibility testing**: keyboard navigation, screen reader labels, responsive layout, service/API failure states, auth and cross-site scripting regression suite.
 
 **Acceptance:** dashboard only calls the shared engine/service; all state and exports are explicit; plugin loading is opt-in and documented; E2E, accessibility and security tests pass. If dashboard scope slips, ship the core/API/service milestones rather than compromising security gates.
 
-### M7 — Release candidate and 2.0.0 gate
+### M7 — v2.0.0 release and publication gate
+
+**Technical validation is complete; the required review and approval gates remain open.** The release work is on `feat/m7-release-candidate`. Source commit `a2640e9` passed the full v2 CI matrix in [run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs), including core tests on CPython 3.9–3.14, optional HTTP-service security tests on 3.10–3.14, the 18 Linux/Windows/macOS install combinations, public API quality checks, Chromium dashboard E2E, clean distribution installs and Docker validation. The supply-chain workflow for commit `a2640e98` passed in [run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064): dependency audit, CycloneDX SBOM, repeat-build comparison, package digests, SLSA provenance and CycloneDX attestations, plus in-workflow repository/signer/predicate verification. The downloaded artifact's four SHA-256 manifest entries were independently checked; the audit covers 88 dependency components and reported zero advisories. The repeat-build claim is limited to the same source commit, hosted runner and toolchain, not independent or cross-platform reproducibility.
+
+The dependency audit earlier exposed a vulnerable Starlette <1.0 resolution. The service extra now uses the patched FastAPI/Starlette line on Python 3.10+, while the core CLI/API retain Python 3.9 support; service tests use the Starlette 1.x-compatible `httpx2` test client. M6-05 is closed. The v2.0.0 migration guide, release notes and operator checklist are complete and await operator/maintainer approval. No final release clearance is claimed until M7-01, M7-04 and M7-05 are signed off. No version bump, tag, PyPI publication, Docker push or production cutover is included.
 
 Issues:
-- [ ] **M7-01 — Migration guide**: command/API/config/report changes from 1.2.x; before/after examples and removal table.
-- [ ] **M7-02 — Clean install matrix**: wheel, sdist, Docker build, editable install, Windows/Linux/macOS smoke tests and all supported Python versions.
-- [ ] **M7-03 — Supply-chain artifacts**: dependency audit, SBOM, provenance/attestation and reproducible build record where supported.
-- [ ] **M7-04 — Independent security review**: review source, tests, JWKS/SSRF boundaries, output redaction, service/UI and plugins; track findings to closure.
-- [ ] **M7-05 — Release notes and operator checklist**: breaking changes, supported versions, known limitations, install/rollback instructions and upgrade steps.
+- [ ] **M7-01 — Migration guide review**: command/API/config/report changes from 1.2.x are documented with before/after examples and non-equivalent command mappings; an operator who owns a v1.2.x integration must review and sign off.
+- [x] **M7-02 — Clean-install matrix**: editable, wheel and sdist smoke checks passed across Linux, Windows and macOS × CPython 3.9–3.14; core/service regressions, package build/install and Docker wordlist validation passed in [v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs).
+- [x] **M7-03 — Supply-chain artifacts**: dependency audit, CycloneDX SBOM, wheel/sdist SHA-256 manifest, build record, same-run repeat-build comparison, SLSA provenance and SBOM attestations all passed in [M7 supply-chain run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064), including repository/signer/predicate verification.
+- [ ] **M7-04 — Independent security review**: reviewer other than the implementation author must inspect source, tests, JWKS/SSRF boundaries, output redaction, service/UI and plugin trust boundary; track findings to closure.
+- [ ] **M7-05 — Release notes and operator checklist approval**: the v2.0.0 release notes and operator checklist cover breaking changes, supported versions, known limitations, installation, rollback and upgrade steps; maintainer/operator approval remains pending.
 
-**Acceptance:** no unresolved critical/high release blocker; CI green on the full supported matrix; schema and CLI contracts documented; migration guide reviewed; reports pass security tests; packaged installs work; explicit maintainer approval required before tagging or publishing.
+**Acceptance:** M7-02 and M7-03 technical gates pass on the recorded validation evidence above; migration review and independent security review remain mandatory. Do not claim there are no critical/high release blockers until an independent reviewer records the result. Release notes and the operator checklist await approval. Explicit maintainer authorization is required before changing package metadata, tagging, publishing or production rollout.
 
 ## Dependency order
 

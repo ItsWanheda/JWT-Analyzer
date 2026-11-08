@@ -1,6 +1,6 @@
 # Migrating to JWT Analyzer v2
 
-> **Status:** work in progress. `2.0.0.dev0` is not a production release and is not published to PyPI or Docker. This document will be finalized before any 2.0.0 release.
+> **Release status — UNRELEASED:** This guide documents JWT Analyzer v2.0.0 (package metadata `2.0.0.dev0`). The 2.0.0 release and Docker image have not been published. Operator review is required before production migration.
 
 ## Upgrade strategy
 
@@ -95,23 +95,141 @@ New automation should use `jwt-analyzer-v2 inspect --token-file ...` or `jwt-ana
 
 The public `jwt_analyzer` namespace is the compatibility boundary. Imports from `core.*`, `utils.*`, `config.Config`, or `main.py` are legacy implementation details. Public token parsing errors use `TokenAssessmentError`; configuration failures use `ConfigurationError`; batch cap failures use `BatchLimitError`.
 
-The legacy CLI is retained in this development transition rather than silently changing its output format. The new JSON contract is a separate entry point; no legacy alias may weaken verification constraints, input limits, or redaction. No legacy command is removed by this work.
+The legacy CLI is retained in this development transition rather than silently changing its output format. The new JSON contract is a separate entry point; no legacy alias may weaken verification co## Command migration reference
 
-## Planned breaking changes
+The v2 CLI is a new, deliberately separate contract. The legacy jwt-analyzer entry point remains installed during this development transition; it has not been redirected to v2 JSON output. The new command is jwt-analyzer-v2.
 
-The list below is the migration checklist; entries will be replaced with exact old/new examples as the implementation stabilizes.
+| v1.2.x command | v2.0.0 development path | Migration notes |
+|---|---|---|
+| analyze --token-file token.jwt | jwt-analyzer-v2 inspect --token-file token.jwt | Both are structural inspection only. The v2 result is a versioned JSON envelope and explicitly reports verification_status=not_attempted. |
+| audit --token-file token.jwt ... | Run v2 stages separately: inspect, explicitly verify when a trusted key is available, evaluate policy, then render a report. | There is intentionally no one-command v2 alias for the legacy combined audit. Do not treat inspection or policy evaluation on unverified claims as verification. |
+| verify-rsa --token-file ... --public-key ... | Python API: verify_signature_with_public_key() or verify_with_public_key(). | Supply an explicit asymmetric algorithm allowlist. The v2 CLI currently has no direct verify-rsa subcommand. |
+| verify-jwks --token-file ... --jwks-url ... | No supported public v2 CLI or Python API equivalent is currently exposed. The optional HTTP service accepts an inline PEM key or one public JWK, not a remote JWKS URL. | Keep the legacy remote-JWKS workflow isolated and pinned only while a reviewed migration decision is made; do not rely on internal v2 modules, pass a URL as an inline key, or disable TLS checks. |
+| diff --token1 ... --token2 ... | Use the dashboard assessment-comparison workflow for normalized assessment findings. | This is not a byte-for-byte replacement for the legacy payload-diff output. Adapt consumers to the documented comparison result. |
+| brute-force --token-file ... | No v2 CLI equivalent is currently provided. | The legacy command remains separate from the supported v2 CLI contract. Do not assume v2 inspect or batch performs HMAC secret recovery. |
+| forge --token-file ... --payload-file ... | No v2 CLI or public API replacement is currently documented. | Keep any legacy use isolated to explicitly authorized testing and do not build new integrations against internal modules. |
+| Legacy JSON/HTML output options | jwt-analyzer-v2 report --assessment-file assessment.json --format json\|html\|sarif | The v2 renderer validates the report envelope and nested Assessment; sensitive fields are redacted by default. |
 
-| Area | v1 behavior | v2 direction | Migration action |
-|---|---|---|---|
-| Python imports | Import internal modules such as `core.*` | Public `jwt_analyzer` namespace | Switch callers to documented public exports; avoid depending on `core` internals |
-| Assessment data | Ad-hoc dictionaries vary by command | Versioned `Assessment` / `Finding` schema | Update code to consume schema version and stable finding IDs |
-| Verification | Decode and verification commands are separate but their outputs vary | Explicit `not_attempted`, `verified`, `invalid`, or `error` status | Never infer verification from decoded claims; branch on the explicit status |
-| Heuristic findings | Some messages may imply confirmed exploitability from token-only patterns | Indicators document evidence and limitations | Update alert thresholds and confirm target behavior independently |
-| CLI output | Existing JSON/HTML fields and exit behavior | Stable versioned output and documented exit-code policy | Update parsers and CI thresholds after the v2 CLI contract is finalized |
-| JWKS flags | Older examples may reference disabling TLS verification | TLS verification remains enabled | Remove `--no-verify-ssl` usage; fix trust roots/certificates instead |
-| Plugins | Legacy `plugins/` loader and implicit `register()` discovery | Explicitly enabled, versioned plugin interface | Do not rely on auto-discovery semantics; review each plugin's trust boundary |
-| Configuration | Existing YAML/environment keys | Validated, documented policy/config schema | Validate and migrate config before rollout |
-| HTTP service | Not part of the v1 CLI-only contract | Optional `jwt-analyzer[service]` extra; loopback-first API and dashboard | Install the extra explicitly; review bearer auth, Host allowlist, request caps and reverse-proxy/TLS configuration before enabling network access |
+### Before and after: Python API
+
+The v1 implementation exposed parsing through internal modules. Those imports are not a stable compatibility contract:
+
+    from core.parser import parse_jwt
+
+    parsed = parse_jwt(compact_jwt)
+    print(parsed["payload"])
+
+Use the public v2 package for structural inspection:
+
+    from jwt_analyzer import inspect_token
+
+    assessment = inspect_token(compact_jwt)
+    assert assessment.verification_status.value == "not_attempted"
+    print(assessment.to_dict())
+
+Inspection never verifies a signature. When signature verification is required, make that operation explicit and pass a trusted public key plus a fixed algorithm allowlist:
+
+    from pathlib import Path
+    from jwt_analyzer import verify_signature_with_public_key, evaluate_policy, get_policy_profile
+
+    signature_result = verify_signature_with_public_key(
+        compact_jwt,
+        Path("issuer-public.pem").read_text(encoding="utf-8"),
+        algorithms=["RS256"],
+    )
+    assessment = evaluate_policy(
+        signature_result,
+        get_policy_profile(
+            "strict",
+            issuer="https://issuer.example",
+            audience="orders-api",
+        ),
+    )
+
+Check both cryptographic verification and policy status before using claims in an application decision. A verified signature alone does not authorize a user or establish that the token is intended for this service.
+
+### Before and after: CLI and output contract
+
+The old analysis command emits human-oriented output:
+
+    jwt-analyzer analyze --token-file token.jwt
+
+The v2 inspect command emits one compact JSON document:
+
+    jwt-analyzer-v2 inspect --token-file token.jwt > assessment.json
+
+The envelope has CLI schema version 1, status ok, and an embedded Assessment schema version 1.1. The assessment's signature status remains not_attempted.
+
+Batch input is UTF-8, one compact JWT per non-empty line. Each item is streamed as JSON Lines, followed by one summary line:
+
+    jwt-analyzer-v2 batch --input-file tokens.txt > batch-results.jsonl
+
+Render a previously saved assessment with the shared v2 reporting engine:
+
+    jwt-analyzer-v2 report --assessment-file assessment.json --format sarif --output findings.sarif
+
+Supported report formats are JSON, HTML, and SARIF. JSON report envelope schema is 1.0; the embedded Assessment is schema 1.1; SARIF is validated against 2.1.0. Redaction is on by default. The --include-sensitive option deliberately disables report redaction and should only be used for controlled local output.
+
+The v2 CLI exit codes are:
+
+| Exit code | Meaning |
+|---:|---|
+| 0 | Requested work completed successfully |
+| 1 | A token assessment failed or a batch was partial, or the configured report threshold was reached |
+| 2 | CLI usage, file input, configuration, batch-limit, or report validation error |
+
+Successful machine-readable results go to stdout. Structured error envelopes go to stderr. Do not parse the legacy CLI's human-oriented output as the v2 JSON contract.
+
+### Configuration migration
+
+The v2 JSON/YAML configuration file is limited to 1 MiB, uses safe YAML parsing, rejects unknown keys, and applies precedence in this order: defaults, configuration file, environment.
+
+Example YAML configuration:
+
+    policy: strict
+    policy_options:
+      issuer: https://issuer.example
+      audience: orders-api
+      require_issuer: true
+      require_audience: true
+      leeway_seconds: 30
+    max_batch_items: 2500
+    wordlist_path: ./wordlists/custom.txt
+    fail_on_severity: high
+
+The v2 environment variables are:
+
+| Variable | v2 meaning | Default / constraint |
+|---|---|---|
+| JWT_ANALYZER_POLICY | Policy profile name | baseline; supported profile names are validated |
+| JWT_ANALYZER_MAX_BATCH_ITEMS | Maximum non-empty batch items | 10000; positive integer |
+| JWT_ANALYZER_WORDLIST_PATH | Configured wordlist path | Optional path; this variable is also recognized by the legacy configuration |
+| JWT_ANALYZER_FAIL_ON_SEVERITY | Report/CI severity threshold | high; one of none, info, low, medium, high, critical |
+
+The policy options currently accepted under policy_options are accepted_algorithms, required_claims, time_claims, issuer, audience, require_issuer, require_audience, leeway_seconds, and max_future_iat_seconds.
+
+Legacy environment variables JWT_ANALYZER_TIMEOUT, JWT_ANALYZER_LOG_LEVEL, and JWT_ANALYZER_ENABLE_RICH are not v2 configuration keys. The v2 command uses structured machine-readable output; do not expect Rich formatting or the legacy brute-force timeout setting to affect it. The legacy JWT_ANALYZER_WORDLIST_PATH continues to be recognized.
+
+### Reports, plugins, and optional service
+
+- The v2 public API uses the jwt_analyzer namespace. Imports from core.*, utils.*, the repository-root config.Config, and direct main.py imports are implementation details, not the v2 compatibility promise.
+- JSON, HTML, and SARIF reports share the normalized Assessment model. Redaction is enabled by default; sensitive values require explicit opt-in.
+- The optional HTTP service and dashboard are installed with the service extra and require CPython 3.10–3.14. The core CLI/API continue to support Python 3.9–3.14. Python 3.9 deliberately does not install the service framework dependencies because the patched Starlette line requires Python 3.10 or newer; the service refuses to start there rather than falling back to the vulnerable pre-1.0 framework line. The service is loopback-first and has explicit Host, bearer-authentication, request-size, rate, concurrency, and request-lifetime controls. Remote mode requires deliberate operator configuration and a TLS-terminating proxy or private access-controlled network.
+- The v2 plugin contract uses the jwt_analyzer.plugins.v2 entry-point group and explicit operator enablement. Plugins execute as trusted in-process Python code; they are not sandboxed. The legacy directory-based plugin loader is disabled. Audit every plugin package before enabling it.
+
+### Removal and compatibility table
+
+| Surface | v2.0.0 development status | Operator action |
+|---|---|---|
+| Legacy jwt-analyzer command group | Retained as a separate compatibility path during development; not a v2 JSON contract | Keep legacy automation pinned until migrated and tested |
+| Legacy internal Python imports (core.*, utils.*, config.Config) | Not a supported v2 API | Move new integrations to documented jwt_analyzer exports |
+| Legacy directory-scanning plugin loader | Disabled | Port plugins to the versioned entry-point contract and enable them explicitly |
+| Implicit signature trust from decoded claims | Not supported | Require explicit verification and application policy |
+| Unredacted report output by default | Not supported by v2 reporting | Use redacted exports; sensitive output requires an explicit opt-in |
+| v2 CLI commands for brute-force, forge, verify-rsa, verify-jwks, and combined audit | No direct command replacement currently exists | Keep these workflows separate; do not invent aliases or infer that inspect performs them |
+
+No blanket removal of the legacy CLI is performed by this development branch. Any future removal requires a separately announced deprecation period, a versioning decision, and updated migration documentation.
+
 
 ## Before production cutover
 
@@ -122,4 +240,4 @@ The list below is the migration checklist; entries will be replaced with exact o
 - [ ] Verify that token material, signing secrets and sensitive claims are not leaking to logs or artifacts.
 - [ ] Test rollback to the pinned 1.2.x installation and preserve a copy of the prior config/report parsers.
 
-The migration guide is not complete until these steps have been exercised against the release candidate and the exact removed/renamed interfaces are documented.
+Before production migration, an operator must confirm the command/API/configuration mapping against the release commit, the independent security review must be recorded, and the release checklist must be approved. Keep the existing 1.2.x deployment pinned until those steps and the formal v2.0.0 release are complete.
