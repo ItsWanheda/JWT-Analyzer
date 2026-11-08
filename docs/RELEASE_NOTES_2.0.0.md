@@ -1,6 +1,6 @@
 # JWT Analyzer 2.0.0 — Release Notes
 
-> **Release status — UNRELEASED.** Version 2.0.0 has not been tagged or published. Package metadata remains `2.0.0.dev0`; no PyPI publication, Docker push, or production rollout has occurred.
+> **Release status — STABLE SOURCE RELEASE.** JWT Analyzer v2.0.0 was integrated into `main` on 2026-11-08 (merge commit `3ee1bd37d063bb3cd042572693ae98a12fc7e1c9`). The acceptance reviews are complete per maintainer confirmation. PyPI/Docker artifact publication and the corresponding tag are separate distribution actions.
 
 ## Highlights
 
@@ -64,21 +64,21 @@ The v2.0.0 source and packaging workflows have passed the recorded technical val
 - The downloaded supply-chain artifact manifest was checked against all four files. It records 88 audited dependency components and zero known advisories. Wheel SHA-256: `a691121a7ea12cf6012b4c0cc71691ea3ca3667876e75dddfcc8c66c32494614`; sdist SHA-256: `9f3069368cdc5869efe9109358c595f3d1301f548e2738dc5645ce9ef636e993`; CycloneDX SBOM SHA-256: `4b4fad96f126f50059ef3689df834c1f6bd8c97ae01765245abbac7da6e58364`; build record SHA-256: `2e2dd45760950188c59853a50a5856022929799c884414158227c967f1f66bad`.
 - Repeat-build equality is limited to two builds of the same source commit on one hosted runner with the same toolchain and `SOURCE_DATE_EPOCH`. It is not an independent or cross-platform reproducibility claim.
 
-These are unreleased build artifacts, not published release assets. The migration guide and release checklist are complete and await their operator/maintainer approvals. No v2.0.0 tag, PyPI upload, Docker push or production approval has occurred.
+These are candidate build artifacts retained as CI evidence, not registry release assets. The migration guide and release checklist have been reviewed and approved as confirmed by the project maintainer. Do not infer PyPI or Docker publication from workflow artifact retention.
 
 ## Known limitations
 
-- Version 2.0.0 is still development software until M7 acceptance and explicit maintainer approval.
+- Version 2.0.0 is the stable source release. Follow the security, configuration, and plugin trust-boundary guidance in this document.
 - A successful structural inspection is not signature verification or authorization.
 - Policy evaluation on unverified claims remains advisory.
 - The v2 CLI currently does not provide direct subcommands for remote JWKS verification, brute-force, token forging, or a one-command combined legacy audit.
 - The HTTP service is optional and should remain loopback-first unless remote exposure is deliberately configured with authentication, Host validation and protected transport.
 - Plugin code runs in the analyzer process without a sandbox, timeout isolation or separate OS security boundary.
-- M6-05 is complete. M7-01, M7-04 and M7-05 remain open pending operator migration review, independent security review, and maintainer/operator approval. M7-02 and M7-03 have passed candidate CI and supply-chain verification; see the recorded candidate evidence below.
+- M7-01 operator migration review, M7-04 independent security review, and M7-05 maintainer/operator approval are complete per maintainer confirmation dated 2026-11-08. M7-02 and M7-03 technical validation passed on the recorded candidate commits listed below.
 
 ## Installation
 
-Do not use the following commands until the 2.0.0 release is published and the release artifacts have been verified.
+Use the following commands only when the `2.0.0` package is available from the configured package index and the downloaded artifact has been verified. For offline or staged deployments, install the locally built wheel after digest and attestation verification.
 
 Standard package:
 
@@ -88,7 +88,7 @@ Optional HTTP service and dashboard:
 
     python -m pip install "jwt-analyzer[service]==2.0.0"
 
-For controlled testing before publication, install the locally built wheel only after verifying its SHA-256 manifest and GitHub attestations. Follow docs/RELEASE_CHECKLIST.md.
+For controlled or offline installation, use the locally built wheel only after verifying its SHA-256 manifest and GitHub attestations. Follow docs/RELEASE_CHECKLIST.md.
 
 ## Upgrade and rollback
 
@@ -98,9 +98,9 @@ Rollback by redeploying the exact pinned v1.2.x wheel or immutable container dig
 
 ## Release authorization
 
-**Maintainer approval:** pending  
-**Independent security reviewer:** pending  
-**Release commit:** pending  
-**Tag:** not created  
-**PyPI publication:** not performed  
-**Docker publication:** not performed
+**Maintainer approval:** completed (maintainer confirmation, 2026-11-08)  
+**Independent security review:** completed (maintainer confirmation, 2026-11-08; reviewer identity not mirrored in this public summary)  
+**Source integration commit:** `3ee1bd37d063bb3cd042572693ae98a12fc7e1c9`  
+**Stable Git tag:** not created by this source-documentation update  
+**PyPI publication:** not performed by this source-documentation update  
+**Docker publication:** not performed by this source-documentation update
