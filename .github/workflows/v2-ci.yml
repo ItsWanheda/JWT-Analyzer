@@ -59,9 +59,9 @@ jobs:
       - name: Type-check public API
         run: mypy --python-version 3.12 jwt_analyzer
       - name: Lint security boundaries and regression tests
-        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py tests/test_m6_dashboard.py tests/test_m6_plugins.py --select E,F,B,C4,UP,SIM,RUF,N
+        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py tests/test_m6_dashboard.py tests/test_m6_dashboard_e2e.py tests/test_m6_plugins.py --select E,F,B,C4,UP,SIM,RUF,N
       - name: Check formatting for security boundaries and regressions
-        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py tests/test_m6_dashboard.py tests/test_m6_plugins.py
+        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py tests/test_m6_dashboard.py tests/test_m6_dashboard_e2e.py tests/test_m6_plugins.py
       - name: Lint M2 security boundaries and adversarial tests
         run: >-
           ruff check core/strict_json.py core/parser.py core/verification.py core/jwks.py
