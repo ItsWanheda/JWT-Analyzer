@@ -113,7 +113,7 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
         displayed = page.locator("#result").inner_text()
         assert "private@example.test" not in displayed
         assert page.locator("#result img").count() == 0
-        
+
         # JSON export is downloaded through the report API and remains redacted.
         with page.expect_download() as download_info:
             page.get_by_role("button", name="Export report").click()
@@ -129,10 +129,7 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
         page.locator("#public-key").fill(public_key)
         page.locator("#algorithms").fill("RS256")
         page.get_by_role("button", name="Verify signature").click()
-        page.wait_for_function(
-            "document.querySelector('#status').textContent.includes("
-            "'Signature verification completed')"
-        )
+        expect(page.locator("#status")).to_contain_text("Signature verification completed")
         assert '"verification_status": "verified"' in page.locator("#result").inner_text()
 
         # Comparison accepts assessment JSON and reports stable finding deltas.
