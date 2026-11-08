@@ -11,7 +11,7 @@ We maintain strict version control to ensure security patches are delivered effe
 | Version | Supported | Status |
 | :--- | :---: | :--- |
 | **1.2.1** | ✅ | Latest stable line; security fixes should target this line |
-| **2.0.0.dev0** | ❌ | Development prerelease; not supported for production use |
+| **2.0.0** | ✅ | Stable release; supported under this security policy |
 | **1.2.0 and older** | ❌ | Upgrade to the latest stable 1.2.x release |
 ---
 
@@ -31,7 +31,7 @@ controlled environment.
 
 ## Optional v2 HTTP Service
 
-The HTTP service and dashboard in `2.0.0.dev0` are experimental and unsupported for production use until the v2 security gates are complete.
+The HTTP service and dashboard in `2.0.0` are optional components. Deploy them only with the documented authentication, Host validation, network exposure, TLS-termination, rate, concurrency, and resource-limit controls.
 
 - The service binds to loopback by default. Non-loopback binds require explicit opt-in, a bearer token of at least 32 characters, and an exact Host allowlist.
 - Use remote mode only behind a TLS-terminating proxy or on a private, access-controlled network. The service itself speaks HTTP and must not receive bearer tokens over untrusted networks in clear text.
