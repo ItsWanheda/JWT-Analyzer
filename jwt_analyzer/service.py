@@ -25,7 +25,7 @@ try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.exceptions import RequestValidationError
     from fastapi.responses import HTMLResponse, JSONResponse
-    from pydantic import BaseModel, Field, StrictInt, StrictStr, validator
+    from pydantic import BaseModel, Field, StrictBool, StrictInt, StrictStr, validator
     from starlette.concurrency import run_in_threadpool
     from starlette.middleware.trustedhost import TrustedHostMiddleware
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -38,8 +38,9 @@ except ImportError as exc:  # pragma: no cover - depends on optional install ext
 from core.parser import MAX_TOKEN_LENGTH
 from core.strict_json import strict_json_loads
 from core.verification import DEFAULT_ASYMMETRIC_ALGORITHMS, MAX_PUBLIC_KEY_BYTES
-from jwt_analyzer import __version__
+from jwt_analyzer import ReportFormat, __version__, render_report
 from jwt_analyzer.api import inspect_token, verify_with_public_key
+from jwt_analyzer.models import Assessment
 
 DEFAULT_MAX_REQUEST_BYTES = (2 * MAX_TOKEN_LENGTH) + 65_536
 _DEFAULT_RATE_PER_MINUTE = 60
@@ -97,6 +98,17 @@ class VerifyRequest(BaseModel):
         extra = "forbid"
 
 
+class ReportRequest(BaseModel):
+    """Validated request for a redacted-by-default report export."""
+
+    assessment: dict[str, Any]
+    format: StrictStr = Field(min_length=1, max_length=16)
+    include_sensitive: StrictBool = False
+
+    class Config:
+        extra = "forbid"
+
+
 class HealthResponse(BaseModel):
     status: str
     version: str
@@ -118,73 +130,277 @@ _DASHBOARD_HTML = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <title>JWT Analyzer · Local Dashboard</title>
+  <title>JWT Analyzer · Assessment Dashboard</title>
   <style>
     :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; background: #0b1020; color: #eef2ff; }
+    * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; }
-    main { max-width: 980px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem 4rem; }
     .eyebrow { color: #a5b4fc; font-size: .78rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
-    h1 { font-size: clamp(2rem, 5vw, 3.4rem); margin: .5rem 0; letter-spacing: -.04em; }
+    h1 { font-size: clamp(2rem, 5vw, 3.2rem); margin: .5rem 0; letter-spacing: -.04em; }
+    h2 { margin: 0 0 .7rem; font-size: 1.2rem; }
     p { color: #cbd5e1; line-height: 1.65; }
     .warning { border: 1px solid #854d0e; background: #422006; color: #fef3c7; padding: .9rem 1rem; border-radius: .8rem; }
-    form { display: grid; gap: 1rem; margin-top: 1.5rem; }
-    label { display: grid; gap: .45rem; color: #c7d2fe; font-weight: 650; }
-    input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #475569; border-radius: .65rem; background: #111827; color: #f8fafc; padding: .85rem; font: inherit; }
-    textarea { min-height: 11rem; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
-    button { justify-self: start; border: 0; border-radius: .65rem; padding: .85rem 1.15rem; color: #0b1020; background: #a5b4fc; font: inherit; font-weight: 750; cursor: pointer; }
-    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #818cf8; outline-offset: 3px; }
-    pre { background: #050816; border: 1px solid #334155; border-radius: .8rem; padding: 1rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 5rem; }
-    .section-title { margin: 2rem 0 .5rem; }
-    small { color: #94a3b8; font-weight: 400; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.25rem; }
+    section { min-width: 0; border: 1px solid #334155; background: #111827; border-radius: .9rem; padding: 1rem; }
+    label { display: grid; gap: .4rem; margin: .75rem 0; color: #c7d2fe; font-weight: 650; }
+    small { color: #94a3b8; font-weight: 400; line-height: 1.5; }
+    input, textarea, select { width: 100%; border: 1px solid #475569; border-radius: .55rem; background: #0b1020; color: #f8fafc; padding: .75rem; font: inherit; }
+    textarea { min-height: 8rem; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    button { border: 0; border-radius: .55rem; padding: .75rem 1rem; color: #0b1020; background: #a5b4fc; font: inherit; font-weight: 750; cursor: pointer; }
+    button:disabled { opacity: .55; cursor: wait; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #818cf8; outline-offset: 3px; }
+    .actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; margin-top: .8rem; }
+    .check { display: flex; grid-template-columns: auto 1fr; align-items: center; gap: .55rem; }
+    .check input { width: auto; }
+    pre { background: #050816; border: 1px solid #334155; border-radius: .8rem; padding: 1rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 7rem; }
+    #status { min-height: 1.5rem; color: #c7d2fe; }
+    .wide { grid-column: 1 / -1; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } .wide { grid-column: auto; } }
   </style>
 </head>
 <body>
   <main>
     <div class="eyebrow">JWT Analyzer · v2 development</div>
-    <h1>Inspect before you trust.</h1>
-    <p>Analyze token structure and review indicators locally. Inspection does not verify the signature and does not establish that a target application is vulnerable.</p>
-    <div class="warning"><strong>Local handling:</strong> this page does not save tokens to browser storage. Do not use a shared browser or export decoded claims without reviewing sensitive values.</div>
-    <form id="inspect-form">
-      <label for="api-token">API bearer token <small>Required only if service authentication is enabled.</small></label>
-      <input id="api-token" type="password" autocomplete="off" spellcheck="false" aria-label="API bearer token">
-      <label for="jwt">Compact JWT</label>
-      <textarea id="jwt" required maxlength="1048576" autocomplete="off" spellcheck="false" placeholder="Paste a compact JWT here"></textarea>
-      <button id="submit" type="submit">Inspect token</button>
-    </form>
-    <h2 class="section-title">Assessment output</h2>
-    <pre id="result" role="status" aria-live="polite">No assessment yet.</pre>
+    <h1>Inspect. Verify. Understand.</h1>
+    <p>Inspecting decodes untrusted data. Verification is a separate operation and requires an explicit trusted public key and algorithm allowlist. Neither operation authorizes access to an application.</p>
+    <div class="warning"><strong>Local handling:</strong> inputs and results stay in page memory only. They are not saved to browser storage. Reports are redacted by default; only enable sensitive exports when you have a controlled reason.</div>
+
+    <section aria-labelledby="auth-heading">
+      <h2 id="auth-heading">Service authentication</h2>
+      <label for="api-token">API bearer token <small>Only needed when service authentication is enabled. It is sent in the Authorization header and is not stored.</small></label>
+      <input id="api-token" type="password" autocomplete="off" spellcheck="false">
+    </section>
+
+    <div class="grid">
+      <section aria-labelledby="inspect-heading">
+        <h2 id="inspect-heading">1. Inspect a token</h2>
+        <form id="inspect-form">
+          <label for="jwt">Compact JWT</label>
+          <textarea id="jwt" required maxlength="1048576" autocomplete="off" spellcheck="false" placeholder="Paste a compact JWT"></textarea>
+          <button id="inspect-submit" type="submit">Inspect token</button>
+        </form>
+        <small>Inspection does not verify signatures, issuer, audience, or remote verifier behavior.</small>
+      </section>
+
+      <section aria-labelledby="verify-heading">
+        <h2 id="verify-heading">2. Verify a signature</h2>
+        <form id="verify-form">
+          <label for="verify-jwt">Compact JWT</label>
+          <textarea id="verify-jwt" required maxlength="1048576" autocomplete="off" spellcheck="false" placeholder="Paste the JWT to verify"></textarea>
+          <label for="public-key">Inline public key (PEM or one public JWK)</label>
+          <textarea id="public-key" required maxlength="65536" autocomplete="off" spellcheck="false" placeholder="-----BEGIN PUBLIC KEY-----"></textarea>
+          <label for="algorithms">Allowed asymmetric algorithms <small>Comma-separated; never inferred from the token header.</small></label>
+          <input id="algorithms" value="RS256" autocomplete="off">
+          <label for="issuer">Expected issuer (optional)</label>
+          <input id="issuer" autocomplete="off">
+          <label for="audience">Expected audience (optional)</label>
+          <input id="audience" autocomplete="off">
+          <label for="leeway">Clock leeway in seconds</label>
+          <input id="leeway" type="number" min="0" max="86400" value="0">
+          <button id="verify-submit" type="submit">Verify signature</button>
+        </form>
+        <small>No remote JWKS, URL-based key lookup, or arbitrary network fetch is supported.</small>
+      </section>
+
+      <section class="wide" aria-labelledby="result-heading">
+        <h2 id="result-heading">Assessment result</h2>
+        <p id="status" role="status" aria-live="polite">No assessment yet.</p>
+        <pre id="result" tabindex="0" aria-label="Redacted assessment result">No assessment yet.</pre>
+        <div class="actions">
+          <label for="report-format">Export format</label>
+          <select id="report-format" aria-label="Report format">
+            <option value="json">JSON</option>
+            <option value="html">HTML</option>
+            <option value="sarif">SARIF</option>
+          </select>
+          <label class="check" for="include-sensitive">
+            <input id="include-sensitive" type="checkbox">
+            Include sensitive values (explicit opt-in)
+          </label>
+          <button id="export-submit" type="button" disabled>Export report</button>
+        </div>
+        <small>Exports use the shared, schema-validated report engine. Redaction remains enabled unless the checkbox is deliberately selected.</small>
+      </section>
+
+      <section class="wide" aria-labelledby="compare-heading">
+        <h2 id="compare-heading">3. Compare assessments</h2>
+        <p>Paste two assessment JSON objects or JSON report envelopes. Comparison is performed locally in this page.</p>
+        <div class="grid">
+          <label for="compare-a">Earlier assessment<textarea id="compare-a" spellcheck="false" placeholder="Paste assessment A"></textarea></label>
+          <label for="compare-b">Later assessment<textarea id="compare-b" spellcheck="false" placeholder="Paste assessment B"></textarea></label>
+        </div>
+        <button id="compare-submit" type="button">Compare findings</button>
+        <pre id="comparison" tabindex="0" aria-live="polite">No comparison yet.</pre>
+      </section>
+    </div>
   </main>
+
   <script nonce="__CSP_NONCE__">
     (() => {
-      const form = document.querySelector("#inspect-form");
-      const jwtInput = document.querySelector("#jwt");
-      const apiTokenInput = document.querySelector("#api-token");
-      const result = document.querySelector("#result");
-      const submit = document.querySelector("#submit");
-      form.addEventListener("submit", async (event) => {
+      "use strict";
+      const byId = (id) => document.getElementById(id);
+      const apiToken = byId("api-token");
+      const result = byId("result");
+      const status = byId("status");
+      const exportButton = byId("export-submit");
+      let lastAssessment = null;
+
+      function authHeaders() {
+        const headers = { "Content-Type": "application/json" };
+        if (apiToken.value) headers.Authorization = "Bearer " + apiToken.value;
+        return headers;
+      }
+
+      async function postJson(path, payload) {
+        const response = await fetch(path, {
+          method: "POST",
+          headers: authHeaders(),
+          cache: "no-store",
+          credentials: "same-origin",
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          const message = data && data.error && data.error.message;
+          throw new Error(message || "The request could not be completed.");
+        }
+        return data;
+      }
+
+      async function showAssessment(assessment, operation) {
+        lastAssessment = assessment;
+        exportButton.disabled = false;
+        const safeReport = await postJson("/api/v1/report", {
+          assessment: assessment,
+          format: "json",
+          include_sensitive: false
+        });
+        result.textContent = safeReport.content;
+        status.textContent = operation + " completed. Displayed assessment is redacted.";
+      }
+
+      byId("inspect-form").addEventListener("submit", async (event) => {
         event.preventDefault();
-        const token = jwtInput.value;
+        const token = byId("jwt").value;
         if (!token || token.length > 1048576) {
-          result.textContent = "Enter a JWT no larger than 1 MiB.";
+          status.textContent = "Enter a JWT no larger than 1 MiB.";
           return;
         }
-        const headers = { "Content-Type": "application/json" };
-        if (apiTokenInput.value) headers.Authorization = "Bearer " + apiTokenInput.value;
-        submit.disabled = true;
-        result.textContent = "Inspecting token…";
+        const button = byId("inspect-submit");
+        button.disabled = true;
+        status.textContent = "Inspecting…";
         try {
-          const response = await fetch("/api/v1/inspect", {
-            method: "POST",
-            headers,
-            cache: "no-store",
-            body: JSON.stringify({ token })
-          });
-          const data = await response.json();
-          result.textContent = JSON.stringify(data, null, 2);
+          const assessment = await postJson("/api/v1/inspect", { token: token });
+          await showAssessment(assessment, "Inspection");
         } catch (_) {
-          result.textContent = "The request failed. Check that the local service is running and try again.";
+          lastAssessment = null;
+          exportButton.disabled = true;
+          status.textContent = "Inspection failed. Check the input and service status.";
+          result.textContent = "No assessment was displayed.";
         } finally {
-          submit.disabled = false;
+          button.disabled = false;
+        }
+      });
+
+      byId("verify-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = byId("verify-submit");
+        const algorithms = byId("algorithms").value.split(",").map((value) => value.trim()).filter(Boolean);
+        const leeway = Number(byId("leeway").value);
+        if (!Number.isInteger(leeway) || leeway < 0 || leeway > 86400) {
+          status.textContent = "Clock leeway must be an integer from 0 to 86400.";
+          return;
+        }
+        button.disabled = true;
+        status.textContent = "Verifying with the supplied public key…";
+        try {
+          const payload = {
+            token: byId("verify-jwt").value,
+            public_key: byId("public-key").value,
+            algorithms: algorithms,
+            leeway: leeway
+          };
+          if (byId("issuer").value) payload.issuer = byId("issuer").value;
+          if (byId("audience").value) payload.audience = byId("audience").value;
+          const assessment = await postJson("/api/v1/verify", payload);
+          await showAssessment(assessment, "Signature verification");
+        } catch (_) {
+          lastAssessment = null;
+          exportButton.disabled = true;
+          status.textContent = "Verification failed. Check the key, algorithm allowlist, and token.";
+          result.textContent = "No assessment was displayed.";
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      exportButton.addEventListener("click", async () => {
+        if (!lastAssessment) return;
+        exportButton.disabled = true;
+        status.textContent = "Preparing report…";
+        try {
+          const format = byId("report-format").value;
+          const includeSensitive = byId("include-sensitive").checked;
+          const report = await postJson("/api/v1/report", {
+            assessment: lastAssessment,
+            format: format,
+            include_sensitive: includeSensitive
+          });
+          const mime = format === "html" ? "text/html" : "application/json";
+          const blob = new Blob([report.content], { type: mime + ";charset=utf-8" });
+          const objectUrl = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = objectUrl;
+          link.download = "jwt-assessment." + (format === "sarif" ? "sarif" : format);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          URL.revokeObjectURL(objectUrl);
+          status.textContent = includeSensitive
+            ? "Report exported with sensitive values by explicit opt-in."
+            : "Redacted report exported.";
+        } catch (_) {
+          status.textContent = "Report export failed. No file was created.";
+        } finally {
+          exportButton.disabled = false;
+        }
+      });
+
+      function unwrapAssessment(value) {
+        return value && value.assessment ? value.assessment : value;
+      }
+
+      byId("compare-submit").addEventListener("click", () => {
+        const output = byId("comparison");
+        try {
+          const before = unwrapAssessment(JSON.parse(byId("compare-a").value));
+          const after = unwrapAssessment(JSON.parse(byId("compare-b").value));
+          if (!before || !after || !Array.isArray(before.findings) || !Array.isArray(after.findings)) {
+            throw new Error("Both inputs must contain a findings array.");
+          }
+          const left = new Map(before.findings.map((finding) => [finding.id, finding]));
+          const right = new Map(after.findings.map((finding) => [finding.id, finding]));
+          const added = [];
+          const removed = [];
+          const changed = [];
+          for (const [id, finding] of right) {
+            if (!left.has(id)) added.push({ id: id, severity: finding.severity, title: finding.title });
+            else if (JSON.stringify(left.get(id)) !== JSON.stringify(finding)) {
+              changed.push({ id: id, before: left.get(id), after: finding });
+            }
+          }
+          for (const [id, finding] of left) {
+            if (!right.has(id)) removed.push({ id: id, severity: finding.severity, title: finding.title });
+          }
+          output.textContent = JSON.stringify({
+            added: added,
+            removed: removed,
+            changed: changed,
+            summary: { added: added.length, removed: removed.length, changed: changed.length }
+          }, null, 2);
+        } catch (_) {
+          output.textContent = "Comparison failed. Supply two valid assessment JSON objects.";
         }
       });
     })();
@@ -863,11 +1079,42 @@ def create_app(
             ) from exc
         return JSONResponse(assessment.to_dict())
 
+    @app.post(
+        "/api/v1/report",
+        response_model=dict[str, Any],
+        tags=["reporting"],
+        summary="Render a schema-validated assessment report with redaction by default",
+    )
+    async def report_endpoint(
+        payload: ReportRequest,
+        _auth: Any = Depends(authorize),
+    ) -> JSONResponse:
+        try:
+            assessment = Assessment.from_dict(payload.assessment)
+            report_format = ReportFormat(payload.format)
+            content = render_report(
+                assessment,
+                report_format,
+                include_sensitive=payload.include_sensitive,
+            )
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=422,
+                detail="Assessment or report options are invalid.",
+            ) from None
+        return JSONResponse(
+            {
+                "format": report_format.value,
+                "content": content,
+                "redaction_applied": not payload.include_sensitive,
+            }
+        )
+
     @app.get(
         "/dashboard",
         response_class=HTMLResponse,
         tags=["dashboard"],
-        summary="Same-origin local inspection dashboard",
+        summary="Same-origin local assessment dashboard",
     )
     async def dashboard() -> HTMLResponse:
         nonce = secrets.token_urlsafe(18)
@@ -877,7 +1124,7 @@ def create_app(
             f"script-src 'nonce-{nonce}'; "
             "style-src 'self' 'unsafe-inline'; "
             "connect-src 'self'; img-src 'self'; "
-            "frame-ancestors 'none'; object-src 'none'; base-uri 'none'"
+            "frame-ancestors 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
         )
         return HTMLResponse(
             html,
