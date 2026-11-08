@@ -6,12 +6,12 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.0--unreleased-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0-stable-brightgreen.svg)](CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
 
 ---
 
-> **Release status — UNRELEASED:** JWT Analyzer `v2.0.0` is in final release preparation. The package metadata remains `2.0.0.dev0` until release approval; this branch is not a published or production release.
+> **Release status — STABLE SOURCE RELEASE:** JWT Analyzer `v2.0.0` is integrated into `main` as of 2026-11-08. This repository documents the stable v2.0.0 source baseline. PyPI and Docker publication are separate distribution steps and are not implied by the source merge.
 
 ## ⚡ Quick Start
 
@@ -20,7 +20,7 @@
 pip install jwt-analyzer
 jwt-analyzer audit --token-file token.txt
 
-# Option 2: from the unreleased v2.0.0 source branch
+# Option 2: from the v2.0.0 source branch
 git clone --branch v2.0.0 https://github.com/ItsWanheda/jwt-analyzer.git
 cd jwt-analyzer
 pip install -e ".[dev]"
@@ -90,7 +90,7 @@ if assessment.policy is None or assessment.policy["status"] != "passed":
 
 Use a trusted PEM public key or public JWK obtained from a trusted source. If issuer or audience is omitted, that claim is not validated by this call. A verified signature is not an authorization decision; still enforce application-specific scope, tenant, role and access-control rules. The v2 API keeps `verification_status` (cryptographic signature state) separate from `policy["status"]` (`passed`, `failed`, or `not_verified`).
 
-This API belongs to the unreleased v2.0.0 line. The package version remains `2.0.0.dev0` until the release is formally approved and tagged.
+This API is part of the stable v2.0.0 source release. Install from PyPI when the `2.0.0` distribution is available, or build from the `main` source tree for a controlled deployment.
 
 ### Policy profiles and normalized results
 
@@ -162,7 +162,7 @@ jwt-analyzer-api --host 127.0.0.1 --port 8765
 
 Open `http://127.0.0.1:8765/dashboard`. The service defaults to loopback, checks `Host` values, limits request size and assessment request rate, and does not store or log request bodies. The dashboard does not persist tokens in browser storage. Set `JWT_ANALYZER_API_TOKEN` to require bearer authentication on assessment endpoints.
 
-Remote binds require `--allow-remote`, a bearer token at least 32 characters long, and explicit `--allowed-host` values. This service is plain HTTP; use remote mode only behind a TLS-terminating proxy or on a private, access-controlled network. See [HTTP service security and endpoint documentation](docs/HTTP_SERVICE.md). The service is still unreleased v2 functionality and is not intended to authorize users or protect an internet-facing application.
+Remote binds require `--allow-remote`, a bearer token at least 32 characters long, and explicit `--allowed-host` values. This service is plain HTTP; use remote mode only behind a TLS-terminating proxy or on a private, access-controlled network. See [HTTP service security and endpoint documentation](docs/HTTP_SERVICE.md). The service is part of the v2.0.0 source release. It is not an authentication server, an authorization decision point, or a substitute for application access controls.
 
 
 ---
@@ -676,7 +676,7 @@ Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 Quick checklist for PRs:
 - [ ] New functionality is documented in the README
-- [ ] Entry added to CHANGELOG.md under `[Unreleased]`
+- [x] v2.0.0 release entry recorded in CHANGELOG.md
 - [ ] No new hardcoded paths or secrets
 - [ ] Code passes `ruff check` and `mypy` if you ran them locally
 - [ ] Plugin additions follow the pattern in `plugins/README.md`
