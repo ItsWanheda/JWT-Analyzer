@@ -268,9 +268,7 @@ def test_streamed_request_body_limit_applies_without_content_length():
             message = await request_receive()
             if message.get("type") == "http.request" and not message.get("more_body", False):
                 break
-        await response_send(
-            {"type": "http.response.start", "status": 200, "headers": []}
-        )
+        await response_send({"type": "http.response.start", "status": 200, "headers": []})
         await response_send({"type": "http.response.body", "body": b"ok"})
 
     scope = {
@@ -474,6 +472,7 @@ def test_lifecycle_marks_app_unready_after_shutdown():
     with TestClient(app, base_url="http://127.0.0.1", headers={"host": "127.0.0.1"}) as client:
         assert client.get("/api/v1/health/ready").status_code == 200
     assert app.state.ready is False
+
 
 @pytest.mark.parametrize(
     "algorithms",
