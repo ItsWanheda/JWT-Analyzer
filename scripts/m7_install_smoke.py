@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -21,9 +22,16 @@ def _run(command: Sequence[str], *, cwd: Path) -> str:
     return completed.stdout
 
 
+def _console_script(name: str) -> str:
+    resolved = shutil.which(name)
+    if resolved is None:
+        raise RuntimeError(f"installed console script is not on PATH: {name}")
+    return resolved
+
+
 def _smoke_installed_commands(workdir: Path) -> None:
-    _run(["jwt-analyzer", "--version"], cwd=workdir)
-    _run(["jwt-analyzer-v2", "--version"], cwd=workdir)
+    _run([_console_script("jwt-analyzer"), "--version"], cwd=workdir)
+    _run([_console_script("jwt-analyzer-v2"), "--version"], cwd=workdir)
     _run(
         [
             sys.executable,
@@ -48,7 +56,7 @@ def _smoke_installed_commands(workdir: Path) -> None:
     token_path = workdir / "smoke.jwt"
     token_path.write_text(token, encoding="utf-8")
     inspected = _run(
-        ["jwt-analyzer-v2", "inspect", "--token-file", str(token_path)],
+        [_console_script("jwt-analyzer-v2"), "inspect", "--token-file", str(token_path)],
         cwd=workdir,
     )
     envelope = json.loads(inspected)
@@ -60,7 +68,7 @@ def _smoke_installed_commands(workdir: Path) -> None:
     batch_path = workdir / "batch.txt"
     batch_path.write_text(token + "\n", encoding="utf-8")
     batch_output = _run(
-        ["jwt-analyzer-v2", "batch", "--input-file", str(batch_path)],
+        [_console_script("jwt-analyzer-v2"), "batch", "--input-file", str(batch_path)],
         cwd=workdir,
     )
     batch_lines = [json.loads(line) for line in batch_output.splitlines() if line.strip()]
@@ -71,7 +79,7 @@ def _smoke_installed_commands(workdir: Path) -> None:
     report_path = workdir / "smoke-report.json"
     _run(
         [
-            "jwt-analyzer-v2",
+            _console_script("jwt-analyzer-v2"),
             "report",
             "--assessment-file",
             str(assessment_path),

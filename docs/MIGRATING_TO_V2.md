@@ -230,7 +230,6 @@ Legacy environment variables JWT_ANALYZER_TIMEOUT, JWT_ANALYZER_LOG_LEVEL, and J
 
 No blanket removal of the legacy CLI is performed by this development branch. Any future removal requires a separately announced deprecation period, a versioning decision, and updated migration documentation.
 
-request caps and reverse-proxy/TLS configuration before enabling network access |
 
 ## Before production cutover
 

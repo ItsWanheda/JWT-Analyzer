@@ -45,7 +45,7 @@ jobs:
           ).splitlines()
           requirements = [
               line for line in frozen
-              if not line.lower().startswith(("jwt-analyzer==", "jwt-analyzer @"))
+              if not line.lower().startswith(("-e ", "jwt-analyzer==", "jwt-analyzer @"))
           ]
           if not requirements:
               raise SystemExit("dependency freeze unexpectedly produced an empty set")

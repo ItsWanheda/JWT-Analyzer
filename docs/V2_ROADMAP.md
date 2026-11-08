@@ -108,7 +108,7 @@ Issues:
 
 ### M6 — Graphical dashboard and extension ecosystem
 
-**M6 implementation in progress on `feat/m6-dashboard-plugin-ecosystem`:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. The Chromium browser E2E workflow now passes on the merged M6 commit (PR CI run #42498732897). The same run exposed one remaining RUF005 lint failure in the E2E comparison fixture; the M7 branch carries the tuple-style correction. M6-05 remains open until the corrected full quality workflow passes.
+**M6 implementation integrated into `v2.0.0`; final M6-05 gate validation remains open:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. The Chromium browser E2E workflow now passes on the merged M6 commit (PR CI run #42498732897). The same run exposed one remaining RUF005 lint failure in the E2E comparison fixture; the M7 branch carries the tuple-style correction. M6-05 remains open until the corrected full quality workflow passes.
 
 Issues:
 - [x] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
