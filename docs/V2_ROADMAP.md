@@ -95,23 +95,26 @@ Issues:
 **Implementation on `feat/m5-secure-http-service`:** the optional FastAPI/Uvicorn service now has strict typed request contracts and a generated local OpenAPI document; liveness/readiness endpoints; loopback-first CLI startup; constant-time bearer authentication; exact Host allowlists; bounded body size, request duration, rate and assessment concurrency; safe error envelopes; request IDs and body-free structured logs; and an explicit inline-key-only verification contract that rejects remote JWK references. The implementation is under validation; the milestone remains open until the expanded Python 3.9–3.14 service matrix passes. See [HTTP service documentation](HTTP_SERVICE.md).
 
 Issues:
-- [ ] **M5-01 — Versioned service contract**: optional install extra; typed, strict request bodies; versioned health/assessment routes; local OpenAPI document and response/error schemas.
-- [ ] **M5-02 — Secure service defaults**: loopback bind by default; explicit remote opt-in; 32-character minimum bearer secret; exact Host allowlist; bounded rate, body size, request lifetime and concurrent assessment work; no persistent token storage.
-- [ ] **M5-03 — SSRF boundary**: verification accepts inline PEM or one public JWK only; reject URL inputs, JWK Sets and remote-reference members; no endpoint performs outbound fetches.
-- [ ] **M5-04 — Lifecycle and telemetry**: startup/shutdown readiness, liveness, request IDs, structured body-free logs, sanitized JSON errors, bounded Uvicorn shutdown.
-- [ ] **M5-05 — Service abuse tests**: auth, malformed/extra fields, request flooding, declared and streamed oversized bodies, slow clients, remote JWK references, host validation, no-CORS behavior and exception leakage.
+- [x] **M5-01 — Versioned service contract**: optional install extra; typed, strict request bodies; versioned health/assessment routes; local OpenAPI document and response/error schemas.
+- [x] **M5-02 — Secure service defaults**: loopback bind by default; explicit remote opt-in; 32-character minimum bearer secret; exact Host allowlist; bounded rate, body size, request lifetime and concurrent assessment work; no persistent token storage.
+- [x] **M5-03 — SSRF boundary**: verification accepts inline PEM or one public JWK only; reject URL inputs, JWK Sets and remote-reference members; no endpoint performs outbound fetches.
+- [x] **M5-04 — Lifecycle and telemetry**: startup/shutdown readiness, liveness, request IDs, structured body-free logs, sanitized JSON errors, bounded Uvicorn shutdown.
+- [x] **M5-05 — Service abuse tests**: auth, malformed/extra fields, request flooding, declared and streamed oversized bodies, slow clients, remote JWK references, host validation, no-CORS behavior and exception leakage.
 
 **Acceptance:** service is optional and absent from the default CLI dependency path; safe default bind; authenticated/authorized remote use; rate/size/time caps and abuse tests pass; raw tokens are not persisted or logged.
 
+**M5 completion:** implementation and the expanded Python 3.9–3.14 core/service matrices passed on the M6 development branch, including Ruff, formatting, mypy, Bandit, wheel/sdist build and clean install, and Docker wordlist validation. See [CI run #42459044683](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42459044683). This run includes the final M5 Pydantic validator and formatting corrections. The base `v2.0.0` branch remains unchanged; these validated corrections are carried on the feature branch.
+
+
 ### M6 — Graphical dashboard and extension ecosystem
 
-**M6 implementation in progress on `feat/m6-dashboard-plugin-ecosystem`:** the dashboard now includes separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. Full validation and browser-level accessibility/E2E evidence remain open.
+**M6 implementation in progress on `feat/m6-dashboard-plugin-ecosystem`:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. Chromium browser E2E and accessibility checks are being added to CI; the milestone remains open until that job and the full matrix pass.
 
 Issues:
-- [ ] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
-- [ ] **M6-02 — Safe UI state and exports**: redact by default; make sensitive-data visibility deliberate; no token persistence by default; CSP and HTML sanitization.
-- [ ] **M6-03 — Versioned plugin contract**: entry-point discovery, declared capabilities, schema/versioning, deterministic execution and error isolation.
-- [ ] **M6-04 — Plugin trust boundary**: plugins are executable code; never auto-load arbitrary files from a working directory; require explicit enablement and document trust/sandbox limitations.
+- [x] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
+- [x] **M6-02 — Safe UI state and exports**: redact by default; make sensitive-data visibility deliberate; no token persistence by default; CSP and HTML sanitization.
+- [x] **M6-03 — Versioned plugin contract**: entry-point discovery, declared capabilities, schema/versioning, deterministic execution and error isolation.
+- [x] **M6-04 — Plugin trust boundary**: plugins are executable code; never auto-load arbitrary files from a working directory; require explicit enablement and document trust/sandbox limitations.
 - [ ] **M6-05 — E2E/accessibility testing**: keyboard navigation, screen reader labels, responsive layout, service/API failure states, auth and cross-site scripting regression suite.
 
 **Acceptance:** dashboard only calls the shared engine/service; all state and exports are explicit; plugin loading is opt-in and documented; E2E, accessibility and security tests pass. If dashboard scope slips, ship the core/API/service milestones rather than compromising security gates.
