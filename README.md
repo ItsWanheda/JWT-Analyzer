@@ -124,8 +124,8 @@ Policy checks over unverified claims are advisory only. A `not_verified` policy 
 
 ### Dashboard and versioned plugins (v2 development)
 
-The optional local dashboard at `/dashboard` supports separate JWT inspection
-and public-key signature verification, assessment comparison, and JSON/HTML/SARIF
+The optional local dashboard at `/dashboard` supports local JWT file selection or paste,
+separate inspection and public-key signature verification, assessment comparison, and JSON/HTML/SARIF
 exports. The UI displays redacted reports by default and does not persist tokens
 in browser storage. Sensitive exports require an explicit opt-in.
 
