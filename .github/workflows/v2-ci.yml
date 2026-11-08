@@ -9,6 +9,7 @@ on:
       - "feat/m1-*"
       - "feat/m4-*"
       - "feat/m5-*"
+      - "feat/m6-*"
   pull_request:
     branches:
       - main
@@ -58,9 +59,9 @@ jobs:
       - name: Type-check public API
         run: mypy --python-version 3.12 jwt_analyzer
       - name: Lint security boundaries and regression tests
-        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py --select E,F,B,C4,UP,SIM,RUF,N
+        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py tests/test_m6_dashboard.py tests/test_m6_plugins.py --select E,F,B,C4,UP,SIM,RUF,N
       - name: Check formatting for security boundaries and regressions
-        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py
+        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py tests/test_m6_dashboard.py tests/test_m6_plugins.py
       - name: Lint M2 security boundaries and adversarial tests
         run: >-
           ruff check core/strict_json.py core/parser.py core/verification.py core/jwks.py
@@ -90,7 +91,7 @@ jobs:
       - name: Install optional service and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,service]"
       - name: Test HTTP service, API contract, lifecycle, and abuse boundaries
-        run: python -m pytest -q tests/test_service.py
+        run: python -m pytest -q tests/test_service.py tests/test_m6_dashboard.py
 
   package:
     name: Build and clean-install distributions
@@ -121,7 +122,7 @@ jobs:
               "main.py", "config.py", "core/jwks.py",
               "jwt_analyzer/__init__.py", "jwt_analyzer/api.py", "jwt_analyzer/batch.py",
               "jwt_analyzer/config.py", "jwt_analyzer/cli_v2.py", "jwt_analyzer/exceptions.py",
-              "jwt_analyzer/reporting.py", "jwt_analyzer/report-v1.schema.json",
+              "jwt_analyzer/reporting.py", "jwt_analyzer/plugins.py", "jwt_analyzer/report-v1.schema.json",
               "jwt_analyzer/sarif-2.1.0.schema.json",
               "utils/wordlists/common_secrets.txt",
           }
@@ -143,7 +144,7 @@ jobs:
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -m pip install dist/*.whl
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -c "from importlib.metadata import version; assert version('jwt-analyzer') == '2.0.0.dev0'"
-          "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -c "from importlib.resources import files; from jwt_analyzer import Assessment, Finding, inspect_token; assert files('utils').joinpath('wordlists', 'common_secrets.txt').is_file(); print('public API and starter wordlist import OK')"
+          "$RUNNER_TEMP/jwt-analyzer-clean/bin/python" -c "from importlib.resources import files; from jwt_analyzer import Assessment, Finding, PluginManager, PluginManifest, inspect_token; assert files('utils').joinpath('wordlists', 'common_secrets.txt').is_file(); print('public API and starter wordlist import OK')"
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer" --version
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer-v2" --version
           "$RUNNER_TEMP/jwt-analyzer-clean/bin/jwt-analyzer-v2" report --help >/dev/null
