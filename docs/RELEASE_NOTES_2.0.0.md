@@ -53,7 +53,7 @@ See docs/MIGRATING_TO_V2.md for exact examples and documented non-equivalents.
 
 ## Supported runtime
 
-The package metadata declares CPython 3.9–3.14. The M7 workflow checks editable, wheel and source-distribution installation on Linux, Windows and macOS. The release should not claim the full matrix as verified until the workflow run for the exact release commit is green and archived.
+The core CLI and Python API support CPython 3.9–3.14. The optional HTTP service/dashboard requires CPython 3.10–3.14 because supported, patched FastAPI/Starlette releases no longer support Python 3.9. The M7 workflow checks editable, wheel and source-distribution installation on Linux, Windows and macOS for the core package, plus separate service security tests on Python 3.10–3.14. The release should not claim the full matrix as verified until the workflow run for the exact release commit is green and archived.
 
 ## Known limitations at candidate preparation
 

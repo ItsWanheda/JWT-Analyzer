@@ -11,7 +11,8 @@ Read the [2.0.0 release-notes draft](RELEASE_NOTES_2.0.0.md) together with the [
 | Project | JWT Analyzer |
 | Candidate branch | v2.0.0 after reviewed M7 integration |
 | Current development version | 2.0.0.dev0 |
-| Supported interpreter range | CPython 3.9–3.14 |
+| Core CLI/Python API | CPython 3.9–3.14 |
+| Optional HTTP service/dashboard | CPython 3.10–3.14 |
 | Python package artifacts | Wheel and source distribution |
 | Optional components | HTTP service/dashboard and Playwright E2E extra |
 | Release authorization | Explicit maintainer approval after all gates and independent review |
@@ -31,7 +32,7 @@ Do not change package metadata to 2.0.0, create a tag, or publish artifacts unti
 The standard v2 workflow must be green for the exact candidate commit:
 
 - [ ] Core regression tests on CPython 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14.
-- [ ] Optional HTTP service security tests on all six Python versions.
+- [ ] Optional HTTP service security tests on CPython 3.10–3.14; core CLI/API tests cover Python 3.9–3.14.
 - [ ] Public API lint, formatting, type checks, static security scan, and adversarial regression checks.
 - [ ] Chromium dashboard E2E and accessibility-oriented regression checks.
 - [ ] Wheel/sdist build, metadata validation, clean wheel installation and legacy/v2 CLI smoke checks.

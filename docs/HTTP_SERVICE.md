@@ -4,7 +4,7 @@
 
 ## Install and run locally
 
-The HTTP service is an optional dependency group; the default CLI and Python API do not import FastAPI or Pydantic.
+The HTTP service is an optional dependency group; the default CLI and Python API do not import FastAPI or Pydantic. The core analyzer supports CPython 3.9–3.14, but the optional service requires CPython 3.10 or newer. Starlette's security fixes for the current advisory set are available on the 1.x line, while upstream Starlette 0.50.0 dropped Python 3.9 support. On Python 3.9 the service extra deliberately omits the framework dependencies; importing or launching the service fails with an explicit compatibility message rather than resolving to the vulnerable pre-1.0 framework line.
 
 Install the service extra in an isolated environment:
 
