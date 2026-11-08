@@ -148,9 +148,10 @@ This optional service is an initial v2 development interface. It still requires 
 
 ## Dashboard assessment and exports
 
-The local dashboard at `/dashboard` now provides separate inspect and explicit
-public-key verification workflows, a local finding comparison view, and
-JSON/HTML/SARIF exports. The browser uses `textContent` for untrusted result
+The local dashboard at `/dashboard` now provides local file selection or paste,
+separate inspect and explicit public-key verification workflows, a local finding
+comparison view, and JSON/HTML/SARIF exports. Selected files are read in the
+browser and are not sent until the user submits the relevant assessment form. The browser uses `textContent` for untrusted result
 data, a per-response CSP nonce, same-origin requests, and page-memory-only
 state. It does not use localStorage or sessionStorage.
 
