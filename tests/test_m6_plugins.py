@@ -48,6 +48,7 @@ def _assessment():
 
 
 def test_discovery_reads_metadata_without_loading_plugin_code(monkeypatch):
+    assert ENTRY_POINT_GROUP == "jwt_analyzer.plugins.v2"
     loaded = []
     point = FakeEntryPoint("example_plugin", lambda: loaded.append(True) or ExamplePlugin())
     monkeypatch.setattr("jwt_analyzer.plugins._available_entry_points", lambda: (point,))
