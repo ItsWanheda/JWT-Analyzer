@@ -138,7 +138,8 @@ class PluginManager:
         for plugin_id in sorted(self._plugins):
             plugin = self._plugins[plugin_id]
             try:
-                findings = tuple(plugin.run(assessment))
+                plugin_assessment = Assessment.from_dict(assessment.to_dict())
+                findings = tuple(plugin.run(plugin_assessment))
             except Exception as exc:  # isolate failures without logging claims or exception text
                 _LOGGER.warning(
                     "plugin execution failed: plugin_id=%s exception_type=%s",
