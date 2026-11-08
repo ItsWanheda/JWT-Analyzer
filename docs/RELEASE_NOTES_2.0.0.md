@@ -55,6 +55,17 @@ See docs/MIGRATING_TO_V2.md for exact examples and documented non-equivalents.
 
 The core CLI and Python API support CPython 3.9–3.14. The optional HTTP service/dashboard requires CPython 3.10–3.14 because supported, patched FastAPI/Starlette releases no longer support Python 3.9. The M7 workflow checks editable, wheel and source-distribution installation on Linux, Windows and macOS for the core package, plus separate service security tests on Python 3.10–3.14. The release should not claim the full matrix as verified until the workflow run for the exact release commit is green and archived.
 
+## M7 candidate verification evidence (not release approval)
+
+The candidate source and packaging workflows have passed their technical gates:
+
+- Full CI: [run #42501502998](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501502998), 30/30 jobs successful on application source commit `b57329c`. This includes the six-version core matrix, five-version optional-service matrix, 18 cross-platform install combinations, quality checks, Chromium dashboard E2E, clean distribution installs and Docker validation.
+- Supply chain: [run #42501985684](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501985684), successful on candidate branch head `b5c0810`. Dependency audit, CycloneDX SBOM, repeat-build digest comparison, SLSA provenance attestations and CycloneDX SBOM attestations passed; provenance and SBOM predicates were verified against the expected repository and signer workflow.
+- The downloaded supply-chain artifact manifest was checked against all four files. It records 88 audited dependency components and zero known advisories. Wheel SHA-256: `eae28814574fffbc8910b0ec180af5a7178c2ae8e3a7fdca6cf60b05f9d6accd`; sdist SHA-256: `190a58a4fae50faaf7ed63908131396eb633f1a4639e51190ce320d87aa9fbe5`; CycloneDX SBOM SHA-256: `9868ffaaec04741ee1da192676a11b3498bd1c6a54c5728739e13e7294a16c61`; build record SHA-256: `37e6c4418977ee5998419e734197f74cc4f2eba290bbf42e7cee849ccffa9c08`.
+- Repeat-build equality is limited to two builds of the same source commit on one hosted runner with the same toolchain and `SOURCE_DATE_EPOCH`. It is not an independent or cross-platform reproducibility claim.
+
+These are development candidate artifacts, not published release assets. The migration guide and release checklist remain drafts until their operator/maintainer review gates close. No version bump, tag, PyPI upload, Docker push or production approval has occurred.
+
 ## Known limitations at candidate preparation
 
 - Version 2.0.0 is still development software until M7 acceptance and explicit maintainer approval.
@@ -63,7 +74,7 @@ The core CLI and Python API support CPython 3.9–3.14. The optional HTTP servic
 - The v2 CLI currently does not provide direct subcommands for remote JWKS verification, brute-force, token forging, or a one-command combined legacy audit.
 - The HTTP service is optional and should remain loopback-first unless remote exposure is deliberately configured with authentication, Host validation and protected transport.
 - Plugin code runs in the analyzer process without a sandbox, timeout isolation or separate OS security boundary.
-- M6-05 and M7 acceptance remain pending until final CI evidence, independent security review and operator migration review are recorded.
+- M6-05 is complete. M7-01, M7-04 and M7-05 remain open pending operator migration review, independent security review, and maintainer/operator approval. M7-02 and M7-03 have passed candidate CI and supply-chain verification; see the recorded candidate evidence below.
 
 ## Installation
 

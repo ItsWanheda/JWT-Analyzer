@@ -22,8 +22,8 @@ Do not change package metadata to 2.0.0, create a tag, or publish artifacts unti
 ## M7 release gates
 
 - [ ] **M7-01 — Migration guide reviewed.** Confirm every legacy command, API, environment variable, config key, output schema, plugin behavior and optional service change against the exact release commit. Review docs/MIGRATING_TO_V2.md with an operator who owns a v1.2.x integration.
-- [ ] **M7-02 — Clean-install matrix passes.** Verify editable, wheel and source installs on Linux, Windows and macOS for CPython 3.9–3.14. Run the CLI/API smoke workflow, Docker build and Docker wordlist check. Preserve run links and logs.
-- [ ] **M7-03 — Supply-chain artifacts verified.** Require a clean dependency audit, CycloneDX SBOM, wheel and sdist SHA-256 digests, a build record, SLSA provenance attestations, and SBOM attestations. Verify the attestations against the repository before distributing an artifact.
+- [x] **M7-02 — Clean-install matrix passes.** Editable, wheel and source installs passed on Linux, Windows and macOS for CPython 3.9–3.14; core and optional-service tests, package build/clean install, Chromium E2E and Docker wordlist check passed in [v2 CI run #42501502998](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501502998) (30/30 jobs).
+- [x] **M7-03 — Supply-chain artifacts verified.** Dependency audit, CycloneDX SBOM, wheel/sdist hashes, build record, same-run repeat-build, SLSA provenance and SBOM attestations passed, including repository/signer/predicate verification in [M7 supply-chain run #42501985684](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501985684). All four downloaded SHA-256 manifest entries were checked. Repeatability is same-run/same-toolchain only, not independent or cross-platform.
 - [ ] **M7-04 — Independent security review completed.** A reviewer other than the implementation author inspects the source and tests, records evidence, and confirms every critical/high finding is fixed or explicitly blocks the release. A checklist prepared by the implementer is not an independent review.
 - [ ] **M7-05 — Release notes and operator checklist approved.** Finalize breaking changes, supported versions, known limitations, installation, configuration migration, backup, rollback and post-upgrade verification steps.
 
@@ -31,16 +31,16 @@ Do not change package metadata to 2.0.0, create a tag, or publish artifacts unti
 
 The standard v2 workflow must be green for the exact candidate commit:
 
-- [ ] Core regression tests on CPython 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14.
-- [ ] Optional HTTP service security tests on CPython 3.10–3.14; core CLI/API tests cover Python 3.9–3.14.
-- [ ] Public API lint, formatting, type checks, static security scan, and adversarial regression checks.
-- [ ] Chromium dashboard E2E and accessibility-oriented regression checks.
-- [ ] Wheel/sdist build, metadata validation, clean wheel installation and legacy/v2 CLI smoke checks.
-- [ ] Docker image build and bundled starter-wordlist validation.
-- [ ] Cross-platform editable, wheel and sdist install smoke checks on Linux, Windows and macOS across the six supported Python versions.
-- [ ] Supply-chain workflow completes without known vulnerable dependencies or missing attestations.
+- [x] Core regression tests on CPython 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14.
+- [x] Optional HTTP service security tests on CPython 3.10–3.14; core CLI/API tests cover Python 3.9–3.14.
+- [x] Public API lint, formatting, type checks, static security scan, and adversarial regression checks.
+- [x] Chromium dashboard E2E and accessibility-oriented regression checks.
+- [x] Wheel/sdist build, metadata validation, clean wheel installation and legacy/v2 CLI smoke checks.
+- [x] Docker image build and bundled starter-wordlist validation.
+- [x] Cross-platform editable, wheel and sdist install smoke checks on Linux, Windows and macOS across the six supported Python versions.
+- [x] Supply-chain workflow completes without known vulnerable dependencies or missing attestations.
 
-Record the exact commit SHA, workflow run URLs, runner OS labels, Python patch versions, artifact hashes and any skipped jobs. A green run on a different commit is not release evidence.
+Recorded candidate evidence: [v2 CI run #42501502998](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501502998) completed 30/30 jobs on application source commit `b57329c`; [M7 supply-chain run #42501985684](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501985684) passed on branch head `b5c0810`, including attestation verification. The downloaded artifact manifest, build record and hashes are recorded below. A green run on a different commit is not release evidence.
 
 ## Artifact verification
 
@@ -60,6 +60,26 @@ The current build record compares two builds from the same source commit on the 
 The M7 workflow audits the pinned third-party dependency set installed from the runtime and optional development/service/E2E extras, emits a CycloneDX JSON SBOM, builds the wheel and sdist twice with one fixed source epoch, compares their SHA-256 digests, and records the exact source commit and tool versions. It attaches GitHub SLSA provenance and SBOM attestations to each package artifact, then uploads the artifact set to the workflow run.
 
 The repeat-build comparison is intentionally scoped to two builds on the same hosted runner with the same source and toolchain. It is not a claim of independent or cross-platform reproducibility. The dependency SBOM describes the audited Python dependency environment, not every operating-system library inside a Docker image. The M7 Docker validation remains a separate workflow gate. No package is published to PyPI and no Docker image is pushed by this workflow.
+
+## Recorded M7 candidate evidence
+
+| Evidence | Recorded result |
+|---|---|
+| Candidate branch | `feat/m7-release-candidate` |
+| Application source CI | [Run #42501502998](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501502998), 30/30 jobs successful |
+| Supply-chain CI | [Run #42501985684](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501985684), successful with provenance and SBOM verification |
+| Candidate artifact | `m7-supply-chain-b5c0810876e0141c06879bad76bd94b2399f4373` (workflow artifact ID `13626200227`) |
+| Dependency audit | 88 components; 0 components with known advisories; 0 fixes required |
+| Repeat-build check | Wheel and sdist digest equality between two builds on the same runner/toolchain and fixed `SOURCE_DATE_EPOCH`; no independent/cross-platform reproducibility claim |
+
+Downloaded artifact hashes (verified against `SHA256SUMS.txt`):
+
+- Wheel: `eae28814574fffbc8910b0ec180af5a7178c2ae8e3a7fdca6cf60b05f9d6accd`
+- Source distribution: `190a58a4fae50faaf7ed63908131396eb633f1a4639e51190ce320d87aa9fbe5`
+- CycloneDX SBOM: `9868ffaaec04741ee1da192676a11b3498bd1c6a54c5728739e13e7294a16c61`
+- Build record: `37e6c4418977ee5998419e734197f74cc4f2eba290bbf42e7cee849ccffa9c08`
+
+The candidate artifact is retained as a GitHub Actions workflow artifact, not published to PyPI or Docker. Re-run the documented attestation and digest verification commands against any artifact copied for distribution. These records close the candidate implementation evidence for M7-02 and M7-03; they do not replace the independent review, operator migration sign-off or maintainer release authorization.
 
 ## Independent security review record
 

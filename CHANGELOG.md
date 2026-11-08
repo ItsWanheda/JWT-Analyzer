@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased — v2.0.0 development]
 
-### M7 release-candidate preparation (in progress)
+### M7 release-candidate preparation (technical gates green; reviews pending)
 
 - Expand the v1.2.x to v2 migration guide with concrete command and Python API examples, exact configuration/environment mappings, report/schema behavior, plugin and service migration notes, and a no-equivalent command table.
 - Add an operator-facing release checklist and a separate 2.0.0 release-notes draft covering the six M7 gates, artifact verification, independent security-review evidence, production upgrade, rollback, and explicit maintainer authorization.
@@ -14,9 +14,9 @@ All notable changes to this project will be documented in this file.
 - Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations with repository/signer verification. Artifacts are retained as workflow artifacts; no PyPI or Docker publication occurs.
 - Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue.
 - Replace the service dependency's vulnerable Starlette <1.0 ceiling with FastAPI >=0.149 and Starlette >=1.3.1 on Python 3.10+, while retaining core CLI/API support for Python 3.9; service tests now run on Python 3.10–3.14.
-- M6-05 and all M7 gates remain open until the corrected CI evidence, clean dependency audit and independent review are complete.
+- Close M6-05 after the final Chromium E2E and full 30/30 v2 CI run. M7-02 (cross-platform clean installs) and M7-03 (dependency audit, SBOM, repeat-build record and verified attestations) have passing candidate evidence; M7-01 operator migration review, M7-04 independent security review and M7-05 maintainer/operator approval remain open.
 
-### M6 dashboard and plugin ecosystem (integrated; final gate validation pending)
+### M6 dashboard and plugin ecosystem (integrated; all acceptance gates validated)
 
 - Expand the same-origin dashboard with local JWT file selection or paste, separate inspect and explicit public-key verification workflows, local finding comparison, and JSON/HTML/SARIF export.
 - Route report generation through the shared schema-validated M4 renderer; redact by default and require explicit opt-in for sensitive exports.
