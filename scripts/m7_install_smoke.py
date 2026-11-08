@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Sequence
+from collections.abc import Sequence
 
 
 def _run(command: Sequence[str], *, cwd: Path) -> str:

@@ -57,14 +57,83 @@ jobs:
       - name: Install SBOM and build tooling
         run: python -m pip install pip-audit build twine hatchling
 
-      - name: Audit dependencies and generate CycloneDX SBOM
+      - name: Audit dependencies (human-readable)
+        id: audit-columns
+        continue-on-error: true
         run: |
-          mkdir -p dist
+          pip-audit \
+            --requirement "$RUNNER_TEMP/m7-audit-requirements.txt" \
+            --strict \
+            --format columns
+
+      - name: Save machine-readable dependency audit
+        id: audit-json
+        continue-on-error: true
+        run: |
+          pip-audit \
+            --requirement "$RUNNER_TEMP/m7-audit-requirements.txt" \
+            --strict \
+            --format json \
+            --output dist/dependency-audit.json
+
+      - name: Generate CycloneDX dependency SBOM
+        id: audit-sbom
+        continue-on-error: true
+        run: |
           pip-audit \
             --requirement "$RUNNER_TEMP/m7-audit-requirements.txt" \
             --strict \
             --format cyclonedx-json \
             --output dist/jwt-analyzer-dependencies.cdx.json
+
+      - name: Enforce dependency audit and SBOM gates
+        if: always()
+        env:
+          AUDIT_COLUMNS_OUTCOME: ${{ steps.audit-columns.outcome }}
+          AUDIT_JSON_OUTCOME: ${{ steps.audit-json.outcome }}
+          AUDIT_SBOM_OUTCOME: ${{ steps.audit-sbom.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report_path = Path("dist/dependency-audit.json")
+          if report_path.is_file():
+              report = json.loads(report_path.read_text(encoding="utf-8"))
+              vulnerable = [
+                  item for item in report.get("dependencies", [])
+                  if item.get("vulns")
+              ]
+              for dependency in vulnerable:
+                  versions = sorted({
+                      version
+                      for vulnerability in dependency["vulns"]
+                      for version in vulnerability.get("fix_versions", [])
+                  })
+                  identifiers = sorted({
+                      identifier
+                      for vulnerability in dependency["vulns"]
+                      for identifier in [vulnerability.get("id", ""), *vulnerability.get("aliases", [])]
+                      if identifier
+                  })
+                  print(
+                      f"Known vulnerability: {dependency.get('name')} "
+                      f"{dependency.get('version')}; IDs={identifiers}; fixes={versions}"
+                  )
+          else:
+              vulnerable = []
+              print("The dependency audit did not produce its JSON report.")
+
+          outcomes = {
+              "columns": os.environ["AUDIT_COLUMNS_OUTCOME"],
+              "json": os.environ["AUDIT_JSON_OUTCOME"],
+              "sbom": os.environ["AUDIT_SBOM_OUTCOME"],
+          }
+          print(f"Audit/SBOM step outcomes: {outcomes}")
+          if vulnerable or any(value != "success" for value in outcomes.values()):
+              raise SystemExit("M7 dependency audit/SBOM gate failed; review advisories before release.")
+          PY
 
       - name: Build twice with a fixed source epoch and compare package digests
         shell: bash
@@ -211,6 +280,17 @@ jobs:
         with:
           subject-path: dist/*.tar.gz
           sbom-path: dist/jwt-analyzer-dependencies.cdx.json
+
+      - name: Upload audit diagnostics when the release gate fails
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: m7-audit-diagnostics-${{ github.sha }}
+          path: |
+            dist/dependency-audit.json
+            dist/jwt-analyzer-dependencies.cdx.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Upload candidate supply-chain artifacts
         uses: actions/upload-artifact@v7
