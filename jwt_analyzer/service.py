@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-from collections.abc import AsyncIterator, Callable, Sequence
-from contextlib import asynccontextmanager
 import hmac
 import ipaddress
 import json
@@ -18,8 +16,10 @@ import logging
 import os
 import secrets
 import sys
-from threading import Lock
 import time
+from collections.abc import AsyncIterator, Callable, Sequence
+from contextlib import asynccontextmanager
+from threading import Lock
 from typing import Any, Optional
 
 try:
