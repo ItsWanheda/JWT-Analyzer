@@ -1,6 +1,6 @@
-# JWT Analyzer 2.0.0 — Release Notes (Draft)
+# JWT Analyzer 2.0.0 — Release Notes
 
-> **Status: NOT RELEASED.** This is a draft for the M7 release candidate. The repository version remains 2.0.0.dev0. No PyPI publication, Docker push, release tag, or production approval is implied.
+> **Release status — UNRELEASED.** Version 2.0.0 has not been tagged or published. Package metadata remains `2.0.0.dev0`; no PyPI publication, Docker push, or production rollout has occurred.
 
 ## Highlights
 
@@ -53,20 +53,20 @@ See docs/MIGRATING_TO_V2.md for exact examples and documented non-equivalents.
 
 ## Supported runtime
 
-The core CLI and Python API support CPython 3.9–3.14. The optional HTTP service/dashboard requires CPython 3.10–3.14 because supported, patched FastAPI/Starlette releases no longer support Python 3.9. The M7 workflow passed on candidate commit `a2640e98e9c420b4c0ff2ec33b49c9c5c7932904`: [full CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs), covering editable/wheel/sdist installs on Linux, Windows and macOS × CPython 3.9–3.14, plus separate service security tests on Python 3.10–3.14.
+The core CLI and Python API support CPython 3.9–3.14. The optional HTTP service/dashboard requires CPython 3.10–3.14 because supported, patched FastAPI/Starlette releases no longer support Python 3.9. The M7 workflow passed on source commit `a2640e98e9c420b4c0ff2ec33b49c9c5c7932904`: [full CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs), covering editable/wheel/sdist installs on Linux, Windows and macOS × CPython 3.9–3.14, plus separate service security tests on Python 3.10–3.14.
 
-## M7 candidate verification evidence (not release approval)
+## M7 build and validation evidence
 
-The candidate source and packaging workflows have passed their technical gates:
+The v2.0.0 source and packaging workflows have passed the recorded technical validation:
 
-- Full CI: [run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094), 33/33 jobs successful on candidate commit `a2640e98`. This includes the six-version core matrix, five-version optional-service matrix, 18 cross-platform install combinations, quality checks, Chromium dashboard E2E, clean distribution installs and Docker validation.
-- Supply chain: [run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064), successful on candidate commit `a2640e98`. Dependency audit, CycloneDX SBOM, repeat-build digest comparison, SLSA provenance attestations and CycloneDX SBOM attestations passed; provenance and SBOM predicates were verified against the expected repository and signer workflow.
+- Full CI: [run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094), 33/33 jobs successful on commit `a2640e98`. This includes the six-version core matrix, five-version optional-service matrix, 18 cross-platform install combinations, quality checks, Chromium dashboard E2E, clean distribution installs and Docker validation.
+- Supply chain: [run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064), successful on commit `a2640e98`. Dependency audit, CycloneDX SBOM, repeat-build digest comparison, SLSA provenance attestations and CycloneDX SBOM attestations passed; provenance and SBOM predicates were verified against the expected repository and signer workflow.
 - The downloaded supply-chain artifact manifest was checked against all four files. It records 88 audited dependency components and zero known advisories. Wheel SHA-256: `a691121a7ea12cf6012b4c0cc71691ea3ca3667876e75dddfcc8c66c32494614`; sdist SHA-256: `9f3069368cdc5869efe9109358c595f3d1301f548e2738dc5645ce9ef636e993`; CycloneDX SBOM SHA-256: `4b4fad96f126f50059ef3689df834c1f6bd8c97ae01765245abbac7da6e58364`; build record SHA-256: `2e2dd45760950188c59853a50a5856022929799c884414158227c967f1f66bad`.
 - Repeat-build equality is limited to two builds of the same source commit on one hosted runner with the same toolchain and `SOURCE_DATE_EPOCH`. It is not an independent or cross-platform reproducibility claim.
 
-These are development candidate artifacts, not published release assets. The migration guide and release checklist remain drafts until their operator/maintainer review gates close. No version bump, tag, PyPI upload, Docker push or production approval has occurred.
+These are unreleased build artifacts, not published release assets. The migration guide and release checklist are complete and await their operator/maintainer approvals. No v2.0.0 tag, PyPI upload, Docker push or production approval has occurred.
 
-## Known limitations at candidate preparation
+## Known limitations
 
 - Version 2.0.0 is still development software until M7 acceptance and explicit maintainer approval.
 - A successful structural inspection is not signature verification or authorization.
@@ -88,7 +88,7 @@ Optional HTTP service and dashboard:
 
     python -m pip install "jwt-analyzer[service]==2.0.0"
 
-For a controlled candidate test before publication, install the locally built wheel only after verifying its SHA-256 manifest and GitHub attestations. Follow docs/RELEASE_CHECKLIST.md.
+For controlled testing before publication, install the locally built wheel only after verifying its SHA-256 manifest and GitHub attestations. Follow docs/RELEASE_CHECKLIST.md.
 
 ## Upgrade and rollback
 

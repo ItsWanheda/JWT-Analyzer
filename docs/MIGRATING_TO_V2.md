@@ -1,6 +1,6 @@
 # Migrating to JWT Analyzer v2
 
-> **Status:** M7 release-candidate draft. This guide documents the current 2.0.0.dev0 implementation; maintainer and operator review are still required. It is not a production upgrade instruction, and no 2.0.0 package or Docker image has been published.
+> **Release status — UNRELEASED:** This guide documents JWT Analyzer v2.0.0 (package metadata `2.0.0.dev0`). The 2.0.0 release and Docker image have not been published. Operator review is required before production migration.
 
 ## Upgrade strategy
 
@@ -240,4 +240,4 @@ No blanket removal of the legacy CLI is performed by this development branch. An
 - [ ] Verify that token material, signing secrets and sensitive claims are not leaking to logs or artifacts.
 - [ ] Test rollback to the pinned 1.2.x installation and preserve a copy of the prior config/report parsers.
 
-The guide is not approved for production until the M7 install matrix passes, an independent reviewer confirms the command/API/configuration mapping, and the release checklist is signed off. The legacy CLI and public v2 interfaces must be compared against the exact release commit before any tag is created.
+Before production migration, an operator must confirm the command/API/configuration mapping against the release commit, the independent security review must be recorded, and the release checklist must be approved. Keep the existing 1.2.x deployment pinned until those steps and the formal v2.0.0 release are complete.

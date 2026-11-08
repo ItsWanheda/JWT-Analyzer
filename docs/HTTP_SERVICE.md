@@ -1,6 +1,6 @@
 # Optional HTTP Service and Dashboard
 
-**Status:** unreleased v2 development functionality. The service is an opt-in interface over the shared assessment engine. It is not an authentication server, an authorization decision point, or a remote JWKS resolver.
+**Release status — UNRELEASED: v2.0.0.** The service is an optional interface over the shared assessment engine. It is not an authentication server, an authorization decision point, or a remote JWKS resolver.
 
 ## Install and run locally
 
@@ -143,7 +143,7 @@ A cryptographically invalid signature is a completed verification result and is 
 
 Before remote use, terminate TLS, configure upstream request and connection limits, set a high-entropy bearer token through a secret manager, specify exact Host values, and apply a trusted edge rate limit. Keep the service behind a private network or authenticated gateway. Do not upload raw request logs or unredacted assessment responses to shared systems.
 
-This optional service is an initial v2 development interface. It still requires independent security review and deployment-specific testing before public production exposure. It must not be used as an authentication server or as the sole basis for authorization decisions.
+This optional service requires independent security review and deployment-specific testing before public production exposure. It must not be used as an authentication server or as the sole basis for authorization decisions.
 
 
 ## Dashboard assessment and exports

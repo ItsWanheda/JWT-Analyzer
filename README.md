@@ -6,12 +6,12 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.0.dev0--unreleased-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0--unreleased-orange.svg)](CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
 
 ---
 
-> **v2 development status:** `v2.0.0.dev0` is pre-release work on the `v2.0.0` branch. It is not the stable release, and this branch must not be used as a production upgrade until the release gates pass.
+> **Release status — UNRELEASED:** JWT Analyzer `v2.0.0` is in final release preparation. The package metadata remains `2.0.0.dev0` until release approval; this branch is not a published or production release.
 
 ## ⚡ Quick Start
 
@@ -20,7 +20,7 @@
 pip install jwt-analyzer
 jwt-analyzer audit --token-file token.txt
 
-# Option 2: from the v2 development branch (not a release)
+# Option 2: from the unreleased v2.0.0 source branch
 git clone --branch v2.0.0 https://github.com/ItsWanheda/jwt-analyzer.git
 cd jwt-analyzer
 pip install -e ".[dev]"
@@ -52,7 +52,7 @@ Most JWT tools just decode the base64. This one actually **looks for problems**:
 
 ---
 
-## 🐍 v2 Python API (development)
+## 🐍 v2 Python API
 
 The v2 public import surface is `jwt_analyzer`. The API below performs structural inspection only:
 
@@ -90,7 +90,7 @@ if assessment.policy is None or assessment.policy["status"] != "passed":
 
 Use a trusted PEM public key or public JWK obtained from a trusted source. If issuer or audience is omitted, that claim is not validated by this call. A verified signature is not an authorization decision; still enforce application-specific scope, tenant, role and access-control rules. The v2 API keeps `verification_status` (cryptographic signature state) separate from `policy["status"]` (`passed`, `failed`, or `not_verified`).
 
-This API is part of the unreleased `2.0.0.dev0` branch and may change until the v2 release gates pass.
+This API belongs to the unreleased v2.0.0 line. The package version remains `2.0.0.dev0` until the release is formally approved and tagged.
 
 ### Policy profiles and normalized results
 
@@ -122,7 +122,7 @@ The baseline profile requires an expiry claim; the strict profile additionally r
 
 Policy checks over unverified claims are advisory only. A `not_verified` policy result is not a signature result and must never be used as authentication or authorization.
 
-### Dashboard and versioned plugins (v2 development)
+### Dashboard and versioned plugins
 
 The optional local dashboard at `/dashboard` supports local JWT file selection or paste,
 separate inspection and public-key signature verification, assessment comparison, and JSON/HTML/SARIF
@@ -148,7 +148,7 @@ M2 hardens the inputs and expensive operations used by the verifier:
 - HMAC wordlist testing supports HS256/384/512 and streams candidates through a bounded worker pool: at most **32 workers**, **1,000,000 candidates**, and **4 KiB per candidate**; the timeout is capped at **one hour**. Cancellation is cooperative: a cryptographic call already executing cannot be safely force-killed.
 - Findings distinguish confirmed local observations from heuristic indicators and unknown server-side behavior. A suspicious `kid` or declared `alg=none` is not proof that a remote verifier accepts an attack.
 
-See [JWKS retrieval security](docs/JWKS_SECURITY.md), [finding semantics](docs/SECURITY_FINDING_SEMANTICS.md), and the [v2 migration guide](docs/MIGRATING_TO_V2.md) and [2.0.0 release-notes draft](docs/RELEASE_NOTES_2.0.0.md) for the detailed boundaries and operational caveats.
+See [JWKS retrieval security](docs/JWKS_SECURITY.md), [finding semantics](docs/SECURITY_FINDING_SEMANTICS.md), and the [v2 migration guide](docs/MIGRATING_TO_V2.md) and [2.0.0 release notes](docs/RELEASE_NOTES_2.0.0.md) for the detailed boundaries and operational caveats.
 
 ### Optional HTTP API and dashboard
 

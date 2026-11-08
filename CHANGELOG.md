@@ -4,17 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased — v2.0.0 development]
+## [Unreleased] — v2.0.0
 
-### M7 release-candidate preparation (technical gates green; reviews pending)
+### v2.0.0 release validation
 
 - Expand the v1.2.x to v2 migration guide with concrete command and Python API examples, exact configuration/environment mappings, report/schema behavior, plugin and service migration notes, and a no-equivalent command table.
-- Add an operator-facing release checklist and a separate 2.0.0 release-notes draft covering the six M7 gates, artifact verification, independent security-review evidence, production upgrade, rollback, and explicit maintainer authorization.
+- Add the v2.0.0 release notes and operator checklist, covering supported runtimes, breaking changes, security boundaries, artifact verification, production upgrade, rollback, independent review, and release authorization.
 - Add an 18-combination editable/wheel/sdist smoke matrix across Linux, Windows, macOS and CPython 3.9–3.14.
 - Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations with repository/signer verification. Artifacts are retained as workflow artifacts; no PyPI or Docker publication occurs.
 - Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue.
 - Replace the service dependency's vulnerable Starlette <1.0 ceiling with FastAPI >=0.149 and Starlette >=1.3.1 on Python 3.10+, while retaining core CLI/API support for Python 3.9; service tests now run on Python 3.10–3.14.
-- Close M6-05 after Chromium E2E and full [33/33 v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094). M7-02 (cross-platform clean installs) and M7-03 (dependency audit, SBOM, repeat-build record and verified attestations) have passing candidate evidence in [supply-chain run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064); M7-01 operator migration review, M7-04 independent security review and M7-05 maintainer/operator approval remain open.
+- M6-05 is complete. M7-02 (cross-platform clean installs) and M7-03 (supply-chain verification) are complete; M7-01 operator migration review, M7-04 independent security review, and M7-05 maintainer/operator approval remain open.
 
 ### M6 dashboard and plugin ecosystem (integrated; all acceptance gates validated)
 

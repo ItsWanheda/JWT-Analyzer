@@ -111,7 +111,7 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
                 "buffer": token.encode("utf-8"),
             }
         )
-        assert page.locator("#jwt").input_value() == token
+        expect(page.locator("#jwt")).to_have_value(token)
         assert not any(url.endswith("/api/v1/inspect") for url in requests)
         page.get_by_role("button", name="Inspect token").click()
         expect(page.locator("#status")).to_contain_text("Inspection completed")
