@@ -1,6 +1,6 @@
 # Optional HTTP Service and Dashboard
 
-**Release status — UNRELEASED: v2.0.0.** The service is an optional interface over the shared assessment engine. It is not an authentication server, an authorization decision point, or a remote JWKS resolver.
+**Release status — STABLE SOURCE RELEASE: v2.0.0.** The service is an optional interface over the shared assessment engine. It is not an authentication server, an authorization decision point, or a remote JWKS resolver.
 
 ## Install and run locally
 
@@ -52,7 +52,7 @@ Request bodies are strict objects: undeclared fields are rejected. inspect accep
 
 ### GET /api/v1/health
 
-Compatibility health response containing status and the development version. This route is public and does not return configuration, environment variables or token data.
+Compatibility health response containing status and the installed package version. This route is public and does not return configuration, environment variables or token data.
 
 ### GET /api/v1/health/live
 
