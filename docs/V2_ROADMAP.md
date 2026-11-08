@@ -105,7 +105,7 @@ Issues:
 
 ### M6 — Graphical dashboard and extension ecosystem
 
-**Initial implementation on branch `v2.0.0`:** a responsive same-origin dashboard supports token inspection with per-response CSP nonce and text-only result rendering; it does not persist input or output. Verification controls, assessment comparison, export/redaction workflows, plugin loading and full E2E/accessibility coverage remain open.
+**M6 implementation in progress on `feat/m6-dashboard-plugin-ecosystem`:** the dashboard now includes separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. Full validation and browser-level accessibility/E2E evidence remain open.
 
 Issues:
 - [ ] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
