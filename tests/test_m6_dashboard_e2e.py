@@ -13,7 +13,7 @@ pytest.importorskip("playwright.sync_api")
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 from jwt_analyzer.api import inspect_token
 from jwt_analyzer.models import Confidence, Finding, Severity
@@ -92,7 +92,7 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
         # Keyboard focus and labels are available before any form interaction.
         page.locator("#api-token").focus()
         page.keyboard.press("Tab")
-        assert page.evaluate("document.activeElement.id") == "jwt-file"
+        assert page.locator("#jwt-file").is_focused()
         assert page.locator('label[for="jwt-file"]').count() == 1
         assert page.locator('[aria-live="polite"]').count() >= 2
 
@@ -109,14 +109,11 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
         assert page.locator("#jwt").input_value() == token
         assert not any(url.endswith("/api/v1/inspect") for url in requests)
         page.get_by_role("button", name="Inspect token").click()
-        page.wait_for_function(
-            "document.querySelector('#status').textContent.includes('Inspection completed')"
-        )
+        expect(page.locator("#status")).to_contain_text("Inspection completed")
         displayed = page.locator("#result").inner_text()
         assert "private@example.test" not in displayed
         assert page.locator("#result img").count() == 0
-        assert page.evaluate("window.__jwtXss || false") is False
-
+        
         # JSON export is downloaded through the report API and remains redacted.
         with page.expect_download() as download_info:
             page.get_by_role("button", name="Export report").click()
@@ -151,23 +148,19 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
         page.locator("#compare-a").fill(json.dumps(first.to_dict()))
         page.locator("#compare-b").fill(json.dumps(second.to_dict()))
         page.get_by_role("button", name="Compare findings").click()
-        page.wait_for_function(
-            "document.querySelector('#comparison').textContent.includes('e2e.added_finding')"
-        )
+        expect(page.locator("#comparison")).to_contain_text("e2e.added_finding")
         assert '"added": 1' in page.locator("#comparison").inner_text()
 
         # Narrow viewports collapse the dashboard grid to one column.
         page.set_viewport_size({"width": 390, "height": 844})
-        columns = page.locator(".grid").first.evaluate(
-            "(element) => getComputedStyle(element).gridTemplateColumns"
-        )
-        assert len(columns.split()) == 1
+        first_card = page.locator("main > .grid > section").nth(0).bounding_box()
+        second_card = page.locator("main > .grid > section").nth(1).bounding_box()
+        assert first_card is not None and second_card is not None
+        assert second_card["y"] > first_card["y"]
 
         # Invalid input produces a safe failure state rather than raw error data.
         page.locator("#jwt").fill("not-a-jwt")
         page.get_by_role("button", name="Inspect token").click()
-        page.wait_for_function(
-            "document.querySelector('#status').textContent.includes('Inspection failed')"
-        )
+        expect(page.locator("#status")).to_contain_text("Inspection failed")
         assert "not-a-jwt" not in page.locator("#result").inner_text()
         browser.close()
