@@ -90,6 +90,7 @@ class VerifyRequest(BaseModel):
                 "Algorithm allowlist must contain between 1 and the supported maximum."
             )
         return value
+
     issuer: Optional[StrictStr] = Field(default=None, max_length=2048)  # noqa: UP045
     audience: Optional[StrictStr] = Field(default=None, max_length=2048)  # noqa: UP045
     leeway: StrictInt = Field(default=0, ge=0, le=86_400)
@@ -561,7 +562,7 @@ class RequestRateLimitMiddleware:
         if scope.get("type") == "http":
             path = scope.get("path", "")
             method = scope.get("method", "GET").upper()
-            if method == "POST" and path in {"/api/v1/inspect", "/api/v1/verify"}:
+            if method == "POST" and path in {"/api/v1/inspect", "/api/v1/verify", "/api/v1/report"}:
                 client = scope.get("client")
                 client_key = str(client[0]) if client else "unknown"
                 if not self.limiter.allow(client_key):
@@ -1087,17 +1088,20 @@ def create_app(
     )
     async def report_endpoint(
         payload: ReportRequest,
+        request: Request,
         _auth: Any = Depends(authorize),
     ) -> JSONResponse:
         try:
             assessment = Assessment.from_dict(payload.assessment)
             report_format = ReportFormat(payload.format)
-            content = render_report(
+            content = await _run_bounded(
+                request,
+                render_report,
                 assessment,
                 report_format,
                 include_sensitive=payload.include_sensitive,
             )
-        except (TypeError, ValueError):
+        except (KeyError, TypeError, ValueError):
             raise HTTPException(
                 status_code=422,
                 detail="Assessment or report options are invalid.",
