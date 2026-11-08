@@ -122,6 +122,19 @@ The baseline profile requires an expiry claim; the strict profile additionally r
 
 Policy checks over unverified claims are advisory only. A `not_verified` policy result is not a signature result and must never be used as authentication or authorization.
 
+### Dashboard and versioned plugins (v2 development)
+
+The optional local dashboard at `/dashboard` supports separate JWT inspection
+and public-key signature verification, assessment comparison, and JSON/HTML/SARIF
+exports. The UI displays redacted reports by default and does not persist tokens
+in browser storage. Sensitive exports require an explicit opt-in.
+
+The v2 plugin API is versioned independently and discovers installed package
+entry points without importing them. Plugins are loaded only when explicitly
+enabled by the operator. Plugins are trusted in-process Python code, not
+sandboxed: enable only packages from publishers you trust. See
+[Plugin API and trust model](docs/PLUGIN_API.md).
+
 ### M2 parser, verification, and resource-safety boundaries
 
 M2 hardens the inputs and expensive operations used by the verifier:
