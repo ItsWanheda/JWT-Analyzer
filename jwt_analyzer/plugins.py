@@ -18,7 +18,7 @@ PLUGIN_API_VERSION = "1"
 ENTRY_POINT_GROUP = "jwt_analyzer.plugins.v2"
 _ALLOWED_CAPABILITIES = frozenset({"assessment.read"})
 _PLUGIN_ID = re.compile(r"^[a-z][a-z0-9_-]{1,63}$")
-_SEMVER = re.compile(r"^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$")
+_SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$")
 _LOGGER = logging.getLogger("jwt_analyzer.plugins")
 
 
