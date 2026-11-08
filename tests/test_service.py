@@ -474,3 +474,24 @@ def test_lifecycle_marks_app_unready_after_shutdown():
     with TestClient(app, base_url="http://127.0.0.1", headers={"host": "127.0.0.1"}) as client:
         assert client.get("/api/v1/health/ready").status_code == 200
     assert app.state.ready is False
+
+@pytest.mark.parametrize(
+    "algorithms",
+    [
+        [],
+        ["RS256"] * (len(service.DEFAULT_ASYMMETRIC_ALGORITHMS) + 1),
+    ],
+)
+def test_verify_rejects_empty_or_oversized_algorithm_allowlists(algorithms):
+    client = _client(create_app())
+    response = client.post(
+        "/api/v1/verify",
+        json={
+            "token": _token(),
+            "public_key": "-----BEGIN PUBLIC KEY-----",
+            "algorithms": algorithms,
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_request"
