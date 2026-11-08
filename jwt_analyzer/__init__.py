@@ -24,6 +24,7 @@ from .models import (
     Severity,
     VerificationStatus,
 )
+from .plugins import PLUGIN_API_VERSION, PluginManager, PluginManifest, PluginRun
 from .policy import (
     AssessmentPolicy,
     baseline_policy,
@@ -49,6 +50,10 @@ __all__ = [
     "Confidence",
     "ConfigurationError",
     "Finding",
+    "PLUGIN_API_VERSION",
+    "PluginManager",
+    "PluginManifest",
+    "PluginRun",
     "JWTAnalyzerError",
     "ReportFormat",
     "ReportValidationError",
