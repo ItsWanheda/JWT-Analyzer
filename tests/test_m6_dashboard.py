@@ -14,7 +14,7 @@ from jwt_analyzer.service import create_app
 def _assessment():
     token = jwt.encode(
         {"sub": "dashboard-user", "email": "private@example.test", "exp": 4102444800},
-        "dashboard-test-secret",
+        "dashboard-test-secret-with-more-than-thirty-two-bytes",
         algorithm="HS256",
     )
     return inspect_token(token)
