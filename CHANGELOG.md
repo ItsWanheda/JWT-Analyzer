@@ -8,9 +8,9 @@ All notable changes to this project will be documented in this file.
 
 ### M6 dashboard and plugin ecosystem (implementation in progress)
 
-- Expand the same-origin dashboard with separate inspect and explicit public-key verification workflows, local finding comparison, and JSON/HTML/SARIF export.
+- Expand the same-origin dashboard with local JWT file selection or paste, separate inspect and explicit public-key verification workflows, local finding comparison, and JSON/HTML/SARIF export.
 - Route report generation through the shared schema-validated M4 renderer; redact by default and require explicit opt-in for sensitive exports.
-- Add a versioned v2 plugin entry-point contract, metadata-only discovery, explicit enablement, manifest/capability validation, namespaced findings, stable execution order, and exception isolation.
+- Add a versioned v2 plugin entry-point contract, metadata-only discovery, explicit enablement, manifest/capability validation, namespaced findings, stable execution order, per-plugin assessment snapshots, and exception isolation.
 - Document that enabled plugins are trusted in-process Python code and are not sandboxed. No arbitrary working-directory plugin scan or automatic loading is performed.
 - Add dashboard/export and plugin trust-boundary regression tests; expand CI coverage for M6.
 
