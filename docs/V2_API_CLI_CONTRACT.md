@@ -1,6 +1,6 @@
 # JWT Analyzer v2 API and CLI Contract
 
-> **Status:** development contract for 2.0.0.dev0. It is not a stable release guarantee until M3 acceptance and the release gates pass.
+> **Status:** stable public contract for JWT Analyzer v2.0.0. Breaking changes follow the project's versioning and deprecation policy.
 
 ## Public Python API
 
@@ -71,9 +71,9 @@ The default maximum batch size is 10,000 non-empty input items. Set a deliberate
 
 - The jwt_analyzer namespace and schema v1.1 are the supported v2 integration surface.
 - Internal core.*, utils.*, config.Config, and direct main.py imports are legacy implementation details.
-- The existing jwt-analyzer command remains available during the 2.0.0 development transition. New automation should adopt jwt-analyzer-v2 and its JSON contract.
+- The existing jwt-analyzer command remains available as a separate compatibility path in v2.0.0. New automation should adopt jwt-analyzer-v2 and its versioned JSON contract.
 - Legacy command output is not guaranteed to match the versioned CLI envelope. Migrate parsers to the JSON contract before removing legacy invocation.
 - Do not restore insecure TLS-disable flags or infer successful verification from decoded token claims.
 - No legacy alias may bypass explicit algorithm allowlists, policy evaluation, input limits, or output redaction.
 
-The legacy entry point will not be removed before a separately documented deprecation period and a major/minor compatibility decision. This development branch does not publish a package or remove existing commands.
+The legacy entry point will not be removed before a separately documented deprecation period and a major/minor compatibility decision. The stable v2.0.0 contract does not silently change the legacy command's output.
