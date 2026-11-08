@@ -43,6 +43,7 @@ from .reporting import (
 
 __all__ = [
     "ASSESSMENT_SCHEMA_VERSION",
+    "PLUGIN_API_VERSION",
     "Assessment",
     "AssessmentPolicy",
     "BatchLimitError",
