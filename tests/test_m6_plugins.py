@@ -136,3 +136,13 @@ def test_manager_rejects_unknown_plugins_and_invalid_finding_namespace(monkeypat
     result = manager.run(_assessment())
     assert result[0].error_code == "plugin_execution_failed"
     assert result[0].findings == ()
+
+
+def test_legacy_directory_loader_refuses_to_import_working_directory_plugins():
+    from plugins.plugins import PluginManager as LegacyPluginManager
+
+    manager = LegacyPluginManager()
+    with pytest.raises(RuntimeError, match="Directory-based plugin loading is disabled"):
+        manager.load_plugins()
+    with pytest.raises(RuntimeError, match="Raw-token v1 plugin execution is disabled"):
+        manager.run_check("raw.jwt.value")
