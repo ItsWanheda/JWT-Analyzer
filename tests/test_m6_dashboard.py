@@ -1,6 +1,5 @@
 """Dashboard, export endpoint, and accessibility/security regressions for M6."""
 
-
 import pytest
 
 pytest.importorskip("fastapi")
@@ -41,8 +40,8 @@ def test_dashboard_exposes_inspect_verify_compare_and_export_workflows():
         'id="export-submit"',
         'id="include-sensitive"',
         'aria-live="polite"',
-        'result.textContent = safeReport.content',
-        'output.textContent = JSON.stringify',
+        "result.textContent = safeReport.content",
+        "output.textContent = JSON.stringify",
     ):
         assert marker in response.text
     assert "localStorage" not in response.text
