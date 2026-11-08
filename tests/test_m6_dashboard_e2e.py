@@ -5,6 +5,7 @@ import socket
 import threading
 import time
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -122,7 +123,7 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
         download = download_info.value
         downloaded_path = download.path()
         assert downloaded_path is not None
-        exported = open(downloaded_path, encoding="utf-8").read()
+        exported = Path(downloaded_path).read_text(encoding="utf-8")
         assert "private@example.test" not in exported
 
         # Explicit verification uses the supplied inline public key and allowlist.
