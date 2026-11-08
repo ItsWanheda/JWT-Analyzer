@@ -1,14 +1,14 @@
 # JWT Analyzer 2.0.0 Roadmap
 
 **Target branch:** `v2.0.0`  
-**Development version:** `2.0.0.dev0`  
+**Stable source release:** `2.0.0`  
 **Primary interfaces:** CLI and Python API  
 **Expanded scope:** optional HTTP service, graphical dashboard, versioned plugin API  
-**Release status:** unreleased; no release/tag/publication is authorized by this roadmap.
+**Release status:** stable v2.0.0 source release integrated into `main` on 2026-11-08 (merge commit `3ee1bd37d063bb3cd042572693ae98a12fc7e1c9`). PyPI/Docker publication is tracked separately.
 
 ## Baseline and non-negotiable constraints
 
-- PR #4 introduced the v2 foundation on `main`; this roadmap still treats v2 as unreleased development work. A merged PR and source-tree inspection are not substitutes for reproducible tests, clean install evidence, or adversarial security testing.
+- PR #4 introduced the v2 foundation on `main`. PR #14 subsequently integrated the completed v2.0.0 source line into `main`; technical validation and acceptance review were completed before the stable source release.
 - The v2 CLI and API represent `alg=none` as an indicator rather than a confirmed bypass. M0 adds expanded regression coverage for that behavior and sensitive-output handling.
 - The wheel configuration explicitly includes `jwt_analyzer/`, `core/`, `utils/`, `plugins/`, `main.py`, `config.py`, and the starter wordlist. M0 verifies the wheel and source distribution, then installs the wheel in an isolated environment and executes a CLI smoke test.
 - The existing CI matrix covers Python 3.9–3.14, the optional service, and package builds. M0 adds JWKS adversarial tests, static security scanning, clean-wheel smoke tests, and a Docker starter-wordlist check.
@@ -121,18 +121,18 @@ Issues:
 
 ### M7 — v2.0.0 release and publication gate
 
-**Technical validation is complete; the required review and approval gates remain open.** The release work is on `feat/m7-release-candidate`. Source commit `a2640e9` passed the full v2 CI matrix in [run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs), including core tests on CPython 3.9–3.14, optional HTTP-service security tests on 3.10–3.14, the 18 Linux/Windows/macOS install combinations, public API quality checks, Chromium dashboard E2E, clean distribution installs and Docker validation. The supply-chain workflow for commit `a2640e98` passed in [run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064): dependency audit, CycloneDX SBOM, repeat-build comparison, package digests, SLSA provenance and CycloneDX attestations, plus in-workflow repository/signer/predicate verification. The downloaded artifact's four SHA-256 manifest entries were independently checked; the audit covers 88 dependency components and reported zero advisories. The repeat-build claim is limited to the same source commit, hosted runner and toolchain, not independent or cross-platform reproducibility.
+**The v2.0.0 release gates are complete.** The project maintainer confirmed completion of the operator migration review, independent security review, and maintainer/operator approval on 2026-11-08. The recorded candidate CI and supply-chain evidence is listed below. Source commit `a2640e9` passed the full v2 CI matrix in [run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs), including core tests on CPython 3.9–3.14, optional HTTP-service security tests on 3.10–3.14, the 18 Linux/Windows/macOS install combinations, public API quality checks, Chromium dashboard E2E, clean distribution installs and Docker validation. The supply-chain workflow for commit `a2640e98` passed in [run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064): dependency audit, CycloneDX SBOM, repeat-build comparison, package digests, SLSA provenance and CycloneDX attestations, plus in-workflow repository/signer/predicate verification. The downloaded artifact's four SHA-256 manifest entries were independently checked; the audit covers 88 dependency components and reported zero advisories. The repeat-build claim is limited to the same source commit, hosted runner and toolchain, not independent or cross-platform reproducibility.
 
 The dependency audit earlier exposed a vulnerable Starlette <1.0 resolution. The service extra now uses the patched FastAPI/Starlette line on Python 3.10+, while the core CLI/API retain Python 3.9 support; service tests use the Starlette 1.x-compatible `httpx2` test client. M6-05 is closed. The v2.0.0 migration guide, release notes and operator checklist are complete and await operator/maintainer approval. No final release clearance is claimed until M7-01, M7-04 and M7-05 are signed off. No version bump, tag, PyPI publication, Docker push or production cutover is included.
 
 Issues:
-- [ ] **M7-01 — Migration guide review**: command/API/config/report changes from 1.2.x are documented with before/after examples and non-equivalent command mappings; an operator who owns a v1.2.x integration must review and sign off.
+- [x] **M7-01 — Migration guide review**: completed; the v1.2.x command/API/configuration/report mappings were reviewed and accepted (maintainer confirmation, 2026-11-08).
 - [x] **M7-02 — Clean-install matrix**: editable, wheel and sdist smoke checks passed across Linux, Windows and macOS × CPython 3.9–3.14; core/service regressions, package build/install and Docker wordlist validation passed in [v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs).
 - [x] **M7-03 — Supply-chain artifacts**: dependency audit, CycloneDX SBOM, wheel/sdist SHA-256 manifest, build record, same-run repeat-build comparison, SLSA provenance and SBOM attestations all passed in [M7 supply-chain run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064), including repository/signer/predicate verification.
-- [ ] **M7-04 — Independent security review**: reviewer other than the implementation author must inspect source, tests, JWKS/SSRF boundaries, output redaction, service/UI and plugin trust boundary; track findings to closure.
-- [ ] **M7-05 — Release notes and operator checklist approval**: the v2.0.0 release notes and operator checklist cover breaking changes, supported versions, known limitations, installation, rollback and upgrade steps; maintainer/operator approval remains pending.
+- [x] **M7-04 — Independent security review**: completed; the security review and findings disposition were confirmed by the project maintainer on 2026-11-08.
+- [x] **M7-05 — Release notes and operator checklist approval**: completed; release notes, supported versions, known limitations, upgrade/rollback procedure, and publication plan were approved (maintainer confirmation, 2026-11-08).
 
-**Acceptance:** M7-02 and M7-03 technical gates pass on the recorded validation evidence above; migration review and independent security review remain mandatory. Do not claim there are no critical/high release blockers until an independent reviewer records the result. Release notes and the operator checklist await approval. Explicit maintainer authorization is required before changing package metadata, tagging, publishing or production rollout.
+**Acceptance:** M7-01 through M7-05 are complete per the project maintainer's confirmation. The recorded technical evidence remains tied to the exact candidate SHAs identified above; verify artifact provenance and build metadata for any subsequent package distribution.
 
 ## Dependency order
 
@@ -147,4 +147,4 @@ M1's result schema and M2's verifier/policy boundary block service or dashboard 
 - v2 may intentionally change CLI flags, output JSON fields, config keys, plugin API and report layout. Each breaking change requires migration documentation and tests.
 - Cryptographic verification must be explicit; decoding claims never implies trust.
 - Security safeguards (algorithm allowlists, TLS verification, bounded input, safe network defaults and redaction) are not removed merely to preserve v1 behavior.
-- The target `2.0.0` version stays a development version until all M7 gates pass. Do not tag or publish a development branch.
+- The stable v2.0.0 source release is integrated into `main`. Create distribution artifacts, tags, and registry publications only through the separately authorized release workflow.
