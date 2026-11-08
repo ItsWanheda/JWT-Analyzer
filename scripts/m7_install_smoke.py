@@ -95,6 +95,26 @@ def _smoke_installed_commands(workdir: Path) -> None:
     assert report["redaction_applied"] is True
 
 
+def _smoke_python39_service_guard(repository_root: Path, workdir: Path) -> None:
+    if sys.version_info >= (3, 10):
+        return
+
+    _run(
+        [sys.executable, "-m", "pip", "install", "-e", ".[service]"],
+        cwd=repository_root,
+    )
+    probe = subprocess.run(
+        [sys.executable, "-c", "import jwt_analyzer.service"],
+        cwd=workdir,
+        capture_output=True,
+        text=True,
+    )
+    if probe.returncode == 0 or "requires Python 3.10 or newer" not in probe.stderr:
+        raise RuntimeError(
+            "Python 3.9 service extra did not fail with the documented secure-runtime message"
+        )
+
+
 def _install_and_smoke(package_path: Path, workdir: Path, *, sdist: bool = False) -> None:
     _run(
         [sys.executable, "-m", "pip", "uninstall", "-y", "jwt-analyzer"],
@@ -119,6 +139,7 @@ def main() -> int:
 
         # First verify the editable install supplied by the matrix job.
         _smoke_installed_commands(smoke_directory)
+        _smoke_python39_service_guard(repository_root, smoke_directory)
 
         _run(
             [

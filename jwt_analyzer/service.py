@@ -22,7 +22,6 @@ from threading import Lock
 import time
 from typing import Any, Optional
 
-
 try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.exceptions import RequestValidationError
