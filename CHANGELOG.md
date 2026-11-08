@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 - Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations with repository/signer verification. Artifacts are retained as workflow artifacts; no PyPI or Docker publication occurs.
 - Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue.
 - Replace the service dependency's vulnerable Starlette <1.0 ceiling with FastAPI >=0.149 and Starlette >=1.3.1 on Python 3.10+, while retaining core CLI/API support for Python 3.9; service tests now run on Python 3.10–3.14.
-- Close M6-05 after the final Chromium E2E and full 30/30 v2 CI run. M7-02 (cross-platform clean installs) and M7-03 (dependency audit, SBOM, repeat-build record and verified attestations) have passing candidate evidence; M7-01 operator migration review, M7-04 independent security review and M7-05 maintainer/operator approval remain open.
+- Close M6-05 after Chromium E2E and full [33/33 v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094). M7-02 (cross-platform clean installs) and M7-03 (dependency audit, SBOM, repeat-build record and verified attestations) have passing candidate evidence in [supply-chain run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064); M7-01 operator migration review, M7-04 independent security review and M7-05 maintainer/operator approval remain open.
 
 ### M6 dashboard and plugin ecosystem (integrated; all acceptance gates validated)
 
@@ -31,7 +31,7 @@ All notable changes to this project will be documented in this file.
 - Add liveness/readiness probes, lifecycle handling, safe JSON error envelopes, server-generated request IDs and structured request logs that exclude bodies, claims, keys and bearer credentials.
 - Enforce loopback-first remote exposure controls, minimum bearer-secret strength, exact Host validation, bounded declared/streamed bodies, request deadlines, per-peer rate limits and bounded concurrent assessment work.
 - Keep verification network-free: accept inline PEM public keys or one public JWK only; reject JWK Sets, URL input, remote-reference JWK members and undeclared URL parameters.
-- Expand service security regression tests and run the optional HTTP-service suite across Python 3.9–3.14. Validation results will be recorded after the branch CI matrix completes.
+- The original M5 service matrix included Python 3.9–3.14. M7 raises the optional HTTP-service minimum to Python 3.10 to use patched FastAPI/Starlette releases; the core CLI/API still support Python 3.9–3.14, and service security tests now cover Python 3.10–3.14.
 
 ### M4 reporting and CI integrations
 

@@ -22,8 +22,8 @@ Do not change package metadata to 2.0.0, create a tag, or publish artifacts unti
 ## M7 release gates
 
 - [ ] **M7-01 — Migration guide reviewed.** Confirm every legacy command, API, environment variable, config key, output schema, plugin behavior and optional service change against the exact release commit. Review docs/MIGRATING_TO_V2.md with an operator who owns a v1.2.x integration.
-- [x] **M7-02 — Clean-install matrix passes.** Editable, wheel and source installs passed on Linux, Windows and macOS for CPython 3.9–3.14; core and optional-service tests, package build/clean install, Chromium E2E and Docker wordlist check passed in [v2 CI run #42501502998](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501502998) (30/30 jobs).
-- [x] **M7-03 — Supply-chain artifacts verified.** Dependency audit, CycloneDX SBOM, wheel/sdist hashes, build record, same-run repeat-build, SLSA provenance and SBOM attestations passed, including repository/signer/predicate verification in [M7 supply-chain run #42501985684](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501985684). All four downloaded SHA-256 manifest entries were checked. Repeatability is same-run/same-toolchain only, not independent or cross-platform.
+- [x] **M7-02 — Clean-install matrix passes.** Editable, wheel and source installs passed on Linux, Windows and macOS for CPython 3.9–3.14; core and optional-service tests, package build/clean install, Chromium E2E and Docker wordlist check passed in [v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs on candidate commit `a2640e98`).
+- [x] **M7-03 — Supply-chain artifacts verified.** Dependency audit, CycloneDX SBOM, wheel/sdist hashes, build record, same-run repeat-build, SLSA provenance and SBOM attestations passed, including repository/signer/predicate verification in [M7 supply-chain run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064) on candidate commit `a2640e98`. All four downloaded SHA-256 manifest entries were checked. Repeatability is same-run/same-toolchain only, not independent or cross-platform.
 - [ ] **M7-04 — Independent security review completed.** A reviewer other than the implementation author inspects the source and tests, records evidence, and confirms every critical/high finding is fixed or explicitly blocks the release. A checklist prepared by the implementer is not an independent review.
 - [ ] **M7-05 — Release notes and operator checklist approved.** Finalize breaking changes, supported versions, known limitations, installation, configuration migration, backup, rollback and post-upgrade verification steps.
 
@@ -40,7 +40,7 @@ The standard v2 workflow must be green for the exact candidate commit:
 - [x] Cross-platform editable, wheel and sdist install smoke checks on Linux, Windows and macOS across the six supported Python versions.
 - [x] Supply-chain workflow completes without known vulnerable dependencies or missing attestations.
 
-Recorded candidate evidence: [v2 CI run #42501502998](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501502998) completed 30/30 jobs on application source commit `b57329c`; [M7 supply-chain run #42501985684](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501985684) passed on branch head `b5c0810`, including attestation verification. The downloaded artifact manifest, build record and hashes are recorded below. A green run on a different commit is not release evidence.
+Recorded candidate evidence: candidate source commit `a2640e98e9c420b4c0ff2ec33b49c9c5c7932904` passed [v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs) and [M7 supply-chain run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064), including provenance and CycloneDX SBOM attestation verification. The artifact from the latter run was downloaded and all four SHA-256 manifest entries were independently checked. A green run on a different commit is not release evidence.
 
 ## Artifact verification
 
@@ -50,6 +50,8 @@ Before distribution, verify each package artifact:
 
     gh attestation verify dist/<wheel-filename>.whl --repo ItsWanheda/JWT-Analyzer
     gh attestation verify dist/<source-archive-filename>.tar.gz --repo ItsWanheda/JWT-Analyzer
+    gh attestation verify dist/<wheel-filename>.whl --repo ItsWanheda/JWT-Analyzer --predicate-type https://cyclonedx.org/bom
+    gh attestation verify dist/<source-archive-filename>.tar.gz --repo ItsWanheda/JWT-Analyzer --predicate-type https://cyclonedx.org/bom
 
 Then independently compare the downloaded artifact's SHA-256 digest with dist/SHA256SUMS.txt and the committed workflow run metadata. Do not assume that the SBOM alone proves the package contents; inspect the wheel and sdist file lists as part of the package review.
 
@@ -66,18 +68,18 @@ The repeat-build comparison is intentionally scoped to two builds on the same ho
 | Evidence | Recorded result |
 |---|---|
 | Candidate branch | `feat/m7-release-candidate` |
-| Application source CI | [Run #42501502998](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501502998), 30/30 jobs successful |
-| Supply-chain CI | [Run #42501985684](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501985684), successful with provenance and SBOM verification |
-| Candidate artifact | `m7-supply-chain-b5c0810876e0141c06879bad76bd94b2399f4373` (workflow artifact ID `13626200227`) |
+| Application source CI | [Run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094), 33/33 jobs successful on `a2640e98` |
+| Supply-chain CI | [Run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064), successful with provenance and SBOM verification on `a2640e98` |
+| Candidate artifact | `m7-supply-chain-a2640e98e9c420b4c0ff2ec33b49c9c5c7932904` (workflow artifact ID `13626265515`) |
 | Dependency audit | 88 components; 0 components with known advisories; 0 fixes required |
 | Repeat-build check | Wheel and sdist digest equality between two builds on the same runner/toolchain and fixed `SOURCE_DATE_EPOCH`; no independent/cross-platform reproducibility claim |
 
 Downloaded artifact hashes (verified against `SHA256SUMS.txt`):
 
-- Wheel: `eae28814574fffbc8910b0ec180af5a7178c2ae8e3a7fdca6cf60b05f9d6accd`
-- Source distribution: `190a58a4fae50faaf7ed63908131396eb633f1a4639e51190ce320d87aa9fbe5`
-- CycloneDX SBOM: `9868ffaaec04741ee1da192676a11b3498bd1c6a54c5728739e13e7294a16c61`
-- Build record: `37e6c4418977ee5998419e734197f74cc4f2eba290bbf42e7cee849ccffa9c08`
+- Wheel: `a691121a7ea12cf6012b4c0cc71691ea3ca3667876e75dddfcc8c66c32494614`
+- Source distribution: `9f3069368cdc5869efe9109358c595f3d1301f548e2738dc5645ce9ef636e993`
+- CycloneDX SBOM: `4b4fad96f126f50059ef3689df834c1f6bd8c97ae01765245abbac7da6e58364`
+- Build record: `2e2dd45760950188c59853a50a5856022929799c884414158227c967f1f66bad`
 
 The candidate artifact is retained as a GitHub Actions workflow artifact, not published to PyPI or Docker. Re-run the documented attestation and digest verification commands against any artifact copied for distribution. These records close the candidate implementation evidence for M7-02 and M7-03; they do not replace the independent review, operator migration sign-off or maintainer release authorization.
 
@@ -117,7 +119,7 @@ Release-blocking rule: no unresolved critical or high severity finding. Medium/l
 
 ## Final maintainer authorization
 
-- [x] M0–M6 acceptance evidence reviewed and M6-05 closed (full CI run #42501502998).
+- [x] M0–M6 acceptance evidence reviewed and M6-05 closed (full CI run #42502255094, 33/33 jobs).
 - [ ] Every M7 gate above is complete with evidence.
 - [ ] Migration guide reviewed by an operator.
 - [ ] Independent security review signed off and no critical/high blockers remain.
