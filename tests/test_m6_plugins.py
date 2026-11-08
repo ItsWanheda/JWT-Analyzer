@@ -171,3 +171,47 @@ def test_legacy_directory_loader_refuses_to_import_working_directory_plugins():
         manager.load_plugins()
     with pytest.raises(RuntimeError, match="Raw-token v1 plugin execution is disabled"):
         manager.run_check("raw.jwt.value")
+
+
+def test_plugin_mutations_cannot_change_caller_or_other_plugin_assessments(monkeypatch):
+    observed = []
+
+    class MutatingPlugin(ExamplePlugin):
+        manifest = PluginManifest(
+            plugin_id="mutating_plugin",
+            name="Mutating plugin",
+            version="1.0.0",
+            api_version="1",
+            capabilities=("assessment.read",),
+        )
+
+        def run(self, assessment):
+            assessment.claims["sub"] = "modified-by-plugin"
+            return ()
+
+    class ObserverPlugin(ExamplePlugin):
+        manifest = PluginManifest(
+            plugin_id="observer_plugin",
+            name="Observer plugin",
+            version="1.0.0",
+            api_version="1",
+            capabilities=("assessment.read",),
+        )
+
+        def run(self, assessment):
+            observed.append(assessment.claims["sub"])
+            return ()
+
+    points = (
+        FakeEntryPoint("mutating_plugin", MutatingPlugin),
+        FakeEntryPoint("observer_plugin", ObserverPlugin),
+    )
+    monkeypatch.setattr("jwt_analyzer.plugins._available_entry_points", lambda: points)
+    manager = PluginManager()
+    manager.load_enabled(["mutating_plugin", "observer_plugin"])
+    original = _assessment()
+
+    manager.run(original)
+
+    assert original.claims["sub"] == "user-1"
+    assert observed == ["user-1"]
