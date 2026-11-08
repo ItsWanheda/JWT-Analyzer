@@ -349,7 +349,7 @@ def test_dashboard_uses_nonce_csp_and_text_only_result_rendering():
     csp = response.headers["content-security-policy"]
     assert "script-src 'nonce-" in csp
     assert 'nonce="' in response.text
-    assert "result.textContent = JSON.stringify(data, null, 2)" in response.text
+    assert "result.textContent = safeReport.content" in response.text
     assert "localStorage" not in response.text
     assert "sessionStorage" not in response.text
 
