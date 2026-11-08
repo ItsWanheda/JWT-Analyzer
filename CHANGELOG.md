@@ -6,7 +6,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased — v2.0.0 development]
 
-### M6 dashboard and plugin ecosystem (implementation in progress)
+### M7 release-candidate preparation (in progress)
+
+- Expand the v1.2.x to v2 migration guide with concrete command and Python API examples, exact configuration/environment mappings, report/schema behavior, plugin and service migration notes, and a no-equivalent command table.
+- Add an operator-facing release checklist covering the six M7 gates, artifact verification, independent security-review evidence, production upgrade, rollback, and explicit maintainer authorization.
+- Add an 18-combination editable/wheel/sdist smoke matrix across Linux, Windows, macOS and CPython 3.9–3.14.
+- Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations. Artifacts are retained as workflow artifacts; no PyPI or Docker publication occurs.
+- Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue. M6-05 and all M7 gates remain open until the corrected CI evidence and independent review are complete.
+
+### M6 dashboard and plugin ecosystem (integrated; final gate validation pending)
 
 - Expand the same-origin dashboard with local JWT file selection or paste, separate inspect and explicit public-key verification workflows, local finding comparison, and JSON/HTML/SARIF export.
 - Route report generation through the shared schema-validated M4 renderer; redact by default and require explicit opt-in for sensitive exports.

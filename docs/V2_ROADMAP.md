@@ -108,7 +108,7 @@ Issues:
 
 ### M6 — Graphical dashboard and extension ecosystem
 
-**M6 implementation in progress on `feat/m6-dashboard-plugin-ecosystem`:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. Chromium browser E2E and accessibility checks are being added to CI; the milestone remains open until that job and the full matrix pass.
+**M6 implementation in progress on `feat/m6-dashboard-plugin-ecosystem`:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. The Chromium browser E2E workflow now passes on the merged M6 commit (PR CI run #42498732897). The same run exposed one remaining RUF005 lint failure in the E2E comparison fixture; the M7 branch carries the tuple-style correction. M6-05 remains open until the corrected full quality workflow passes.
 
 Issues:
 - [x] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
@@ -120,6 +120,8 @@ Issues:
 **Acceptance:** dashboard only calls the shared engine/service; all state and exports are explicit; plugin loading is opt-in and documented; E2E, accessibility and security tests pass. If dashboard scope slips, ship the core/API/service milestones rather than compromising security gates.
 
 ### M7 — Release candidate and 2.0.0 gate
+
+**M7 preparation on feat/m7-release-candidate:** expand the migration guide with exact v1.2.x command/API/config/report mappings; add an 18-combination Linux/Windows/macOS × Python 3.9–3.14 editable/wheel/sdist smoke matrix; add dependency audit, CycloneDX SBOM, repeat-build comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations. Add an operator/release checklist and independent-review record. These are candidate gates only: CI evidence, reviewer sign-off and maintainer authorization remain pending. No version bump, tag, or package publication is included.
 
 Issues:
 - [ ] **M7-01 — Migration guide**: command/API/config/report changes from 1.2.x; before/after examples and removal table.

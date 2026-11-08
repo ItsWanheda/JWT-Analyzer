@@ -142,7 +142,7 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
             severity=Severity.LOW,
             confidence=Confidence.HIGH,
         )
-        second = replace(first, findings=first.findings + (extra,))
+        second = replace(first, findings=(*first.findings, extra))
         page.locator("#compare-a").fill(json.dumps(first.to_dict()))
         page.locator("#compare-b").fill(json.dumps(second.to_dict()))
         page.get_by_role("button", name="Compare findings").click()
