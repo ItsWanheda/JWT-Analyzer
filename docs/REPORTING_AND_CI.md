@@ -62,7 +62,7 @@ Example GitHub Actions workflow fragment:
         with:
           sarif_file: jwt-analyzer.sarif
 
-Use a version/package source appropriate for your environment; the example above illustrates command wiring, not a claim that an unreleased development build is published.
+Use a version/package source appropriate for your environment; the example above illustrates command wiring and should match the artifact version being validated.
 
 ## Redaction and sensitive exports
 
