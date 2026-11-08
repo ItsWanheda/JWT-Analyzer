@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from importlib.metadata import EntryPoint, entry_points
-from typing import Any, Protocol, Sequence, cast
+from typing import Any, Protocol, cast
 
 from .models import Assessment, Finding
 
@@ -18,6 +19,7 @@ PLUGIN_API_VERSION = "1"
 ENTRY_POINT_GROUP = "jwt_analyzer.plugins.v2"
 _ALLOWED_CAPABILITIES = frozenset({"assessment.read"})
 _PLUGIN_ID = re.compile(r"^[a-z][a-z0-9_-]{1,63}$")
+_MAX_PLUGIN_NAME_LENGTH = 120
 _SEMVER = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:[-+][0-9A-Za-z.-]+)?$")
 _LOGGER = logging.getLogger("jwt_analyzer.plugins")
 
@@ -34,8 +36,8 @@ class PluginManifest:
 
     def __post_init__(self) -> None:
         if not isinstance(self.plugin_id, str) or not _PLUGIN_ID.fullmatch(self.plugin_id):
-            raise ValueError("plugin_id must be a lowercase identifier of 2–64 characters")
-        if not isinstance(self.name, str) or not self.name.strip() or len(self.name) > 120:
+            raise ValueError("plugin_id must be a lowercase identifier of 2-64 characters")
+        if not isinstance(self.name, str) or not self.name.strip() or len(self.name) > _MAX_PLUGIN_NAME_LENGTH:
             raise ValueError("plugin name must be a non-empty string of at most 120 characters")
         if not isinstance(self.version, str) or not _SEMVER.fullmatch(self.version):
             raise ValueError("plugin version must use semantic version syntax")
@@ -116,7 +118,7 @@ class PluginManager:
             manifest = getattr(candidate, "manifest", None)
             runner = getattr(candidate, "run", None)
             if not isinstance(manifest, PluginManifest) or not callable(runner):
-                raise ValueError("plugin does not implement the v2 plugin contract")
+                raise TypeError("plugin does not implement the v2 plugin contract")
             if manifest.plugin_id != plugin_id:
                 raise ValueError("plugin manifest ID does not match its entry point")
             loaded[plugin_id] = cast(AssessmentPlugin, candidate)
@@ -133,18 +135,6 @@ class PluginManager:
             plugin = self._plugins[plugin_id]
             try:
                 findings = tuple(plugin.run(assessment))
-                if any(not isinstance(item, Finding) for item in findings):
-                    raise TypeError("plugin results must contain Finding objects")
-                if any(not item.id.startswith(f"plugin.{plugin_id}.") for item in findings):
-                    raise ValueError("plugin finding IDs must use the plugin namespace")
-                if len({item.id for item in findings}) != len(findings):
-                    raise ValueError("plugin returned duplicate finding IDs")
-                results.append(
-                    PluginRun(
-                        plugin_id=plugin_id,
-                        findings=tuple(sorted(findings, key=lambda item: item.id)),
-                    )
-                )
             except Exception as exc:  # isolate failures without logging claims or exception text
                 _LOGGER.warning(
                     "plugin execution failed: plugin_id=%s exception_type=%s",
@@ -158,4 +148,31 @@ class PluginManager:
                         error_code="plugin_execution_failed",
                     )
                 )
+                continue
+
+            valid_types = all(isinstance(item, Finding) for item in findings)
+            valid_namespace = valid_types and all(
+                item.id.startswith(f"plugin.{plugin_id}.") for item in findings
+            )
+            unique_ids = valid_types and len({item.id for item in findings}) == len(findings)
+            if not valid_types or not valid_namespace or not unique_ids:
+                _LOGGER.warning(
+                    "plugin result rejected: plugin_id=%s reason=invalid_contract",
+                    plugin_id,
+                )
+                results.append(
+                    PluginRun(
+                        plugin_id=plugin_id,
+                        findings=(),
+                        error_code="plugin_execution_failed",
+                    )
+                )
+                continue
+
+            results.append(
+                PluginRun(
+                    plugin_id=plugin_id,
+                    findings=tuple(sorted(findings, key=lambda item: item.id)),
+                )
+            )
         return tuple(results)
