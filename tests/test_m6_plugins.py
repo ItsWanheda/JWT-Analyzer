@@ -99,10 +99,34 @@ def test_plugin_failure_is_isolated_and_exception_text_is_not_logged(monkeypatch
 @pytest.mark.parametrize(
     "manifest",
     [
-        {"plugin_id": "../evil", "name": "x", "version": "1.0.0", "api_version": "1", "capabilities": ("assessment.read",)},
-        {"plugin_id": "example_plugin", "name": "x", "version": "latest", "api_version": "1", "capabilities": ("assessment.read",)},
-        {"plugin_id": "example_plugin", "name": "x", "version": "1.0.0", "api_version": "99", "capabilities": ("assessment.read",)},
-        {"plugin_id": "example_plugin", "name": "x", "version": "1.0.0", "api_version": "1", "capabilities": ("filesystem.write",)},
+        {
+            "plugin_id": "../evil",
+            "name": "x",
+            "version": "1.0.0",
+            "api_version": "1",
+            "capabilities": ("assessment.read",),
+        },
+        {
+            "plugin_id": "example_plugin",
+            "name": "x",
+            "version": "latest",
+            "api_version": "1",
+            "capabilities": ("assessment.read",),
+        },
+        {
+            "plugin_id": "example_plugin",
+            "name": "x",
+            "version": "1.0.0",
+            "api_version": "99",
+            "capabilities": ("assessment.read",),
+        },
+        {
+            "plugin_id": "example_plugin",
+            "name": "x",
+            "version": "1.0.0",
+            "api_version": "1",
+            "capabilities": ("filesystem.write",),
+        },
     ],
 )
 def test_manifest_rejects_invalid_or_unsupported_contracts(manifest):
