@@ -44,7 +44,7 @@ Record the exact commit SHA, workflow run URLs, runner OS labels, Python patch v
 
 ## Artifact verification
 
-The supply-chain workflow produces a wheel, source distribution, CycloneDX dependency SBOM, build record and SHA-256 manifest. It also attaches provenance and SBOM attestations to both package artifacts.
+The supply-chain workflow produces a wheel, source distribution, CycloneDX dependency SBOM, build record and SHA-256 manifest. It attaches SLSA provenance and CycloneDX SBOM attestations to both package artifacts, then verifies both predicate types against the expected repository and signer workflow before the job passes.
 
 Before distribution, verify each package artifact:
 

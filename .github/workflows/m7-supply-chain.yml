@@ -295,6 +295,29 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+      - name: Verify SLSA provenance attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for artifact in dist/*.whl dist/*.tar.gz; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/m7-supply-chain.yml"
+          done
+
+      - name: Verify CycloneDX SBOM attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for artifact in dist/*.whl dist/*.tar.gz; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --predicate-type "https://cyclonedx.org/bom" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/m7-supply-chain.yml"
+          done
+
       - name: Upload candidate supply-chain artifacts
         uses: actions/upload-artifact@v7
         with:
