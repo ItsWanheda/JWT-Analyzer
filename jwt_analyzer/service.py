@@ -25,7 +25,7 @@ try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
     from fastapi.exceptions import RequestValidationError
     from fastapi.responses import HTMLResponse, JSONResponse
-    from pydantic import BaseModel, Field, StrictInt, StrictStr
+    from pydantic import BaseModel, Field, StrictInt, StrictStr, validator
     from starlette.concurrency import run_in_threadpool
     from starlette.middleware.trustedhost import TrustedHostMiddleware
     from starlette.types import ASGIApp, Message, Receive, Scope, Send
@@ -78,10 +78,15 @@ class VerifyRequest(BaseModel):
         description="Inline PEM public key or a single public JWK JSON object; URLs are forbidden.",
     )
     algorithms: list[StrictStr] = Field(
-        min_items=1,
-        max_items=len(DEFAULT_ASYMMETRIC_ALGORITHMS),
         description="Explicit allowlist of supported asymmetric JWT algorithms.",
     )
+
+    @validator("algorithms")
+    def validate_algorithms(cls, value: list[str]) -> list[str]:
+        """Keep list bounds compatible with Pydantic v1 and v2."""
+        if not 1 <= len(value) <= len(DEFAULT_ASYMMETRIC_ALGORITHMS):
+            raise ValueError("Algorithm allowlist must contain between 1 and the supported maximum.")
+        return value
     issuer: Optional[StrictStr] = Field(default=None, max_length=2048)  # noqa: UP045
     audience: Optional[StrictStr] = Field(default=None, max_length=2048)  # noqa: UP045
     leeway: StrictInt = Field(default=0, ge=0, le=86_400)
