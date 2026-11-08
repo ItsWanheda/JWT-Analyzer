@@ -160,3 +160,13 @@ assessment and a report format. Redaction is on by default; sending
 `include_sensitive: true` is a deliberate opt-in. Reports are produced by the
 same schema-validated M4 rendering functions and are subject to the service's
 request-size, timeout, rate and concurrency limits.
+
+
+## Browser-level validation
+
+The M6 CI workflow includes a dedicated Chromium E2E job. It exercises local
+file selection (without uploading until submit), inspection, explicit
+signature verification, redacted report download, assessment comparison,
+keyboard focus, accessible labels/live regions, responsive layout, and safe
+invalid-input behavior. The job installs the optional `e2e` extra; normal CLI
+and API installations do not require Playwright or a browser.
