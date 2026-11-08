@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file.
 - Route report generation through the shared schema-validated M4 renderer; redact by default and require explicit opt-in for sensitive exports.
 - Add a versioned v2 plugin entry-point contract, metadata-only discovery, explicit enablement, manifest/capability validation, namespaced findings, stable execution order, per-plugin assessment snapshots, and exception isolation.
 - Document that enabled plugins are trusted in-process Python code and are not sandboxed. No arbitrary working-directory plugin scan or automatic loading is performed.
-- Add dashboard/export and plugin trust-boundary regression tests; expand CI coverage for M6.
+- Add dashboard/export and plugin trust-boundary regression tests, plus a dedicated Chromium E2E job for file selection, inspect/verify, report download, comparison, responsive behavior, keyboard focus, and safe failure states.
 
 
 ### M5 optional HTTP service hardening
