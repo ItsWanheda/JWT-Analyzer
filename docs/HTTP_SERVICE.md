@@ -144,3 +144,18 @@ A cryptographically invalid signature is a completed verification result and is 
 Before remote use, terminate TLS, configure upstream request and connection limits, set a high-entropy bearer token through a secret manager, specify exact Host values, and apply a trusted edge rate limit. Keep the service behind a private network or authenticated gateway. Do not upload raw request logs or unredacted assessment responses to shared systems.
 
 This optional service is an initial v2 development interface. It still requires independent security review and deployment-specific testing before public production exposure. It must not be used as an authentication server or as the sole basis for authorization decisions.
+
+
+## Dashboard assessment and exports
+
+The local dashboard at `/dashboard` now provides separate inspect and explicit
+public-key verification workflows, a local finding comparison view, and
+JSON/HTML/SARIF exports. The browser uses `textContent` for untrusted result
+data, a per-response CSP nonce, same-origin requests, and page-memory-only
+state. It does not use localStorage or sessionStorage.
+
+The authenticated `POST /api/v1/report` endpoint accepts a normalized
+assessment and a report format. Redaction is on by default; sending
+`include_sensitive: true` is a deliberate opt-in. Reports are produced by the
+same schema-validated M4 rendering functions and are subject to the service's
+request-size, timeout, rate and concurrency limits.
