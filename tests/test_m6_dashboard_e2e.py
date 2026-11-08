@@ -133,7 +133,8 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
         page.locator("#algorithms").fill("RS256")
         page.get_by_role("button", name="Verify signature").click()
         page.wait_for_function(
-            "document.querySelector('#status').textContent.includes('Signature verification completed')"
+            "document.querySelector('#status').textContent.includes("
+            "'Signature verification completed')"
         )
         assert '"verification_status": "verified"' in page.locator("#result").inner_text()
 
