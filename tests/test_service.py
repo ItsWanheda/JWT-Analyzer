@@ -268,9 +268,7 @@ def test_streamed_request_body_limit_applies_without_content_length():
             message = await request_receive()
             if message.get("type") == "http.request" and not message.get("more_body", False):
                 break
-        await response_send(
-            {"type": "http.response.start", "status": 200, "headers": []}
-        )
+        await response_send({"type": "http.response.start", "status": 200, "headers": []})
         await response_send({"type": "http.response.body", "body": b"ok"})
 
     scope = {
@@ -349,7 +347,7 @@ def test_dashboard_uses_nonce_csp_and_text_only_result_rendering():
     csp = response.headers["content-security-policy"]
     assert "script-src 'nonce-" in csp
     assert 'nonce="' in response.text
-    assert "result.textContent = JSON.stringify(data, null, 2)" in response.text
+    assert "result.textContent = safeReport.content" in response.text
     assert "localStorage" not in response.text
     assert "sessionStorage" not in response.text
 
@@ -474,6 +472,7 @@ def test_lifecycle_marks_app_unready_after_shutdown():
     with TestClient(app, base_url="http://127.0.0.1", headers={"host": "127.0.0.1"}) as client:
         assert client.get("/api/v1/health/ready").status_code == 200
     assert app.state.ready is False
+
 
 @pytest.mark.parametrize(
     "algorithms",

@@ -1,43 +1,33 @@
-import importlib
+"""Deprecated v1 directory plugin loader.
+
+The v2 plugin system deliberately does not import arbitrary files from a
+working directory. Use jwt_analyzer.plugins.PluginManager with trusted
+installed entry points and explicit enablement instead.
+"""
+
 import logging
-from pathlib import Path
-from typing import Dict, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class PluginManager:
-    """Simple plugin architecture for extensibility."""
-    
-    def __init__(self, plugin_dir: str = "plugins"):
-        self.plugin_dir = Path(plugin_dir)
-        self.plugins: Dict[str, Callable] = {}
-    
-    def load_plugins(self):
-        """Auto-discover and load plugins from the plugins directory."""
-        if not self.plugin_dir.exists():
-            logger.debug(f"Plugin directory not found: {self.plugin_dir}")
-            return
-        
-        for plugin_file in self.plugin_dir.glob("*_plugin.py"):
-            module_name = plugin_file.stem
-            try:
-                module = importlib.import_module(f"plugins.{module_name}")
-                if hasattr(module, 'register'):
-                    plugin = module.register()
-                    self.plugins[plugin.name] = plugin
-                    logger.info(f"Loaded plugin: {plugin.name}")
-            except Exception as e:
-                logger.error(f"Failed to load plugin {module_name}: {e}")
-    
-    def run_check(self, token: str) -> list:
-        """Run all plugin checks against a token."""
-        results = []
-        for name, plugin in self.plugins.items():
-            try:
-                result = plugin.check(token)
-                if result:
-                    results.append({'plugin': name, **result})
-            except Exception as e:
-                logger.error(f"Plugin {name} failed: {e}")
-        return results
+    """Compatibility shell that refuses unsafe directory-based auto-loading."""
+
+    def __init__(self, plugin_dir: str = "plugins") -> None:
+        self.plugin_dir = plugin_dir
+        self.plugins: dict[str, Any] = {}
+
+    def load_plugins(self) -> None:
+        """Refuse legacy auto-discovery rather than executing arbitrary local code."""
+        raise RuntimeError(
+            "Directory-based plugin loading is disabled in v2. "
+            "Use jwt_analyzer.plugins.PluginManager and explicitly enable trusted packages."
+        )
+
+    def run_check(self, token: str) -> list[Any]:
+        """The v1 raw-token plugin hook is intentionally unavailable in v2."""
+        raise RuntimeError(
+            "Raw-token v1 plugin execution is disabled in v2. "
+            "Migrate to the versioned assessment plugin API."
+        )
