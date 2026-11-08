@@ -176,7 +176,7 @@ _DASHBOARD_HTML = """<!doctype html>
     <div class="grid">
       <section aria-labelledby="inspect-heading">
         <h2 id="inspect-heading">1. Inspect a token</h2>
-        <form id="inspect-form">
+        <form id="inspect-form" method="post">
           <label for="jwt">Compact JWT</label>
           <textarea id="jwt" required maxlength="1048576" autocomplete="off" spellcheck="false" placeholder="Paste a compact JWT"></textarea>
           <button id="inspect-submit" type="submit">Inspect token</button>
@@ -186,7 +186,7 @@ _DASHBOARD_HTML = """<!doctype html>
 
       <section aria-labelledby="verify-heading">
         <h2 id="verify-heading">2. Verify a signature</h2>
-        <form id="verify-form">
+        <form id="verify-form" method="post">
           <label for="verify-jwt">Compact JWT</label>
           <textarea id="verify-jwt" required maxlength="1048576" autocomplete="off" spellcheck="false" placeholder="Paste the JWT to verify"></textarea>
           <label for="public-key">Inline public key (PEM or one public JWK)</label>
@@ -372,12 +372,30 @@ _DASHBOARD_HTML = """<!doctype html>
         return value && value.assessment ? value.assessment : value;
       }
 
-      byId("compare-submit").addEventListener("click", () => {
+      function stableStringify(value) {
+        if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
+        if (value && typeof value === "object") {
+          return "{" + Object.keys(value).sort().map((key) =>
+            JSON.stringify(key) + ":" + stableStringify(value[key])
+          ).join(",") + "}";
+        }
+        return JSON.stringify(value);
+      }
+
+      byId("compare-submit").addEventListener("click", async () => {
         const output = byId("comparison");
         try {
-          const before = unwrapAssessment(JSON.parse(byId("compare-a").value));
-          const after = unwrapAssessment(JSON.parse(byId("compare-b").value));
-          if (!before || !after || !Array.isArray(before.findings) || !Array.isArray(after.findings)) {
+          const beforeInput = unwrapAssessment(JSON.parse(byId("compare-a").value));
+          const afterInput = unwrapAssessment(JSON.parse(byId("compare-b").value));
+          const beforeReport = await postJson("/api/v1/report", {
+            assessment: beforeInput, format: "json", include_sensitive: false
+          });
+          const afterReport = await postJson("/api/v1/report", {
+            assessment: afterInput, format: "json", include_sensitive: false
+          });
+          const before = JSON.parse(beforeReport.content).assessment;
+          const after = JSON.parse(afterReport.content).assessment;
+          if (!Array.isArray(before.findings) || !Array.isArray(after.findings)) {
             throw new Error("Both inputs must contain a findings array.");
           }
           const left = new Map(before.findings.map((finding) => [finding.id, finding]));
@@ -387,7 +405,7 @@ _DASHBOARD_HTML = """<!doctype html>
           const changed = [];
           for (const [id, finding] of right) {
             if (!left.has(id)) added.push({ id: id, severity: finding.severity, title: finding.title });
-            else if (JSON.stringify(left.get(id)) !== JSON.stringify(finding)) {
+            else if (stableStringify(left.get(id)) !== stableStringify(finding)) {
               changed.push({ id: id, before: left.get(id), after: finding });
             }
           }
