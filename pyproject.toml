@@ -59,6 +59,9 @@ dev = [
     "build>=1.0.0",
     "twine>=4.0.0",
 ]
+e2e = [
+    "playwright>=1.40.0",
+]
 service = [
     "fastapi>=0.110.0",
     "pydantic>=1.10.13,<3",
