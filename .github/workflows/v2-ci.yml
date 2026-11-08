@@ -8,6 +8,7 @@ on:
       - "v2.0.0-m0-*"
       - "feat/m1-*"
       - "feat/m4-*"
+      - "feat/m5-*"
   pull_request:
     branches:
       - main
@@ -56,10 +57,10 @@ jobs:
         run: ruff format --check jwt_analyzer
       - name: Type-check public API
         run: mypy --python-version 3.12 jwt_analyzer
-      - name: Lint JWKS hardening and regression tests
-        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py --select E,F,B,C4,UP,SIM,RUF,N
-      - name: Check formatting for security boundary and regressions
-        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py
+      - name: Lint security boundaries and regression tests
+        run: ruff check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py --select E,F,B,C4,UP,SIM,RUF,N
+      - name: Check formatting for security boundaries and regressions
+        run: ruff format --check core/jwks.py tests/test_jwks_security.py tests/test_output_redaction.py tests/test_m0_regressions.py tests/test_m4_reporting_ci.py tests/test_service.py
       - name: Lint M2 security boundaries and adversarial tests
         run: >-
           ruff check core/strict_json.py core/parser.py core/verification.py core/jwks.py
@@ -74,17 +75,21 @@ jobs:
         run: bandit -r jwt_analyzer core utils
 
   service:
-    name: Optional HTTP service security tests
-    runs-on: ubuntu-latest
+    name: Optional HTTP service security tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install optional service and test dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,service]"
-      - name: Test HTTP service, auth, rate limits, body limits, and dashboard
+      - name: Test HTTP service, API contract, lifecycle, and abuse boundaries
         run: python -m pytest -q tests/test_service.py
 
   package:
