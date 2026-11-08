@@ -82,7 +82,7 @@ class VerifyRequest(BaseModel):
     )
 
     @validator("algorithms")
-    def validate_algorithms(cls, value: list[str]) -> list[str]:
+    def validate_algorithms(cls, value: list[str]) -> list[str]:  # noqa: N805
         """Keep list bounds compatible with Pydantic v1 and v2."""
         if not 1 <= len(value) <= len(DEFAULT_ASYMMETRIC_ALGORITHMS):
             raise ValueError("Algorithm allowlist must contain between 1 and the supported maximum.")
