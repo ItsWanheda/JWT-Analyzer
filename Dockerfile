@@ -15,6 +15,7 @@ FROM python:3.12-slim
 LABEL org.opencontainers.image.title="jwt-analyzer" \
       org.opencontainers.image.description="JWT security analysis CLI" \
       org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.version="2.0.0.dev0" \
       org.opencontainers.image.source="https://github.com/ItsWanheda/jwt-analyzer"
 
 # ca-certificates are required for HTTPS JWKS fetching.

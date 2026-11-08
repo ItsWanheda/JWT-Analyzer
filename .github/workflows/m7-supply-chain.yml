@@ -1,0 +1,327 @@
+name: M7 supply-chain verification
+
+on:
+  push:
+    branches:
+      - v2.0.0
+      - "feat/m7-*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  supply-chain:
+    name: Dependency audit, SBOM, repeat-build record, attestations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project and declared optional dependency sets
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[dev,service,e2e]"
+
+      - name: Freeze the audited dependency set
+        run: |
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          frozen = subprocess.check_output(
+              [sys.executable, "-m", "pip", "freeze"], text=True
+          ).splitlines()
+          requirements = [
+              line for line in frozen
+              if not line.lower().startswith(("-e ", "jwt-analyzer==", "jwt-analyzer @"))
+          ]
+          if not requirements:
+              raise SystemExit("dependency freeze unexpectedly produced an empty set")
+          destination = Path(os.environ["RUNNER_TEMP"]) / "m7-audit-requirements.txt"
+          destination.write_text("\n".join(requirements) + "\n", encoding="utf-8")
+          print(f"Frozen {len(requirements)} third-party dependency entries")
+          PY
+
+      - name: Install SBOM and build tooling
+        run: python -m pip install pip-audit build twine hatchling
+
+      - name: Prepare supply-chain output directory
+        run: mkdir -p dist
+
+      - name: Audit dependencies (human-readable)
+        id: audit-columns
+        continue-on-error: true
+        run: |
+          pip-audit \
+            --requirement "$RUNNER_TEMP/m7-audit-requirements.txt" \
+            --strict \
+            --format columns
+
+      - name: Save machine-readable dependency audit
+        id: audit-json
+        continue-on-error: true
+        run: |
+          pip-audit \
+            --requirement "$RUNNER_TEMP/m7-audit-requirements.txt" \
+            --strict \
+            --format json \
+            --output dist/dependency-audit.json
+
+      - name: Generate CycloneDX dependency SBOM
+        id: audit-sbom
+        continue-on-error: true
+        run: |
+          pip-audit \
+            --requirement "$RUNNER_TEMP/m7-audit-requirements.txt" \
+            --strict \
+            --format cyclonedx-json \
+            --output dist/jwt-analyzer-dependencies.cdx.json
+
+      - name: Enforce dependency audit and SBOM gates
+        if: always()
+        env:
+          AUDIT_COLUMNS_OUTCOME: ${{ steps.audit-columns.outcome }}
+          AUDIT_JSON_OUTCOME: ${{ steps.audit-json.outcome }}
+          AUDIT_SBOM_OUTCOME: ${{ steps.audit-sbom.outcome }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report_path = Path("dist/dependency-audit.json")
+          if report_path.is_file():
+              report = json.loads(report_path.read_text(encoding="utf-8"))
+              vulnerable = [
+                  item for item in report.get("dependencies", [])
+                  if item.get("vulns")
+              ]
+              for dependency in vulnerable:
+                  versions = sorted({
+                      version
+                      for vulnerability in dependency["vulns"]
+                      for version in vulnerability.get("fix_versions", [])
+                  })
+                  identifiers = sorted({
+                      identifier
+                      for vulnerability in dependency["vulns"]
+                      for identifier in [vulnerability.get("id", ""), *vulnerability.get("aliases", [])]
+                      if identifier
+                  })
+                  print(
+                      f"Known vulnerability: {dependency.get('name')} "
+                      f"{dependency.get('version')}; IDs={identifiers}; fixes={versions}"
+                  )
+          else:
+              vulnerable = []
+              print("The dependency audit did not produce its JSON report.")
+
+          outcomes = {
+              "columns": os.environ["AUDIT_COLUMNS_OUTCOME"],
+              "json": os.environ["AUDIT_JSON_OUTCOME"],
+              "sbom": os.environ["AUDIT_SBOM_OUTCOME"],
+          }
+          print(f"Audit/SBOM step outcomes: {outcomes}")
+          if vulnerable or any(value != "success" for value in outcomes.values()):
+              raise SystemExit("M7 dependency audit/SBOM gate failed; review advisories before release.")
+          PY
+
+      - name: Build twice with a fixed source epoch and compare package digests
+        shell: bash
+        run: |
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          python -m build --no-isolation --outdir "$RUNNER_TEMP/m7-build-a"
+          python -m build --no-isolation --outdir "$RUNNER_TEMP/m7-build-b"
+          python - <<'PY'
+          import hashlib
+          import os
+          import shutil
+          from pathlib import Path
+
+          workspace = Path(os.environ["GITHUB_WORKSPACE"])
+          first = Path(os.environ["RUNNER_TEMP"]) / "m7-build-a"
+          second = Path(os.environ["RUNNER_TEMP"]) / "m7-build-b"
+          output = workspace / "dist"
+          def digest(path: Path) -> str:
+              hasher = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                      hasher.update(chunk)
+              return hasher.hexdigest()
+
+          first_files = sorted(path.name for path in first.iterdir() if path.is_file())
+          second_files = sorted(path.name for path in second.iterdir() if path.is_file())
+          if first_files != second_files or not first_files:
+              raise SystemExit("two builds produced different artifact file lists")
+          hashes_a = {name: digest(first / name) for name in first_files}
+          hashes_b = {name: digest(second / name) for name in second_files}
+          if hashes_a != hashes_b:
+              raise SystemExit("repeat builds did not produce identical SHA-256 digests")
+          for name in first_files:
+              shutil.copyfile(first / name, output / name)
+          package_names = [
+              name for name in first_files
+              if name.endswith(".whl") or name.endswith(".tar.gz")
+          ]
+          if len(package_names) != 2:
+              raise SystemExit("expected one wheel and one source distribution")
+          print("Two builds on this runner produced identical package digests.")
+          PY
+
+      - name: Validate package metadata
+        run: |
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+
+          artifacts = sorted(
+              [*Path("dist").glob("*.whl"), *Path("dist").glob("*.tar.gz")]
+          )
+          if len(artifacts) != 2:
+              raise SystemExit("expected exactly one wheel and one source distribution")
+          subprocess.run(
+              ["python", "-m", "twine", "check", *(str(path) for path in artifacts)],
+              check=True,
+          )
+          PY
+
+      - name: Write build record and SHA-256 manifest
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import platform
+          from importlib.metadata import version
+          from pathlib import Path
+
+          output = Path("dist")
+          def sha256(path: Path) -> str:
+              digest = hashlib.sha256()
+              with path.open("rb") as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          wheel = next(output.glob("*.whl"))
+          sdist = next(output.glob("*.tar.gz"))
+          sbom = output / "jwt-analyzer-dependencies.cdx.json"
+          record = {
+              "schema_version": "1",
+              "project": "jwt-analyzer",
+              "development_version": "2.0.0.dev0",
+              "source": {
+                  "repository": os.environ["GITHUB_REPOSITORY"],
+                  "commit": os.environ["GITHUB_SHA"],
+              },
+              "builder": {
+                  "runner_os": platform.platform(),
+                  "python": platform.python_version(),
+                  "build_frontend": version("build"),
+                  "build_backend": version("hatchling"),
+                  "twine": version("twine"),
+                  "pip_audit": version("pip-audit"),
+              },
+              "dependency_audit": {
+                  "tool": "pip-audit",
+                  "result": "passed",
+                  "sbom_format": "CycloneDX JSON",
+                  "sbom_file": sbom.name,
+                  "sbom_sha256": sha256(sbom),
+              },
+              "repeat_build": {
+                  "scope": "same source commit, same hosted runner and toolchain, fixed SOURCE_DATE_EPOCH",
+                  "sha256_match": True,
+                  "cross_platform_or_independent_rebuild_claimed": False,
+              },
+              "artifacts": [
+                  {"file": wheel.name, "sha256": sha256(wheel)},
+                  {"file": sdist.name, "sha256": sha256(sdist)},
+              ],
+          }
+          (output / "build-record.json").write_text(
+              json.dumps(record, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          manifest_files = [wheel, sdist, sbom, output / "build-record.json"]
+          manifest = "".join(
+              f"{sha256(path)}  {path.name}\n" for path in sorted(manifest_files)
+          )
+          (output / "SHA256SUMS.txt").write_text(manifest, encoding="utf-8")
+          PY
+
+      - name: Attest wheel build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/*.whl
+
+      - name: Attest source distribution build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/*.tar.gz
+
+      - name: Attest wheel SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/*.whl
+          sbom-path: dist/jwt-analyzer-dependencies.cdx.json
+
+      - name: Attest source distribution SBOM
+        uses: actions/attest@v4
+        with:
+          subject-path: dist/*.tar.gz
+          sbom-path: dist/jwt-analyzer-dependencies.cdx.json
+
+      - name: Upload audit diagnostics when the release gate fails
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: m7-audit-diagnostics-${{ github.sha }}
+          path: |
+            dist/dependency-audit.json
+            dist/jwt-analyzer-dependencies.cdx.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Verify SLSA provenance attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for artifact in dist/*.whl dist/*.tar.gz; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/m7-supply-chain.yml"
+          done
+
+      - name: Verify CycloneDX SBOM attestations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for artifact in dist/*.whl dist/*.tar.gz; do
+            gh attestation verify "$artifact" \
+              --repo "$GITHUB_REPOSITORY" \
+              --predicate-type "https://cyclonedx.org/bom" \
+              --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/m7-supply-chain.yml"
+          done
+
+      - name: Upload candidate supply-chain artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: m7-supply-chain-${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90

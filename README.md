@@ -6,12 +6,12 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.0.dev0--unreleased-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.0.0--unreleased-orange.svg)](CHANGELOG.md)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](Dockerfile)
 
 ---
 
-> **v2 development status:** `v2.0.0.dev0` is pre-release work on the `v2.0.0` branch. It is not the stable release, and this branch must not be used as a production upgrade until the release gates pass.
+> **Release status — UNRELEASED:** JWT Analyzer `v2.0.0` is in final release preparation. The package metadata remains `2.0.0.dev0` until release approval; this branch is not a published or production release.
 
 ## ⚡ Quick Start
 
@@ -20,7 +20,7 @@
 pip install jwt-analyzer
 jwt-analyzer audit --token-file token.txt
 
-# Option 2: from the v2 development branch (not a release)
+# Option 2: from the unreleased v2.0.0 source branch
 git clone --branch v2.0.0 https://github.com/ItsWanheda/jwt-analyzer.git
 cd jwt-analyzer
 pip install -e ".[dev]"
@@ -43,16 +43,16 @@ Most JWT tools just decode the base64. This one actually **looks for problems**:
 |-------|---------------|
 | `none` algorithm indicator | Flags a header declaring `alg=none`; target acceptance must be verified separately |
 | Algorithm/key policy | Flags policy-review indicators; token-only inspection does not prove algorithm confusion |
-| `kid` header injection | SQLi / path traversal / command injection via the `kid` claim |
+| Suspicious `kid` values | Flags SQLi / path-traversal / command-pattern indicators; does not prove injection |
 | PII / secret scanning | Credit cards, SSNs, AWS keys, passwords leaking through payloads |
-| Brute-force attack | Cracks HS256 secrets using wordlists (multi-threaded) |
-| JWKS verification | Validates tokens against live identity providers |
+| HMAC secret testing | Bounded wordlist testing for HS256/384/512 with worker, candidate, candidate-size and timeout caps |
+| JWKS verification | Retrieves eligible public keys over guarded HTTPS and verifies signatures against compatible keys |
 | Payload diffing | Shows exactly what changed between two tokens |
 | Token forgery | Crafts new tokens with custom payloads (for auth testing) |
 
 ---
 
-## 🐍 v2 Python API (development)
+## 🐍 v2 Python API
 
 The v2 public import surface is `jwt_analyzer`. The API below performs structural inspection only:
 
@@ -83,12 +83,72 @@ assessment = verify_with_public_key(
 )
 
 if assessment.verification_status.value != "verified":
-    raise ValueError(f"JWT was not verified: {assessment.errors}")
+    raise ValueError(f"JWT signature was not verified: {assessment.errors}")
+if assessment.policy is None or assessment.policy["status"] != "passed":
+    raise ValueError("JWT did not satisfy the configured claim policy")
 ```
 
-Use a trusted PEM public key or public JWK obtained from a trusted source. If issuer or audience is omitted, that claim is not validated by this call. A verified signature is not an authorization decision; still enforce application-specific scope, tenant, role and access-control rules.
+Use a trusted PEM public key or public JWK obtained from a trusted source. If issuer or audience is omitted, that claim is not validated by this call. A verified signature is not an authorization decision; still enforce application-specific scope, tenant, role and access-control rules. The v2 API keeps `verification_status` (cryptographic signature state) separate from `policy["status"]` (`passed`, `failed`, or `not_verified`).
 
-This API is part of the unreleased `2.0.0.dev0` branch and may change until the v2 release gates pass.
+This API belongs to the unreleased v2.0.0 line. The package version remains `2.0.0.dev0` until the release is formally approved and tagged.
+
+### Policy profiles and normalized results
+
+The shared M1 engine separates parsing, cryptographic verification, claim policy, and presentation. Inspection never changes `verification_status` from `not_attempted`. The signature-only API is explicit:
+
+```python
+from pathlib import Path
+from jwt_analyzer import evaluate_policy, get_policy_profile, verify_signature_with_public_key
+
+signature_result = verify_signature_with_public_key(
+    compact_jwt,
+    Path("public.pem").read_text(encoding="utf-8"),
+    algorithms=["RS256"],
+)
+assessment = evaluate_policy(
+    signature_result,
+    get_policy_profile(
+        "strict",
+        issuer="https://issuer.example",
+        audience="jwt-api",
+    ),
+)
+print(assessment.to_dict())
+```
+
+The baseline profile requires an expiry claim; the strict profile additionally requires issuer, audience, issued-at and subject claims and uses a narrower algorithm allowlist. Build an organization-specific policy with `AssessmentPolicy(name="custom", ...)` or use `get_policy_profile("baseline", ...)` with explicit overrides.
+
+`Assessment.to_json()` and `Assessment.from_json()` provide deterministic JSON round-tripping for schema version 1.1. The JSON Schema is included in the package at `jwt_analyzer/assessment-v1.1.schema.json`. Findings have stable IDs, explicit limitations and deterministic severity-then-ID ordering. Decoded claims remain potentially sensitive even though the compact token itself is not stored.
+
+Policy checks over unverified claims are advisory only. A `not_verified` policy result is not a signature result and must never be used as authentication or authorization.
+
+### Dashboard and versioned plugins
+
+The optional local dashboard at `/dashboard` supports local JWT file selection or paste,
+separate inspection and public-key signature verification, assessment comparison, and JSON/HTML/SARIF
+exports. The UI displays redacted reports by default and does not persist tokens
+in browser storage. Sensitive exports require an explicit opt-in.
+
+A Chromium end-to-end suite exercises local file selection, inspection, explicit verification, report download, finding comparison, responsive layout, keyboard focus, and safe failure states in CI.
+
+The v2 plugin API is versioned independently and discovers installed package
+entry points without importing them. Plugins are loaded only when explicitly
+enabled by the operator. Plugins are trusted in-process Python code, not
+sandboxed: enable only packages from publishers you trust. See
+[Plugin API and trust model](docs/PLUGIN_API.md).
+
+### M2 parser, verification, and resource-safety boundaries
+
+M2 hardens the inputs and expensive operations used by the verifier:
+
+- Compact JWTs are limited to **1 MiB**. Base64URL segments must be canonical, and the decoded header and payload must be JSON objects.
+- Security-sensitive JSON rejects duplicate object keys, non-finite numbers, invalid UTF-8, lone UTF-16 surrogates and excessive structures. The parser caps nesting at **64 levels**, values at **100,000 nodes**, and integer values at **128 digits**. Valid surrogate pairs are normalized; keys that collide after normalization are rejected.
+- Public-key material is limited to **64 KiB**. Signature verification uses a supported asymmetric algorithm allowlist; do not derive trusted algorithms from an unverified JWT header.
+- JWKS retrieval is HTTPS-only by default, preserves TLS certificate/hostname verification, pins validated DNS results to the connection, does not follow redirects, and caps responses at **1 MiB** and **1,000 keys**. It uses one deadline across DNS, connect, TLS and response reads. Expired cached keys are not used as stale fallback.
+- HMAC wordlist testing supports HS256/384/512 and streams candidates through a bounded worker pool: at most **32 workers**, **1,000,000 candidates**, and **4 KiB per candidate**; the timeout is capped at **one hour**. Cancellation is cooperative: a cryptographic call already executing cannot be safely force-killed.
+- Findings distinguish confirmed local observations from heuristic indicators and unknown server-side behavior. A suspicious `kid` or declared `alg=none` is not proof that a remote verifier accepts an attack.
+
+See [JWKS retrieval security](docs/JWKS_SECURITY.md), [finding semantics](docs/SECURITY_FINDING_SEMANTICS.md), and the [v2 migration guide](docs/MIGRATING_TO_V2.md) and [2.0.0 release notes](docs/RELEASE_NOTES_2.0.0.md) for the detailed boundaries and operational caveats.
 
 ### Optional HTTP API and dashboard
 
@@ -229,11 +289,11 @@ python main.py analyze --token-file token.txt
 ```
 Shows header, payload, and expiry status. **No signature verification.**
 
-#### `security` — vulnerability checks only
+#### `security` — token security indicators
 ```bash
 python main.py security --token-file token.txt
 ```
-Checks for `none` alg, algorithm confusion, and `kid` injection.
+Checks for `alg=none`, suspicious `kid` patterns, and algorithm/key-policy indicators. These are evidence-based findings; token-only inspection does not prove remote verifier behavior or injection.
 
 #### `brute-force` — crack the signing secret
 ```bash
@@ -241,8 +301,12 @@ python main.py brute-force --token-file token.txt \
     --wordlist utils/wordlists/common_secrets.txt \
     --workers 8
 ```
-Tries every secret in the wordlist. Parallel by default. Only tests
-symmetric algorithms (HS256/384/512) — asymmetric ones use keys, not secrets.
+Streams candidates through a bounded worker pool. Only tests symmetric
+algorithms (HS256/384/512); asymmetric algorithms use keys, not shared secrets.
+The implementation caps workers at 32, candidate attempts at 1,000,000,
+individual candidates at 4 KiB, and the timeout at 3,600 seconds. A timeout
+stops new work and requests cooperative worker shutdown; it cannot interrupt
+a cryptographic call already executing.
 
 #### `diff` — compare two tokens
 ```bash
@@ -265,8 +329,7 @@ python main.py verify-jwks --token-file token.txt \
     --jwks-url https://auth.example.com/.well-known/jwks.json
 
 # TLS verification is always enabled; use a valid certificate and trust store.
-python main.py verify-jwks --token-file token.txt \
-    --jwks-url https://auth.example.com/.well-known/jwks.json \
+# Redirects are not followed; destination and response limits are enforced.
 ```
 
 #### `forge` — create a custom token
@@ -302,8 +365,9 @@ jwt-analyzer/
 ├── .env.example                  # Documented env vars
 │
 ├── core/
-│   ├── parser.py                 # JWT parsing & claim extraction
-│   ├── security.py               # Vuln checks (none alg, kid injection, etc.)
+│   ├── parser.py                 # Bounded JWT parsing & claim extraction
+│   ├── strict_json.py             # Duplicate-safe, resource-bounded JSON decoding
+│   ├── security.py               # Token security indicators and policy checks
 │   ├── verification.py           # RSA/ECDSA public key verification
 │   ├── forgery.py                # Token crafting
 │   ├── diff.py                   # Payload comparison
@@ -334,6 +398,15 @@ jwt-analyzer/
 
 ---
 
+## 📚 Bundled wordlist policy
+
+The wheel and Docker image contain only a six-entry starter list at
+`utils/wordlists/common_secrets.txt`. It is not a comprehensive password corpus.
+No larger corpus is downloaded or bundled automatically. An operator-supplied
+list must be explicitly opted into with `--wordlist /path/to/authorized-list.txt`
+or `JWT_ANALYZER_WORDLIST_PATH`. Treat custom wordlists as sensitive files.
+See [the wordlist policy](docs/WORDLIST_POLICY.md).
+
 ## ⚙️ Configuration
 
 ### Environment variables
@@ -342,7 +415,7 @@ All have sensible defaults. Override when needed:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `JWTANALYZER_WORDLIST_PATH` | `utils/wordlists/common_secrets.txt` | Path to secrets wordlist |
+| `JWT_ANALYZER_WORDLIST_PATH` | `utils/wordlists/common_secrets.txt` | Path to secrets wordlist |
 | `JWT_ANALYZER_TIMEOUT` | `300` | Brute force timeout (seconds) |
 | `JWT_ANALYZER_WORKERS` | `8` | Parallel workers for brute force |
 | `JWT_ANALYZER_LOG_LEVEL` | `INFO` | `DEBUG` / `INFO` / `WARNING` / `ERROR` |
@@ -466,7 +539,7 @@ A realistic pentest scenario:
 # 1. Found a JWT in the app's localStorage. Dump it.
 python main.py analyze --token-file captured.txt
 
-# 2. Quick security check - 'none' alg? weak kid? confused algorithms?
+# 2. Check token-level indicators and policy mismatches; validate target behavior separately.
 python main.py security --token-file captured.txt
 
 # 3. Try to crack the signing secret
@@ -632,5 +705,8 @@ and keep the copyright notice.
 
 - [RFC 7519 — JSON Web Token](https://datatracker.ietf.org/doc/html/rfc7519)
 - [OWASP JWT Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html)
+- [JWKS retrieval security model](docs/JWKS_SECURITY.md)
+- [Security finding semantics](docs/SECURITY_FINDING_SEMANTICS.md)
+- [v2 migration guide](docs/MIGRATING_TO_V2.md)
 - [PortSwigger Web Security Academy — JWT attacks](https://portswigger.net/web-security/jwt)
 - [Auth0 JWT documentation](https://auth0.com/docs/secure/tokens/json-web-tokens)

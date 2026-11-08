@@ -4,9 +4,84 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## [Unreleased — v2.0.0 development]
+## [Unreleased] — v2.0.0
+
+### v2.0.0 release validation
+
+- Expand the v1.2.x to v2 migration guide with concrete command and Python API examples, exact configuration/environment mappings, report/schema behavior, plugin and service migration notes, and a no-equivalent command table.
+- Add the v2.0.0 release notes and operator checklist, covering supported runtimes, breaking changes, security boundaries, artifact verification, production upgrade, rollback, independent review, and release authorization.
+- Add an 18-combination editable/wheel/sdist smoke matrix across Linux, Windows, macOS and CPython 3.9–3.14.
+- Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations with repository/signer verification. Artifacts are retained as workflow artifacts; no PyPI or Docker publication occurs.
+- Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue.
+- Replace the service dependency's vulnerable Starlette <1.0 ceiling with FastAPI >=0.149 and Starlette >=1.3.1 on Python 3.10+, while retaining core CLI/API support for Python 3.9; service tests now run on Python 3.10–3.14.
+- M6-05 is complete. M7-02 (cross-platform clean installs) and M7-03 (supply-chain verification) are complete; M7-01 operator migration review, M7-04 independent security review, and M7-05 maintainer/operator approval remain open.
+
+### M6 dashboard and plugin ecosystem (integrated; all acceptance gates validated)
+
+- Expand the same-origin dashboard with local JWT file selection or paste, separate inspect and explicit public-key verification workflows, local finding comparison, and JSON/HTML/SARIF export.
+- Route report generation through the shared schema-validated M4 renderer; redact by default and require explicit opt-in for sensitive exports.
+- Add a versioned v2 plugin entry-point contract, metadata-only discovery, explicit enablement, manifest/capability validation, namespaced findings, stable execution order, per-plugin assessment snapshots, and exception isolation.
+- Document that enabled plugins are trusted in-process Python code and are not sandboxed. No arbitrary working-directory plugin scan or automatic loading is performed.
+- Add dashboard/export and plugin trust-boundary regression tests, plus a dedicated Chromium E2E job for file selection, inspect/verify, report download, comparison, responsive behavior, keyboard focus, and safe failure states.
+
+
+### M5 optional HTTP service hardening
+
+- Publish strict, typed request contracts and a generated local OpenAPI document for the versioned health, inspect and verify endpoints.
+- Add liveness/readiness probes, lifecycle handling, safe JSON error envelopes, server-generated request IDs and structured request logs that exclude bodies, claims, keys and bearer credentials.
+- Enforce loopback-first remote exposure controls, minimum bearer-secret strength, exact Host validation, bounded declared/streamed bodies, request deadlines, per-peer rate limits and bounded concurrent assessment work.
+- Keep verification network-free: accept inline PEM public keys or one public JWK only; reject JWK Sets, URL input, remote-reference JWK members and undeclared URL parameters.
+- The original M5 service matrix included Python 3.9–3.14. M7 raises the optional HTTP-service minimum to Python 3.10 to use patched FastAPI/Starlette releases; the core CLI/API still support Python 3.9–3.14, and service security tests now cover Python 3.10–3.14.
+
+### M4 reporting and CI integrations
+
+- Add a stable public reporting API for JSON report envelope v1.0, escaped HTML and SARIF 2.1.0, all derived from the normalized assessment v1.1 model.
+- Validate exported JSON against vendored JSON Schemas and validate SARIF using the vendored SARIF 2.1.0 schema; keep validation offline and deterministic.
+- Add the jwt-analyzer-v2 report command with file output, explicit severity-based CI thresholds, safe default redaction, and a deliberate --include-sensitive opt-in.
+- Add tests for cross-format finding consistency, HTML injection, Unicode, schema failures, threshold boundaries, CLI exit codes, and sensitive-value export behavior.
+- Validate M4 in [v2 CI run #42368541600](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42368541600): Python 3.9–3.14 matrix (195 passed, 1 optional-service test skipped in the core matrix), separate HTTP service security tests, Ruff, mypy, Bandit, wheel/sdist build and clean install, report CLI smoke test, and Docker wordlist validation all passed.
+
+### M3 public API and CLI development
+
+- Define stable public exception types and make malformed-token inspection errors consistent.
+- Add lazy bounded batch assessment with per-item outcomes and a hard item cap.
+- Add validated JSON/YAML configuration with safe parsing, a 1 MiB input limit, explicit key allowlists, and defaults < file < environment precedence.
+- Add the versioned `jwt-analyzer-v2` CLI with machine-readable JSON stdout, structured JSON stderr errors, documented exit codes, and newline-delimited streaming batch input.
+- Add focused M3 API, batch, configuration, and CLI contract tests. The M3 implementation passed the six-version Python matrix (186 passed, one optional-service test skipped), public API quality checks, Bandit, distribution build/clean-install, installed v2 CLI smoke test, and Docker validation. See [CI run #42365419623](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42365419623). This remains unreleased development work.
+
+### M0 security-baseline hardening
+
+- Pin JWKS HTTPS connections to validated DNS address tuples while preserving TLS hostname verification; reject mixed public/private DNS answers, non-canonical numeric IP forms, redirects, compressed/oversized bodies, private JWK material, and malformed key metadata.
+- Bound JWKS DNS answer fan-out and cache entries; enforce a monotonic deadline over connection, response headers, and chunked body reads; reject non-finite timeouts and port zero.
+- Return thread-safe defensive copies from the bounded JWKS cache and restrict verification to supported asymmetric algorithms with sanitized error messages.
+- Record `alg=none` as a medium-severity header indicator with explicit confidence scope; do not claim a target-side signature bypass without verifier evidence.
+- Add best-effort redaction for JWT-like strings, common credentials, sensitive claim identifiers, PII patterns and scanner match excerpts in report/log paths; stop echoing malformed token contents in file-read errors.
+- Expand CI for JWKS adversarial cases, isolated wheel installation, CLI smoke testing, static security scanning and Docker starter-wordlist presence.
 
 > This section documents unreleased branch work. It is not a release announcement.
+
+### M1 shared assessment engine and result contract
+
+- Publish assessment schema v1.1 with strict JSON round-tripping, UTC timestamps, unique stable finding IDs and deterministic severity-then-ID ordering.
+- Extend findings with stage, observation, impact, evidence, limitations and remediation.
+- Add signature-only public-key verification and separate baseline, strict and custom claim-policy evaluation.
+- Keep signature validity independent from issuer, audience and lifetime policy outcomes; unverified policy evaluations are explicitly advisory.
+- Add JSON Schema, canonical fixture and regression tests for malformed claims, policy profiles, and signature/policy separation.
+
+> M1 work remains unreleased development functionality.
+
+### M2 cryptographic verification and security intelligence
+
+- Harden JWT parsing with canonical Base64URL validation, a 1 MiB compact-token limit, object-only header/payload JSON, and strict JSON decoding that rejects duplicate keys, non-finite numbers, excessive integer digits, excessive nesting/node counts, invalid UTF-8, and unpaired UTF-16 surrogates.
+- Normalize valid escaped UTF-16 surrogate pairs to Unicode scalar values and reject object keys that collide after normalization.
+- Harden public-key and JWK handling with a 64 KiB key-material limit, supported asymmetric-algorithm allowlisting, key-type/algorithm compatibility checks, and validation of JWK `use`, `key_ops`, and `alg` metadata.
+- Harden JWKS fetching with HTTPS/TLS verification, validated DNS pinning, redirect and proxy-tunnel rejection, bounded DNS fan-out and cache growth, a shared DNS/connect/TLS/read deadline, 1 MiB response and 1,000-key limits, strict content-type/JSON checks, and no stale-cache fallback after expiry.
+- Bound HMAC wordlist testing to 32 workers, 1,000,000 submitted candidates, 4 KiB per candidate and a maximum 3,600-second timeout. Candidate input is streamed and the pending queue is bounded by the active worker count.
+- Clarify finding semantics: local facts, heuristic indicators and unknown remote behavior are distinct. `alg=none`, suspicious `kid` patterns and algorithm/key-policy observations do not prove a remote verifier is exploitable.
+- Add 46 focused regression/property tests across five M2 test modules and extend the existing JWKS security suite with a shared-deadline DNS regression test.
+- Document JWKS resolver and brute-force cancellation limitations in `docs/JWKS_SECURITY.md` and the relevant implementation guidance.
+
+> M2 is complete on the `v2.0.0` development branch. It remains unreleased; this entry is not a release announcement.
 
 ### Added
 - Introduce the public `jwt_analyzer` Python namespace with normalized `Assessment` and `Finding` models.
@@ -23,7 +98,8 @@ All notable changes to this project will be documented in this file.
 - Update README examples to stop recommending disabled TLS verification.
 
 ### Validation
-- CI is being added on the v2 branch; passing results are required before the release-candidate milestone.
+- The v2 CI workflow passed on Python 3.9, 3.10, 3.11, 3.12, 3.13 and 3.14, including public API quality checks, optional HTTP-service security tests, Docker validation, and clean distribution build/install. [Workflow run](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/41091451380).
+- CI success verifies the committed test and build matrix; it is not a claim that every possible JWT deployment or security issue has been eliminated.
 - No release, tag, or package publication is included in this development work.
 
 ---

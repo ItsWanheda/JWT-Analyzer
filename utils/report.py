@@ -40,25 +40,62 @@ th {{ background: #34495e; color: white; }}
 <p>Decoded JWT claims are untrusted unless signature and claim validation succeeded.</p>
 </main></body></html>"""
 
-_SENSITIVE_MARKERS = ("token", "secret", "password", "passwd", "authorization", "cookie", "private_key", "privatekey", "api_key", "apikey", "credential", "email", "phone", "address", "ssn", "date_of_birth", "dob")
+_SENSITIVE_MARKERS = (
+    "token", "secret", "password", "passwd", "authorization", "cookie",
+    "private_key", "privatekey", "api_key", "apikey", "credential", "email",
+    "phone", "address", "ssn", "date_of_birth", "dob", "sub", "name",
+    "username", "preferred_username", "given_name", "family_name", "first_name",
+    "last_name", "user_id", "employee_id", "birthdate", "birth_date", "location",
+)
+_FORCE_REDACT_KEYS = {"matched_text", "secret_value", "private_material", "raw_token"}
+_COMPACT_JWT_RE = re.compile(
+    r"(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{2,}\.[A-Za-z0-9_-]*(?![A-Za-z0-9_-])"
+)
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)(\b(?:authorization|proxy-authorization|password|passwd|pwd|secret|token|jwt|id[_-]?token|"
+    r"access[_-]?token|refresh[_-]?token|client[_-]?secret|session[_-]?id|api[_-]?key)\b\s*[:=]\s*)"
+    r"(?:Bearer\s+)?(?:\"[^\"]*\"|'[^']*'|[^\s,;]+)"
+)
+_URL_SECRET_RE = re.compile(
+    r"(?i)([?&](?:token|id_token|access_token|refresh_token|api[_-]?key|client_secret|password|secret|session_id)=)[^&#\s]+"
+)
+_PII_PATTERNS = (
+    re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
+    re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
+    re.compile(r"\b(?:\+?1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
+    re.compile(r"\b(?:\d[ -]*?){13,19}\b"),
+    re.compile(r"\b(?:AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASCA)[A-Z0-9]{16}\b"),
+    re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b"),
+    re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"),
+)
 
-_COMPACT_JWT_RE = re.compile(r"^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{2,}\.[A-Za-z0-9_-]*$")
+
+def _redact_string(value: str) -> str:
+    value = _SECRET_ASSIGNMENT_RE.sub(r"\1[REDACTED]", value)
+    value = _URL_SECRET_RE.sub(r"\1[REDACTED]", value)
+    value = _COMPACT_JWT_RE.sub("[REDACTED: JWT-like value]", value)
+    if any(pattern.search(value) for pattern in _PII_PATTERNS):
+        return "[REDACTED: potential PII or credential]"
+    return value
 
 
 def _redact(value: Any, key: str = "") -> Any:
-    if any(marker in key.lower() for marker in _SENSITIVE_MARKERS):
+    lowered_key = key.lower()
+    if lowered_key in _FORCE_REDACT_KEYS or any(
+        marker in lowered_key for marker in _SENSITIVE_MARKERS
+    ):
         return "[REDACTED]"
     if isinstance(value, dict):
         return {str(k): _redact(v, str(k)) for k, v in value.items()}
     if isinstance(value, list):
         return [_redact(item, key) for item in value]
-    if isinstance(value, str) and _COMPACT_JWT_RE.fullmatch(value):
-        return "[REDACTED: JWT-like value]"
+    if isinstance(value, str):
+        return _redact_string(value)
     return value
 
 
 def redact_sensitive_data(value: Any) -> Any:
-    """Public redaction helper shared by HTML and JSON report writers."""
+    """Return a recursively redacted copy of a report or log payload."""
     return _redact(value)
 
 
@@ -73,13 +110,13 @@ def generate_html_report(analysis_data: Dict, output_path: str,
     count = lambda level: sum(1 for f in findings if str(f.get("severity", "")).upper() == level)
     html_content = HTML_TEMPLATE.format(
         timestamp=datetime.now(timezone.utc).isoformat(),
-        analyst=html.escape(str(analyst)),
+        analyst=html.escape(_redact_string(str(analyst))),
         critical_count=count("CRITICAL"), high_count=count("HIGH"),
         medium_count=count("MEDIUM"), low_count=count("LOW"),
-        token_info=html.escape(_json_text(analysis_data.get("token_info", {}))),
-        findings_html=_render_findings(findings),
-        recommendations_html=_generate_recommendations(findings),
-        payload_json=html.escape(_json_text(analysis_data.get("payload", {}))),
+        token_info=html.escape(_json_text(_redact(analysis_data.get("token_info", {})))),
+        findings_html=_render_findings(_redact(findings)),
+        recommendations_html=_generate_recommendations(_redact(findings)),
+        payload_json=html.escape(_json_text(_redact(analysis_data.get("payload", {})))),
     )
     Path(output_path).write_text(html_content, encoding="utf-8")
     return output_path

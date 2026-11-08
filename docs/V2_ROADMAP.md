@@ -8,10 +8,11 @@
 
 ## Baseline and non-negotiable constraints
 
-- PR #3 (`fix: harden JWT parsing, verification, JWKS and reporting`) is merged to `main` (merge commit `6988ad9fc7ed7d7f258b8642c42b083e5034775b`). Its PR-head workflow lookup returned no runs and there are no submitted reviews. Treat the merge as code history, not as a completed security validation.
-- The merged `main.py` still appears to classify a token declaring `alg=none` as a CRITICAL confirmed bypass, contrary to PR #3's stated token-only-indicator model. v2 must add regression tests proving heuristic observations never imply remote verifier exploitability.
-- The existing wheel configuration includes `main.py` and a non-existent/legacy `jwt-analyzer/**/*.py` pattern, while runtime imports live in `core/`, `utils/`, and `config.py`. Distribution discovery must be verified by building and installing the wheel.
-- Existing supported-version documentation is stale and the README still documents `verify-jwks --no-verify-ssl` even though the insecure flag was removed. Reconcile all user-facing docs before RC.
+- PR #4 introduced the v2 foundation on `main`; this roadmap still treats v2 as unreleased development work. A merged PR and source-tree inspection are not substitutes for reproducible tests, clean install evidence, or adversarial security testing.
+- The v2 CLI and API represent `alg=none` as an indicator rather than a confirmed bypass. M0 adds expanded regression coverage for that behavior and sensitive-output handling.
+- The wheel configuration explicitly includes `jwt_analyzer/`, `core/`, `utils/`, `plugins/`, `main.py`, `config.py`, and the starter wordlist. M0 verifies the wheel and source distribution, then installs the wheel in an isolated environment and executes a CLI smoke test.
+- The existing CI matrix covers Python 3.9–3.14, the optional service, and package builds. M0 adds JWKS adversarial tests, static security scanning, clean-wheel smoke tests, and a Docker starter-wordlist check.
+- JWKS retrieval must connect to the same validated address tuples it inspected. Allowing the HTTP client to resolve the hostname again at connect time is not sufficient to prevent DNS time-of-check/time-of-use attacks.
 - All new work stays on `v2.0.0` and follow-up branches. Do not force-push shared branches, modify `main`, merge into `main`, publish to PyPI/Docker, or create a release/tag as part of routine implementation.
 
 ## Delivery milestones
@@ -21,98 +22,117 @@
 **Goal:** make the merged security claims reproducible, close packaging and JWKS gaps, and introduce required CI evidence.
 
 Issues:
-- [ ] **M0-01 — Run the full regression suite**: execute existing and PR #3 tests on a clean checkout; repair failures rather than suppressing them.
-- [ ] **M0-02 — Correct the `alg=none` finding semantics**: use an indicator severity, confidence, and description that state exactly what is observed; never label target bypass confirmed by a token header alone.
-- [ ] **M0-03 — Harden JWKS destination validation**: test DNS rebinding / resolution-to-connect races, redirects, mixed public/private answers, IPv4/IPv6, unusual IP encodings, response limits, malformed JWKs and cache behavior. Fail closed when destination identity cannot be enforced.
-- [ ] **M0-04 — Verify wheel contents and clean install**: package all modules required by the CLI; build sdist and wheel; inspect `dist`; install into a clean environment; run `jwt-analyzer --version` and a smoke command.
-- [ ] **M0-05 — Add required branch CI**: test on every supported Python version; run regression tests, build/install smoke tests, lint and type checks. CI must expose failures instead of relying on undocumented local runs.
-- [ ] **M0-06 — Audit output and secret-handling paths**: assert no original token, recovered signing secret, credential or PII leak into logs, JSON, HTML, exceptions or CI logs unless explicitly requested in a controlled local workflow.
-- [ ] **M0-07 — Align version and security-support docs**: version metadata, CLI version, README, changelog, `SECURITY.md`, Docker, tox and package metadata must agree.
-- [ ] **M0-08 — Make bundled wordlist policy explicit**: ship the reviewed starter list in the image; any larger built-in corpus must be versioned and checksummed, with operator-supplied lists remaining an explicit opt-in.
+- [x] **M0-01 — Run the full regression suite**: execute existing and PR #3 tests on a clean checkout; repair failures rather than suppressing them.
+- [x] **M0-02 — Correct the `alg=none` finding semantics**: emit a medium-severity indicator with explicit confidence scope and a limitation stating that a token header alone cannot establish target-side bypass.
+- [x] **M0-03 — Harden JWKS destination validation**: pin validated DNS answers to the TLS connection; reject mixed public/private answers, unsafe numeric host forms, redirects, compressed/oversized bodies and malformed/private JWK material; bound DNS answer fan-out and cache growth; enforce a monotonic connection/response deadline; test address pinning, IPv4/IPv6, cache isolation and failure behavior.
+- [x] **M0-04 — Verify wheel contents and clean install**: package all modules required by the CLI; build sdist and wheel; inspect `dist`; install into a clean environment; run `jwt-analyzer --version` and a smoke command.
+- [x] **M0-05 — Add required branch CI**: test on every supported Python version; run regression tests, build/install smoke tests, lint and type checks. CI must expose failures instead of relying on undocumented local runs.
+- [x] **M0-06 — Audit output and secret-handling paths**: assert no original token, recovered signing secret, credential or PII leak into logs, JSON, HTML, exceptions or CI logs unless explicitly requested in a controlled local workflow.
+- [x] **M0-07 — Align version and security-support docs**: version metadata, CLI version, README, changelog, `SECURITY.md`, Docker, tox and package metadata must agree.
+- [x] **M0-08 — Make bundled wordlist policy explicit**: ship the reviewed starter list in the image; any larger built-in corpus must be versioned and checksummed, with operator-supplied lists remaining an explicit opt-in.
 
-**Acceptance:** reproducible green test/build evidence; no high/critical unresolved security defects; JWKS adversarial tests pass; clean installation proves both the CLI and importable package work; docs no longer promise removed insecure flags.
+**Acceptance:** reproducible green test/build evidence; no high/critical unresolved security defects; JWKS adversarial tests pass; clean installation proves CLI and public API imports work; default output redaction is regression-tested; the starter wordlist is present and documented in package and image. Do not mark M0 complete until M0 branch CI is green.
 
 ### M1 — Shared assessment engine and result contract
 
 **Goal:** separate token parsing, cryptographic verification, policy evaluation and presentation from the legacy CLI.
 
 Issues:
-- [ ] **M1-01 — Freeze the normalized result schema**: stable `Assessment`, `Finding`, severity, confidence, verification status, warnings/errors and schema version. Do not put the raw compact token in result objects.
-- [ ] **M1-02 — Define finding semantics**: each check declares observation, confidence, impact, evidence, limitations, remediation and stable finding ID. Token-only heuristics are not confirmed remote vulnerabilities.
-- [ ] **M1-03 — Separate parse / verify / policy stages**: parsing always marks claims untrusted; verification requires explicit key/algorithm constraints; application claim policy is a distinct step.
-- [ ] **M1-04 — Add policy profiles**: baseline, strict, and user-defined profiles for issuer, audience, time claims, required claims and accepted algorithms.
-- [ ] **M1-05 — Make assessments deterministic**: stable finding identifiers and ordering, schema fixtures, clear timestamps, and machine-readable errors.
+- [x] **M1-01 — Freeze the normalized result schema**: publish schema v1.1 for `Assessment` and `Finding`; include severity, confidence, verification/policy status, warnings/errors, timestamp, stage and schema version. Result models do not include a raw-token field.
+- [x] **M1-02 — Define finding semantics**: findings expose stable IDs, stage, observation, confidence, impact, evidence, limitations and remediation. Token-only heuristics remain indicators, not confirmed remote vulnerabilities.
+- [x] **M1-03 — Separate parse / verify / policy stages**: parsing leaves claims untrusted; signature verification uses explicit public-key and asymmetric algorithm constraints without checking issuer/audience/time claims; policy evaluation is a separate operation.
+- [x] **M1-04 — Add policy profiles**: baseline, strict and user-defined `AssessmentPolicy` profiles cover issuer, audience, time claims, required claims, accepted algorithms and clock leeway.
+- [x] **M1-05 — Make assessments deterministic**: stable severity-then-ID finding order, unique finding IDs, UTC ISO-8601 timestamps, strict JSON round-tripping, public schema and deterministic contract fixtures.
 
-**Acceptance:** public models have contract tests; malformed input fails predictably; inspection never returns a verified status; JSON round-trips preserve schema and finding IDs; equivalent input and policy produce stable finding ordering.
+**Acceptance:** public models have contract tests; malformed input fails predictably; inspection never returns a verified status; signature and policy statuses are separate; JSON round-trips preserve schema and finding IDs; equivalent input and policy produce stable finding ordering.
 
 ### M2 — Cryptographic verification and security intelligence
 
 Issues:
-- [ ] **M2-01 — Verification matrix**: RSA, ECDSA, Ed25519/OKP and supported HMAC tests, key/algorithm mismatch tests, malformed keys, expired/not-yet-valid claims, issuer/audience validation, and explicit algorithm allowlists.
-- [ ] **M2-02 — JWKS adversarial tests**: SSRF, redirects, DNS changes, TLS failures, content-type and body limits, duplicate `kid`, ambiguous keys, key-use/key-ops/algorithm mismatches, cache expiry and outage behavior.
-- [ ] **M2-03 — Bound all expensive work**: test brute-force worker limits, queue bounds, deadlines, cancellation, cleanup, memory limits and behavior when a crypto call cannot be interrupted.
-- [ ] **M2-04 — Calibrate severities/confidence**: document every rule; tests must distinguish confirmed local facts, likely indicators and unknown server-side behavior.
-- [ ] **M2-05 — Property/fuzz testing**: parser and JSON/JWK boundaries, oversized inputs, unusual Unicode, numeric edge cases and non-object JSON values.
+- [x] **M2-01 — Verification matrix**: RSA, ECDSA, Ed25519/OKP and supported HMAC tests, key/algorithm mismatch tests, malformed keys, expired/not-yet-valid claims, issuer/audience validation, and explicit algorithm allowlists.
+- [x] **M2-02 — JWKS adversarial tests**: SSRF, redirects, DNS changes, TLS failures, content-type and body limits, duplicate `kid`, ambiguous keys, key-use/key-ops/algorithm mismatches, cache expiry and outage behavior.
+- [x] **M2-03 — Bound all expensive work**: test brute-force worker limits, queue bounds, deadlines, cancellation, cleanup, memory limits and behavior when a crypto call cannot be interrupted.
+- [x] **M2-04 — Calibrate severities/confidence**: document every rule; tests must distinguish confirmed local facts, likely indicators and unknown server-side behavior.
+- [x] **M2-05 — Property/fuzz testing**: parser and JSON/JWK boundaries, oversized inputs, unusual Unicode, numeric edge cases and non-object JSON values.
 
 **Acceptance:** all key-type and negative tests pass; no algorithm confusion from attacker-controlled header data; all network and CPU-intensive operations have bounded limits; findings include limitations and reproducible evidence.
+
+**M2 completion:** Implemented and verified on `v2.0.0` in commit `9b24aa511882bba60ffe56bf7e748c28253f2715`. The five M2 test modules contain 46 focused regression/property tests. The full CI workflow passed across Python 3.9–3.14, public API and M2 quality gates, optional HTTP-service security tests, Docker validation, and clean distribution build/install.
+
+**Operational boundary:** The OS DNS resolver cannot be force-cancelled portably. JWKS callers now share one absolute deadline across DNS, connect, TLS, and response reading. A stuck OS resolver can occupy the single daemon DNS worker; one pending request is permitted and additional lookups fail closed rather than expanding the worker pool. See `docs/JWKS_SECURITY.md`.
 
 ### M3 — Stable public Python API and CLI v2
 
 Issues:
-- [ ] **M3-01 — Public API stability**: document `jwt_analyzer` imports; annotate public functions; explicit exceptions; API compatibility tests; no accidental exports from internal modules.
-- [ ] **M3-02 — Versioned CLI contract**: stable commands, argument validation, structured error format and exit-code contract; support JSON output on stdout for scripting.
-- [ ] **M3-03 — Batch assessment**: stream files and batches without unbounded memory use; per-item outcomes; safe partial failures and machine-readable summaries.
-- [ ] **M3-04 — Configuration and policy loading**: validate config schemas, merge precedence, environment overrides, path handling and safe defaults.
-- [ ] **M3-05 — Migration aliases and removals**: add only time-bounded compatibility aliases that do not weaken security; document removed flags and changed output fields.
+- [x] **M3-01 — Public API stability**: document the supported `jwt_analyzer` import surface; expose an explicit `__all__`; provide stable public exception types; normalize malformed-token inspection failures; test exports and API behavior.
+- [x] **M3-02 — Versioned CLI contract**: add the `jwt-analyzer-v2` entry point; define inspect and batch commands, structured JSON stdout/stderr, stable error codes, and exit-code behavior; keep legacy CLI behavior separate during migration.
+- [x] **M3-03 — Batch assessment**: stream token inputs and per-item outcomes without materializing the batch; continue after malformed items; enforce a hard configurable item limit; provide machine-readable summaries.
+- [x] **M3-04 — Configuration and policy loading**: validate JSON/YAML configuration with safe YAML loading and a 1 MiB file cap; reject unknown keys; support defaults < config file < environment precedence; expose validated policy profiles and batch limits.
+- [x] **M3-05 — Migration aliases and removals**: document the public compatibility boundary, new CLI contract, configuration, exit codes, legacy behavior, and security-sensitive migration constraints. Existing CLI commands are retained rather than redirected to incompatible output or insecure aliases.
 
 **Acceptance:** CLI golden tests and API contract tests pass on supported Python versions; stdout/stderr behavior and exit codes are documented; large batches are bounded; no ambiguous decode-versus-verify semantics.
+
+**M3 completion:** Implemented on `feat/m3-stable-api-cli` and validated in [v2 CI run #42365419623](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42365419623). All six Python versions (3.9–3.14) passed with 186 tests passed and one optional-service test skipped in the core matrix; the separate optional HTTP service job passed. Public API lint/format/type checks, Bandit, wheel/sdist build and clean-install checks, the installed `jwt-analyzer-v2` version smoke test, and Docker wordlist validation passed.
+
+**Operational boundary:** `jwt-analyzer-v2 inspect` and batch inspection do not verify signatures. `--evaluate-policy` evaluates decoded claims as advisory until cryptographic verification succeeds. The existing `jwt-analyzer` legacy CLI remains available during the migration period; its output is not the v2 JSON contract.
 
 ### M4 — Reporting and CI integrations
 
 Issues:
-- [ ] **M4-01 — Shared reporter interface**: JSON, HTML and SARIF share the same normalized assessment and severity semantics.
-- [ ] **M4-02 — Validate report schemas**: JSON schema, SARIF 2.1.0 validation, deterministic fixtures, escaping, Unicode and redaction regression tests.
-- [ ] **M4-03 — CI thresholds**: policy-defined fail thresholds with documented exit codes; do not fail a pipeline on informational findings unless configured.
-- [ ] **M4-04 — Secret-safe exports**: redaction defaults, explicit opt-in for sensitive fields, report metadata, and no secret values in logs.
+- [x] **M4-01 — Shared reporter interface**: JSON, HTML and SARIF share the same normalized assessment and severity semantics; public renderers use the versioned assessment v1.1 model.
+- [x] **M4-02 — Validate report schemas**: validate the JSON report envelope and nested assessment with vendored schemas; validate SARIF 2.1.0 offline; add deterministic fixtures, escaping, Unicode and redaction regression tests.
+- [x] **M4-03 — CI thresholds**: configurable severity threshold (none, info, low, medium, high, critical) and documented exit codes; default to high, so informational findings do not fail CI unless explicitly configured.
+- [x] **M4-04 — Secret-safe exports**: redact sensitive values by default across JSON, HTML and SARIF; require explicit --include-sensitive opt-in; include safe report metadata and never log token or credential values.
 
 **Acceptance:** output formats agree on counts/severity; report renderers are resistant to HTML injection; SARIF validates against its schema; threshold behavior is covered by integration tests.
 
+**M4 completion:** Implemented on `feat/m4-reporting-ci-integrations` and validated in [v2 CI run #42368541600](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42368541600). The full Python 3.9–3.14 matrix passed with 195 tests passed and one optional-service test skipped in the core matrix; the separate optional HTTP service security job passed. Ruff lint/format, mypy, Bandit, wheel/sdist validation, clean wheel installation including both reporting schemas, the installed report-command smoke check, and Docker wordlist validation passed.
+
+**Operational boundary:** JSON, HTML and SARIF reports use the normalized Assessment v1.1 contract. Sensitive values remain redacted unless the caller explicitly opts in with `--include-sensitive` or `include_sensitive=True`. The default CI threshold is `high`; informational findings do not fail a build unless a stricter threshold is configured. No code-scanning source locations are fabricated for token assessments.
+
 ### M5 — Optional HTTP service
 
-**Initial implementation on branch `v2.0.0`:** an opt-in FastAPI/Uvicorn extra now exposes `/api/v1/health`, `/api/v1/inspect`, and `/api/v1/verify`, plus a same-origin `/dashboard`. It defaults to loopback, can require bearer authentication, checks Host values, caps body size, rate-limits assessment routes, adds security headers/CSP, and does not persist request bodies. See [HTTP service documentation](HTTP_SERVICE.md). This is a first slice, not completion of the milestone.
+**Implementation on `feat/m5-secure-http-service`, corrected and validated on `feat/m6-dashboard-plugin-ecosystem`:** the optional FastAPI/Uvicorn service has strict typed request contracts and a generated local OpenAPI document; liveness/readiness endpoints; loopback-first CLI startup; constant-time bearer authentication; exact Host allowlists; bounded body size, request duration, rate and assessment concurrency; safe error envelopes; request IDs and body-free structured logs; and an explicit inline-key-only verification contract that rejects remote JWK references. The original M5 service matrix included Python 3.9–3.14. M7 deliberately raises the optional-service minimum to Python 3.10 to use security-patched Starlette releases; core CLI/API support remains Python 3.9–3.14, while the optional service is tested on Python 3.10–3.14. See [HTTP service documentation](HTTP_SERVICE.md).
 
 Issues:
-- [ ] **M5-01 — Versioned service contract**: optional install extra, `/api/v1` health and assessment routes, request/response schemas and OpenAPI docs.
-- [ ] **M5-02 — Secure service defaults**: bind to loopback by default; require explicit opt-in to expose remotely; auth, rate limits, body size, timeout and concurrency limits; no persistent token storage by default.
-- [ ] **M5-03 — SSRF boundary**: untrusted requests cannot ask the service to fetch arbitrary JWKS/URLs without policy and egress restrictions; no redirects and explicit destination allowlists.
-- [ ] **M5-04 — Lifecycle and telemetry**: clean shutdown, readiness/liveness, structured redacted logs, no tokens in traces, defined error envelopes.
-- [ ] **M5-05 — Service abuse tests**: auth bypass, request flooding, oversized bodies, slow clients, SSRF, malformed schemas, CORS and exception leakage.
+- [x] **M5-01 — Versioned service contract**: optional install extra; typed, strict request bodies; versioned health/assessment routes; local OpenAPI document and response/error schemas.
+- [x] **M5-02 — Secure service defaults**: loopback bind by default; explicit remote opt-in; 32-character minimum bearer secret; exact Host allowlist; bounded rate, body size, request lifetime and concurrent assessment work; no persistent token storage.
+- [x] **M5-03 — SSRF boundary**: verification accepts inline PEM or one public JWK only; reject URL inputs, JWK Sets and remote-reference members; no endpoint performs outbound fetches.
+- [x] **M5-04 — Lifecycle and telemetry**: startup/shutdown readiness, liveness, request IDs, structured body-free logs, sanitized JSON errors, bounded Uvicorn shutdown.
+- [x] **M5-05 — Service abuse tests**: auth, malformed/extra fields, request flooding, declared and streamed oversized bodies, slow clients, remote JWK references, host validation, no-CORS behavior and exception leakage.
 
 **Acceptance:** service is optional and absent from the default CLI dependency path; safe default bind; authenticated/authorized remote use; rate/size/time caps and abuse tests pass; raw tokens are not persisted or logged.
 
+**M5 completion:** the service implementation and security tests passed before M7 dependency hardening. M7 now supports the optional service on Python 3.10–3.14 to use security-patched FastAPI/Starlette, while the core CLI/API remain supported on Python 3.9–3.14. The updated full suite passed all six core versions, five service versions, the 18 Linux/Windows/macOS install combinations, quality, E2E, packaging and Docker checks in [v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs).
+
+
 ### M6 — Graphical dashboard and extension ecosystem
 
-**Initial implementation on branch `v2.0.0`:** a responsive same-origin dashboard supports token inspection with per-response CSP nonce and text-only result rendering; it does not persist input or output. Verification controls, assessment comparison, export/redaction workflows, plugin loading and full E2E/accessibility coverage remain open.
+**M6 implementation integrated into `v2.0.0`; all M6 gates validated:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. The corrected Chromium browser E2E/accessibility suite and all core/service/security/quality/package/Docker jobs passed in [full CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) on candidate commit `a2640e9` (33/33 jobs). The earlier RUF005 issue is resolved.
 
 Issues:
-- [ ] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
-- [ ] **M6-02 — Safe UI state and exports**: redact by default; make sensitive-data visibility deliberate; no token persistence by default; CSP and HTML sanitization.
-- [ ] **M6-03 — Versioned plugin contract**: entry-point discovery, declared capabilities, schema/versioning, deterministic execution and error isolation.
-- [ ] **M6-04 — Plugin trust boundary**: plugins are executable code; never auto-load arbitrary files from a working directory; require explicit enablement and document trust/sandbox limitations.
-- [ ] **M6-05 — E2E/accessibility testing**: keyboard navigation, screen reader labels, responsive layout, service/API failure states, auth and cross-site scripting regression suite.
+- [x] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
+- [x] **M6-02 — Safe UI state and exports**: redact by default; make sensitive-data visibility deliberate; no token persistence by default; CSP and HTML sanitization.
+- [x] **M6-03 — Versioned plugin contract**: entry-point discovery, declared capabilities, schema/versioning, deterministic execution and error isolation.
+- [x] **M6-04 — Plugin trust boundary**: plugins are executable code; never auto-load arbitrary files from a working directory; require explicit enablement and document trust/sandbox limitations.
+- [x] **M6-05 — E2E/accessibility testing**: keyboard navigation, screen reader labels, responsive layout, service/API failure states, auth and cross-site scripting regression suite.
 
 **Acceptance:** dashboard only calls the shared engine/service; all state and exports are explicit; plugin loading is opt-in and documented; E2E, accessibility and security tests pass. If dashboard scope slips, ship the core/API/service milestones rather than compromising security gates.
 
-### M7 — Release candidate and 2.0.0 gate
+### M7 — v2.0.0 release and publication gate
+
+**Technical validation is complete; the required review and approval gates remain open.** The release work is on `feat/m7-release-candidate`. Source commit `a2640e9` passed the full v2 CI matrix in [run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs), including core tests on CPython 3.9–3.14, optional HTTP-service security tests on 3.10–3.14, the 18 Linux/Windows/macOS install combinations, public API quality checks, Chromium dashboard E2E, clean distribution installs and Docker validation. The supply-chain workflow for commit `a2640e98` passed in [run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064): dependency audit, CycloneDX SBOM, repeat-build comparison, package digests, SLSA provenance and CycloneDX attestations, plus in-workflow repository/signer/predicate verification. The downloaded artifact's four SHA-256 manifest entries were independently checked; the audit covers 88 dependency components and reported zero advisories. The repeat-build claim is limited to the same source commit, hosted runner and toolchain, not independent or cross-platform reproducibility.
+
+The dependency audit earlier exposed a vulnerable Starlette <1.0 resolution. The service extra now uses the patched FastAPI/Starlette line on Python 3.10+, while the core CLI/API retain Python 3.9 support; service tests use the Starlette 1.x-compatible `httpx2` test client. M6-05 is closed. The v2.0.0 migration guide, release notes and operator checklist are complete and await operator/maintainer approval. No final release clearance is claimed until M7-01, M7-04 and M7-05 are signed off. No version bump, tag, PyPI publication, Docker push or production cutover is included.
 
 Issues:
-- [ ] **M7-01 — Migration guide**: command/API/config/report changes from 1.2.x; before/after examples and removal table.
-- [ ] **M7-02 — Clean install matrix**: wheel, sdist, Docker build, editable install, Windows/Linux/macOS smoke tests and all supported Python versions.
-- [ ] **M7-03 — Supply-chain artifacts**: dependency audit, SBOM, provenance/attestation and reproducible build record where supported.
-- [ ] **M7-04 — Independent security review**: review source, tests, JWKS/SSRF boundaries, output redaction, service/UI and plugins; track findings to closure.
-- [ ] **M7-05 — Release notes and operator checklist**: breaking changes, supported versions, known limitations, install/rollback instructions and upgrade steps.
+- [ ] **M7-01 — Migration guide review**: command/API/config/report changes from 1.2.x are documented with before/after examples and non-equivalent command mappings; an operator who owns a v1.2.x integration must review and sign off.
+- [x] **M7-02 — Clean-install matrix**: editable, wheel and sdist smoke checks passed across Linux, Windows and macOS × CPython 3.9–3.14; core/service regressions, package build/install and Docker wordlist validation passed in [v2 CI run #42502255094](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255094) (33/33 jobs).
+- [x] **M7-03 — Supply-chain artifacts**: dependency audit, CycloneDX SBOM, wheel/sdist SHA-256 manifest, build record, same-run repeat-build comparison, SLSA provenance and SBOM attestations all passed in [M7 supply-chain run #42502255064](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42502255064), including repository/signer/predicate verification.
+- [ ] **M7-04 — Independent security review**: reviewer other than the implementation author must inspect source, tests, JWKS/SSRF boundaries, output redaction, service/UI and plugin trust boundary; track findings to closure.
+- [ ] **M7-05 — Release notes and operator checklist approval**: the v2.0.0 release notes and operator checklist cover breaking changes, supported versions, known limitations, installation, rollback and upgrade steps; maintainer/operator approval remains pending.
 
-**Acceptance:** no unresolved critical/high release blocker; CI green on the full supported matrix; schema and CLI contracts documented; migration guide reviewed; reports pass security tests; packaged installs work; explicit maintainer approval required before tagging or publishing.
+**Acceptance:** M7-02 and M7-03 technical gates pass on the recorded validation evidence above; migration review and independent security review remain mandatory. Do not claim there are no critical/high release blockers until an independent reviewer records the result. Release notes and the operator checklist await approval. Explicit maintainer authorization is required before changing package metadata, tagging, publishing or production rollout.
 
 ## Dependency order
 

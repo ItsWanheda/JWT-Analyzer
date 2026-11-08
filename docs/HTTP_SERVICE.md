@@ -1,94 +1,172 @@
 # Optional HTTP Service and Dashboard
 
-**Status:** unreleased v2 development functionality. The service is an opt-in interface over the shared assessment engine; it is not an authentication server or an authorization decision point.
+**Release status — UNRELEASED: v2.0.0.** The service is an optional interface over the shared assessment engine. It is not an authentication server, an authorization decision point, or a remote JWKS resolver.
 
 ## Install and run locally
 
-Install the optional dependencies in an isolated environment:
+The HTTP service is an optional dependency group; the default CLI and Python API do not import FastAPI or Pydantic. The core analyzer supports CPython 3.9–3.14, but the optional service requires CPython 3.10 or newer. Starlette's security fixes for the current advisory set are available on the 1.x line, while upstream Starlette 0.50.0 dropped Python 3.9 support. On Python 3.9 the service extra deliberately omits the framework dependencies; importing or launching the service fails with an explicit compatibility message rather than resolving to the vulnerable pre-1.0 framework line.
 
-```bash
-python -m pip install -e ".[service]"
-```
+Install the service extra in an isolated environment:
+
+    python -m pip install -e ".[service]"
 
 The service binds to loopback by default. Authentication can be enabled locally by exporting a bearer token before startup:
 
-```bash
-export JWT_ANALYZER_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-jwt-analyzer-api --host 127.0.0.1 --port 8765
-```
+    export JWT_ANALYZER_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+    jwt-analyzer-api --host 127.0.0.1 --port 8765
 
-Open `http://127.0.0.1:8765/dashboard` and paste the bearer token into the password field when prompted. Without `JWT_ANALYZER_API_TOKEN`, assessment endpoints on a loopback-only bind are unauthenticated, so do not change the bind host casually. The dashboard does not write the JWT or API token to local/session storage; results are held in page memory and rendered with `textContent` rather than interpreted as HTML.
+Open http://127.0.0.1:8765/dashboard and paste the bearer token into the password field when prompted. Configured bearer tokens must contain at least 32 characters. Without JWT_ANALYZER_API_TOKEN, assessment routes on a loopback-only bind are unauthenticated; do not change the bind host casually.
+
+The dashboard does not write the JWT or API token to local/session storage. It renders response data with textContent, uses a per-response script nonce, and sends requests to the same origin.
 
 ## Remote binding
 
-The server refuses non-loopback binds unless the operator explicitly opts in, provides a bearer token at least 32 characters long, and provides an exact Host allowlist. Example:
+The CLI refuses non-loopback binds unless all of these are explicit:
 
-```bash
-export JWT_ANALYZER_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-jwt-analyzer-api \
-  --host 0.0.0.0 \
-  --port 8765 \
-  --allow-remote \
-  --allowed-host analyzer.internal.example
-```
+1. --allow-remote
+2. A bearer token of at least 32 characters, passed with --api-token or JWT_ANALYZER_API_TOKEN
+3. At least one exact --allowed-host value; wildcard entries are rejected
 
-Use remote mode only behind a TLS-terminating reverse proxy or on a private, access-controlled network. This service speaks HTTP; do not send bearer tokens over an untrusted network in clear text. Never use wildcard Host entries. The Host allowlist mitigates browser/DNS-rebinding access to the local service. Do not disable this check by customizing the app with a wildcard host list.
+Example:
+
+    export JWT_ANALYZER_API_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+    jwt-analyzer-api \
+      --host 0.0.0.0 \
+      --port 8765 \
+      --allow-remote \
+      --allowed-host analyzer.internal.example
+
+Use remote mode only behind a TLS-terminating reverse proxy or on a private, access-controlled network. This service speaks HTTP; never send bearer tokens over an untrusted network in clear text. Configure TLS, external rate limiting, request buffering and connection limits at the reverse proxy. Do not use wildcard Host entries.
+
+The service disables Uvicorn proxy-header trust by default. This prevents untrusted X-Forwarded-For values from being used as rate-limit identities. When deployed behind a proxy, the service sees the proxy peer address, so all users behind the same proxy share the service-level per-client bucket; apply per-client rate limiting at the trusted proxy as well.
+
+The Host allowlist mitigates browser/DNS-rebinding access to the local service. Do not disable it by passing a wildcard host list to create_app().
+
+## OpenAPI and versioned contract
+
+The generated OpenAPI document is served locally at GET /api/v1/openapi.json. It describes the versioned request fields, limits, response models, routes, and error statuses. There is no third-party hosted documentation JavaScript or CDN dependency.
+
+Request bodies are strict objects: undeclared fields are rejected. inspect accepts a compact JWT string. verify accepts a compact JWT, an inline PEM public key or one inline public JWK, an explicit asymmetric algorithm allowlist, and optional issuer/audience/leeway constraints. Public-key text is capped at 64 KiB; JWTs are capped at the parser's 1 MiB limit.
 
 ## Routes
 
-### `GET /api/v1/health`
+### GET /api/v1/health
 
-Returns a small health response containing `status` and the development version. It does not return configuration, environment variables or token data. This route is public for health checks.
+Compatibility health response containing status and the development version. This route is public and does not return configuration, environment variables or token data.
 
-### `POST /api/v1/inspect`
+### GET /api/v1/health/live
 
-Request:
+Liveness probe. Returns status: alive while the process is serving requests.
 
-```json
-{"token":"<compact JWT>"}
-```
+### GET /api/v1/health/ready
 
-Returns the normalized `Assessment` schema used by the Python API, including `verification_status: "not_attempted"`. This endpoint parses and inspects only; it does not verify a signature or assert that a target is vulnerable.
+Readiness probe. Returns status: ready while the application lifecycle is active; it returns HTTP 503 during shutdown. The service has no external runtime dependency that needs to be queried for readiness.
 
-### `POST /api/v1/verify`
+### POST /api/v1/inspect
 
 Request:
 
-```json
-{
-  "token": "<compact JWT>",
-  "public_key": "<trusted PEM public key or public JWK>",
-  "algorithms": ["RS256"],
-  "issuer": "https://issuer.example",
-  "audience": "example-api",
-  "leeway": 0
-}
-```
+    {"token":"<compact JWT>"}
 
-`issuer`, `audience` and `leeway` are optional. The algorithm list is required, must be non-empty, and must contain supported asymmetric algorithms only. `public_key` is input material, not a URL; the service has no endpoint that fetches arbitrary JWKS URLs. A `verified` signature still does not establish application-specific authorization, tenant, scope or role policy.
+Returns the normalized Assessment v1.1 response, including verification_status: "not_attempted". This endpoint parses and inspects only; it does not verify a signature or assert that a target is vulnerable.
+
+### POST /api/v1/verify
+
+Request:
+
+    {
+      "token": "<compact JWT>",
+      "public_key": "<trusted PEM public key or one public JWK JSON object>",
+      "algorithms": ["RS256"],
+      "issuer": "https://issuer.example",
+      "audience": "example-api",
+      "leeway": 0
+    }
+
+issuer, audience and leeway are optional. The algorithm list is required, must be non-empty, unique, and contain supported asymmetric algorithms only. A verified signature still does not establish application-specific authorization, tenant, scope or role policy.
+
+**SSRF boundary:** public_key is key material, not a URL. This service does not expose a JWKS URL, jku, x5u, or other remote-key fetch option. It accepts a single inline PEM public key or single public JWK only; JWK Sets and JWK members outside the supported inline-key allowlist are rejected. No API route performs outbound HTTP, DNS resolution, redirects, or proxy access. The contract rejects unexpected request properties such as jwks_url.
+
+### GET /api/v1/openapi.json
+
+Returns the generated OpenAPI contract. It is safe to expose alongside the API because it contains schemas and route metadata, not secrets or runtime configuration.
 
 ## Limits and handling
 
-- JWT compact strings are capped at the parser's 1 MiB limit; the service also bounds the HTTP request body (default roughly 2 MiB).
-- Assessment endpoints are limited to 60 POST requests per client IP per minute per process by default.
-- If `JWT_ANALYZER_API_TOKEN` is set, every assessment endpoint requires `Authorization: Bearer …`; comparison uses constant-time token comparison.
-- `Host` headers are checked against an explicit allowlist; the default list is limited to local hosts used by the local server and tests.
-- Security headers include `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and a restrictive Content Security Policy. The dashboard uses a per-response script nonce.
-- Request bodies and results are not persisted or logged by this module. Decoded claims can still contain sensitive values and are included in the direct response; treat assessment responses as sensitive data.
-- No CORS middleware is enabled. The dashboard and API are served from the same origin.
+| Control | Default | Bound / behavior |
+|---|---:|---|
+| Compact JWT | 1 MiB | Parser limit; a larger token returns HTTP 413 |
+| Public key material | 64 KiB | Single inline PEM or JWK only |
+| HTTP body | Approximately 2 MiB | Configurable up to 8 MiB; declared and streamed bodies are bounded |
+| Request lifetime | 15 seconds | Configurable from 0.05 to 120 seconds; includes slow body reads |
+| Concurrent assessments | 4 | Configurable from 1 to 32; CPU-bound work is dispatched to a bounded thread-pool path |
+| Assessment rate | 60 POST requests/client/minute | In-memory per process; limiter state is capped at 4,096 client keys |
+| Bearer token | Disabled on loopback unless configured | Required for every assessment route when configured; minimum 32 characters |
+
+Additional handling:
+
+- Host is checked against the exact allowlist; the loopback defaults include 127.0.0.1, localhost and [::1].
+- Security headers include Cache-Control: no-store, X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Referrer-Policy: no-referrer, same-origin resource policy, and a restrictive Content Security Policy. The dashboard uses a per-response script nonce.
+- No CORS middleware is enabled. The dashboard and API are same-origin.
+- Server-generated X-Request-ID values correlate responses with structured, body-free logs. Logs include route, method, status, duration and exception type only; JWTs, claims, public-key contents and bearer credentials are not logged.
+- Request bodies, claims and assessments are not persisted by this module. Decoded claims can still contain sensitive values and are present in direct responses; treat assessment responses as sensitive data.
+- Startup marks the application ready; shutdown clears readiness. Uvicorn keep-alive and graceful-shutdown windows are bounded.
+
+A request timeout bounds how long the HTTP request waits. It is not a guarantee that an already-running native or synchronous operation can be forcibly interrupted. Input limits and the concurrency semaphore bound the amount of in-flight work; reverse-proxy timeouts and resource controls remain necessary for remote deployments.
 
 ## Error contract
 
-| Status | Meaning |
-|---|---|
-| `400` | Invalid JSON or a non-object request body |
-| `401` | Bearer token required or invalid when authentication is enabled |
-| `413` | Request body or compact token exceeds its size limit |
-| `422` | Missing/invalid request fields, malformed token structure, or invalid verification constraints |
-| `429` | Per-client request rate limit exceeded |
+Errors use a stable JSON envelope:
 
-A cryptographically invalid signature is a completed verification result and is returned as an assessment with `verification_status: "invalid"`; it is not treated as an HTTP transport failure.
+    {
+      "error": {
+        "code": "invalid_request",
+        "message": "Request body does not match the documented API schema.",
+        "request_id": "server-generated-id"
+      }
+    }
 
-## Known limitations before production use
+| Status | Error code examples | Meaning |
+|---|---|---|
+| 400 | invalid_json, invalid_content_length | Invalid JSON or malformed Content-Length |
+| 401 | unauthorized | Bearer token required or invalid |
+| 408 | request_timeout | Request exceeded the configured time limit |
+| 413 | request_too_large, payload_too_large | Request body, JWT or key field exceeds its limit |
+| 422 | invalid_request, http_error | Schema, token structure, inline key or verification options are invalid |
+| 429 | rate_limited | Per-client request rate limit exceeded |
+| 500 | internal_error | Unexpected error; internal details and request data are not returned |
+| 503 | http_error | Service is not ready |
 
-The API/dashboard is an initial v2 slice. It still needs independent security review, dedicated slow-client and concurrency tests, complete OpenAPI/schema tooling, deployment guidance for TLS/proxy settings, and broader end-to-end/accessibility testing. Do not expose it directly to the public internet or use it to make authorization decisions.
+A cryptographically invalid signature is a completed verification result and is returned as an assessment with verification_status: invalid; it is not an HTTP transport failure.
+
+## Operator checklist
+
+Before remote use, terminate TLS, configure upstream request and connection limits, set a high-entropy bearer token through a secret manager, specify exact Host values, and apply a trusted edge rate limit. Keep the service behind a private network or authenticated gateway. Do not upload raw request logs or unredacted assessment responses to shared systems.
+
+This optional service requires independent security review and deployment-specific testing before public production exposure. It must not be used as an authentication server or as the sole basis for authorization decisions.
+
+
+## Dashboard assessment and exports
+
+The local dashboard at `/dashboard` now provides local file selection or paste,
+separate inspect and explicit public-key verification workflows, a local finding
+comparison view, and JSON/HTML/SARIF exports. Selected files are read in the
+browser and are not sent until the user submits the relevant assessment form. The browser uses `textContent` for untrusted result
+data, a per-response CSP nonce, same-origin requests, and page-memory-only
+state. It does not use localStorage or sessionStorage.
+
+The authenticated `POST /api/v1/report` endpoint accepts a normalized
+assessment and a report format. Redaction is on by default; sending
+`include_sensitive: true` is a deliberate opt-in. Reports are produced by the
+same schema-validated M4 rendering functions and are subject to the service's
+request-size, timeout, rate and concurrency limits.
+
+
+## Browser-level validation
+
+The M6 CI workflow includes a dedicated Chromium E2E job. It exercises local
+file selection (without uploading until submit), inspection, explicit
+signature verification, redacted report download, assessment comparison,
+keyboard focus, accessible labels/live regions, responsive layout, and safe
+invalid-input behavior. The job installs the optional `e2e` extra; normal CLI
+and API installations do not require Playwright or a browser.

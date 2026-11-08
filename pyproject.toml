@@ -40,11 +40,14 @@ dependencies = [
     "rich>=13.0.0",
     "requests>=2.31.0",
     "PyYAML>=6.0",
+    "jsonschema>=4.20",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
+    "httpx2>=2.14.0,<3.0.0; python_version >= '3.10'",
+    "types-PyYAML>=6.0.0",
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.0",
     "responses>=0.23.0",
@@ -57,12 +60,16 @@ dev = [
     "build>=1.0.0",
     "twine>=4.0.0",
 ]
+e2e = [
+    "playwright>=1.40.0",
+]
 service = [
-    "fastapi>=0.110.0",
-    "anyio>=3.7.1,<4.0.0",
-    "starlette>=0.46.0,<1.0.0",
-    "uvicorn>=0.27.0",
-    "httpx>=0.25.0",
+    "fastapi>=0.149.0; python_version >= '3.10'",
+    "pydantic>=2.9.0,<3.0.0; python_version >= '3.10'",
+    "anyio>=4.0.0,<5.0.0; python_version >= '3.10'",
+    "starlette>=1.3.1,<2.0.0; python_version >= '3.10'",
+    "uvicorn>=0.27.0; python_version >= '3.10'",
+    "httpx>=0.25.0; python_version >= '3.10'",
 ]
 
 [project.urls]
@@ -73,6 +80,7 @@ Changelog = "https://github.com/ItsWanheda/jwt-analyzer/blob/main/CHANGELOG.md"
 
 [project.scripts]
 jwt-analyzer = "main:cli"
+jwt-analyzer-v2 = "jwt_analyzer.cli_v2:cli"
 jwt-analyzer-api = "jwt_analyzer.service:main"
 
 # Keep the legacy CLI and internal compatibility modules in the wheel while
@@ -84,6 +92,9 @@ packages = ["jwt_analyzer", "core", "utils", "plugins"]
 "main.py" = "main.py"
 "config.py" = "config.py"
 "utils/wordlists/common_secrets.txt" = "utils/wordlists/common_secrets.txt"
+"jwt_analyzer/assessment-v1.1.schema.json" = "jwt_analyzer/assessment-v1.1.schema.json"
+"jwt_analyzer/report-v1.schema.json" = "jwt_analyzer/report-v1.schema.json"
+"jwt_analyzer/sarif-2.1.0.schema.json" = "jwt_analyzer/sarif-2.1.0.schema.json"
 
 [tool.ruff]
 line-length = 100

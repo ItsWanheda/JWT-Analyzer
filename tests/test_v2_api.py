@@ -237,8 +237,9 @@ def test_public_key_verification_enforces_requested_issuer():
         issuer="https://different-issuer.example",
     )
 
-    assert assessment.verification_status is VerificationStatus.INVALID
-    assert assessment.errors
+    assert assessment.verification_status is VerificationStatus.VERIFIED
+    assert assessment.policy["status"] == "failed"
+    assert "jwt.policy.issuer_mismatch" in {item.id for item in assessment.findings}
 
 
 
