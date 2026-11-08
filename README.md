@@ -16,9 +16,9 @@
 ## ⚡ Quick Start
 
 ```bash
-# Option 1: pip (fastest for daily use)
-pip install jwt-analyzer
-jwt-analyzer audit --token-file token.txt
+# Option 1: install the stable v2.0.0 PyPI distribution (when available)
+pip install "jwt-analyzer==2.0.0"
+jwt-analyzer-v2 --help
 
 # Option 2: from the v2.0.0 source branch
 git clone --branch v2.0.0 https://github.com/ItsWanheda/jwt-analyzer.git
