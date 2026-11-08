@@ -129,6 +129,8 @@ separate inspection and public-key signature verification, assessment comparison
 exports. The UI displays redacted reports by default and does not persist tokens
 in browser storage. Sensitive exports require an explicit opt-in.
 
+A Chromium end-to-end suite exercises local file selection, inspection, explicit verification, report download, finding comparison, responsive layout, keyboard focus, and safe failure states in CI.
+
 The v2 plugin API is versioned independently and discovers installed package
 entry points without importing them. Plugins are loaded only when explicitly
 enabled by the operator. Plugins are trusted in-process Python code, not
