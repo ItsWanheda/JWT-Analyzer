@@ -37,7 +37,11 @@ class PluginManifest:
     def __post_init__(self) -> None:
         if not isinstance(self.plugin_id, str) or not _PLUGIN_ID.fullmatch(self.plugin_id):
             raise ValueError("plugin_id must be a lowercase identifier of 2-64 characters")
-        if not isinstance(self.name, str) or not self.name.strip() or len(self.name) > _MAX_PLUGIN_NAME_LENGTH:
+        if (
+            not isinstance(self.name, str)
+            or not self.name.strip()
+            or len(self.name) > _MAX_PLUGIN_NAME_LENGTH
+        ):
             raise ValueError("plugin name must be a non-empty string of at most 120 characters")
         if not isinstance(self.version, str) or not _SEMVER.fullmatch(self.version):
             raise ValueError("plugin version must use semantic version syntax")
