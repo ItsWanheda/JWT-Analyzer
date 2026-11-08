@@ -1,10 +1,10 @@
 # Migrating to JWT Analyzer v2
 
-> **Release status — UNRELEASED:** This guide documents JWT Analyzer v2.0.0 (package metadata `2.0.0.dev0`). The 2.0.0 release and Docker image have not been published. Operator review is required before production migration.
+> **Release status — STABLE: v2.0.0.** The v2.0.0 source release is integrated into `main`. This guide records the major-version migration path from v1.2.x; retain your prior v1.2.x artifact for rollback.
 
 ## Upgrade strategy
 
-Treat v2 as a deliberate major-version migration. Pin the current stable 1.2.x install in production until the 2.0.0 release gates pass. Test v2 in a separate environment and compare its results against known JWT fixtures before switching automation.
+Treat v2.0.0 as a deliberate major-version migration. Validate the migration in a staged environment against known JWT fixtures and downstream integrations before switching production automation. Keep the exact prior v1.2.x artifact and configuration available for rollback.
 
 ## Initial Python API
 
@@ -85,7 +85,7 @@ Cancellation is cooperative. A cryptographic operation already executing in a wo
 
 Findings now make an explicit distinction between confirmed local observations, likely indicators and unknown remote behavior. A token declaring `alg=none`, an unusual `kid`, or a possible algorithm/key-policy mismatch does not establish that a remote verifier accepts the attack. Confidence applies to the stated observation, not to unproven exploitability. See [M2 Security Finding Semantics](SECURITY_FINDING_SEMANTICS.md).
 
-The M2 regression/property suite contains 46 focused tests across five modules, with an additional DNS-deadline regression in the existing JWKS security suite. The branch CI workflow passed on Python 3.9–3.14, alongside the public API, optional service security, Docker and distribution build/install checks. This is development-branch validation, not a 2.0.0 release or a guarantee that every deployment risk is eliminated.
+The M2 regression/property suite contains 46 focused tests across five modules, with an additional DNS-deadline regression in the existing JWKS security suite. The branch CI workflow passed on Python 3.9–3.14, alongside the public API, optional service security, Docker and distribution build/install checks. This is recorded development-branch validation included in the v2.0.0 release evidence; each deployment must still validate its own configuration, integrations, and operational risk.
 
 ## M3 public API, CLI, batch, and configuration contract
 
@@ -97,9 +97,9 @@ The public `jwt_analyzer` namespace is the compatibility boundary. Imports from 
 
 The legacy CLI is retained in this development transition rather than silently changing its output format. The new JSON contract is a separate entry point; no legacy alias may weaken verification co## Command migration reference
 
-The v2 CLI is a new, deliberately separate contract. The legacy jwt-analyzer entry point remains installed during this development transition; it has not been redirected to v2 JSON output. The new command is jwt-analyzer-v2.
+The v2 CLI is a new, deliberately separate contract. The legacy jwt-analyzer entry point remains installed during the v2.0.0 transition; it has not been redirected to v2 JSON output. The new command is jwt-analyzer-v2.
 
-| v1.2.x command | v2.0.0 development path | Migration notes |
+| v1.2.x command | v2.0.0 path | Migration notes |
 |---|---|---|
 | analyze --token-file token.jwt | jwt-analyzer-v2 inspect --token-file token.jwt | Both are structural inspection only. The v2 result is a versioned JSON envelope and explicitly reports verification_status=not_attempted. |
 | audit --token-file token.jwt ... | Run v2 stages separately: inspect, explicitly verify when a trusted key is available, evaluate policy, then render a report. | There is intentionally no one-command v2 alias for the legacy combined audit. Do not treat inspection or policy evaluation on unverified claims as verification. |
@@ -219,7 +219,7 @@ Legacy environment variables JWT_ANALYZER_TIMEOUT, JWT_ANALYZER_LOG_LEVEL, and J
 
 ### Removal and compatibility table
 
-| Surface | v2.0.0 development status | Operator action |
+| Surface | v2.0.0 status | Operator action |
 |---|---|---|
 | Legacy jwt-analyzer command group | Retained as a separate compatibility path during development; not a v2 JSON contract | Keep legacy automation pinned until migrated and tested |
 | Legacy internal Python imports (core.*, utils.*, config.Config) | Not a supported v2 API | Move new integrations to documented jwt_analyzer exports |
@@ -228,7 +228,7 @@ Legacy environment variables JWT_ANALYZER_TIMEOUT, JWT_ANALYZER_LOG_LEVEL, and J
 | Unredacted report output by default | Not supported by v2 reporting | Use redacted exports; sensitive output requires an explicit opt-in |
 | v2 CLI commands for brute-force, forge, verify-rsa, verify-jwks, and combined audit | No direct command replacement currently exists | Keep these workflows separate; do not invent aliases or infer that inspect performs them |
 
-No blanket removal of the legacy CLI is performed by this development branch. Any future removal requires a separately announced deprecation period, a versioning decision, and updated migration documentation.
+The legacy CLI remains available as a separate compatibility path in v2.0.0. Any future removal requires a separately announced deprecation period, a versioning decision, and updated migration documentation.
 
 
 ## Before production cutover
@@ -240,4 +240,4 @@ No blanket removal of the legacy CLI is performed by this development branch. An
 - [ ] Verify that token material, signing secrets and sensitive claims are not leaking to logs or artifacts.
 - [ ] Test rollback to the pinned 1.2.x installation and preserve a copy of the prior config/report parsers.
 
-Before production migration, an operator must confirm the command/API/configuration mapping against the release commit, the independent security review must be recorded, and the release checklist must be approved. Keep the existing 1.2.x deployment pinned until those steps and the formal v2.0.0 release are complete.
+The operator migration review and release approvals have been completed for v2.0.0. For each deployment, validate the command/API/configuration mappings, test downstream report consumers, and retain the existing 1.2.x package and configuration until the v2 rollout is accepted.
