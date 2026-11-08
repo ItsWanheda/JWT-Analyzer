@@ -92,14 +92,15 @@ def test_dashboard_browser_workflows_accessibility_and_safe_rendering(dashboard_
         # Keyboard focus and labels are available before any form interaction.
         page.locator("#api-token").focus()
         page.keyboard.press("Tab")
-        assert page.locator("#jwt-file").is_focused()
+        with page.expect_file_chooser() as file_chooser:
+            page.keyboard.press("Space")
         assert page.locator('label[for="jwt-file"]').count() == 1
         assert page.locator('[aria-live="polite"]').count() >= 2
 
         # File selection is local; the token is sent only after explicit submit.
         requests = []
         page.on("request", lambda request: requests.append(request.url))
-        page.locator("#jwt-file").set_input_files(
+        file_chooser.value.set_files(
             {
                 "name": "assessment.jwt",
                 "mimeType": "text/plain",
