@@ -108,14 +108,14 @@ Issues:
 
 ### M6 — Graphical dashboard and extension ecosystem
 
-**M6 implementation integrated into `v2.0.0`; final M6-05 gate validation remains open:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. The Chromium browser E2E workflow now passes on the merged M6 commit (PR CI run #42498732897). The same run exposed one remaining RUF005 lint failure in the E2E comparison fixture; the M7 branch carries the tuple-style correction. M6-05 remains open until the corrected full quality workflow passes.
+**M6 implementation integrated into `v2.0.0`; all M6 gates validated:** the dashboard supports local JWT file selection or paste, separate inspection and explicit inline-key verification, local assessment comparison, and JSON/HTML/SARIF exports through the shared redaction/schema engine. A versioned entry-point plugin contract and explicit opt-in manager are implemented. The corrected Chromium browser E2E/accessibility suite and all core/service/security/quality/package/Docker jobs passed in [full CI run #42501502998](https://github.com/ItsWanheda/JWT-Analyzer/actions/runs/42501502998) on application commit `b57329c`. The earlier RUF005 issue is resolved.
 
 Issues:
 - [x] **M6-01 — Dashboard assessment workflow**: upload/paste, inspect, separately verify, view findings, explain evidence/limitations, and compare assessments.
 - [x] **M6-02 — Safe UI state and exports**: redact by default; make sensitive-data visibility deliberate; no token persistence by default; CSP and HTML sanitization.
 - [x] **M6-03 — Versioned plugin contract**: entry-point discovery, declared capabilities, schema/versioning, deterministic execution and error isolation.
 - [x] **M6-04 — Plugin trust boundary**: plugins are executable code; never auto-load arbitrary files from a working directory; require explicit enablement and document trust/sandbox limitations.
-- [ ] **M6-05 — E2E/accessibility testing**: keyboard navigation, screen reader labels, responsive layout, service/API failure states, auth and cross-site scripting regression suite.
+- [x] **M6-05 — E2E/accessibility testing**: keyboard navigation, screen reader labels, responsive layout, service/API failure states, auth and cross-site scripting regression suite.
 
 **Acceptance:** dashboard only calls the shared engine/service; all state and exports are explicit; plugin loading is opt-in and documented; E2E, accessibility and security tests pass. If dashboard scope slips, ship the core/API/service milestones rather than compromising security gates.
 

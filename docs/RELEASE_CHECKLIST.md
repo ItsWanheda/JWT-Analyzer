@@ -97,7 +97,7 @@ Release-blocking rule: no unresolved critical or high severity finding. Medium/l
 
 ## Final maintainer authorization
 
-- [ ] M0–M6 acceptance evidence reviewed and M6-05 closed.
+- [x] M0–M6 acceptance evidence reviewed and M6-05 closed (full CI run #42501502998).
 - [ ] Every M7 gate above is complete with evidence.
 - [ ] Migration guide reviewed by an operator.
 - [ ] Independent security review signed off and no critical/high blockers remain.
