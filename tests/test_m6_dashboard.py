@@ -35,6 +35,9 @@ def test_dashboard_exposes_inspect_verify_compare_and_export_workflows():
     assert 'nonce="' in response.text
     for marker in (
         'id="inspect-form"',
+        'id="jwt-file" type="file"',
+        'id="verify-jwt-file" type="file"',
+        'attachLocalFile("jwt-file", "jwt")',
         'id="verify-form"',
         'id="compare-submit"',
         'id="export-submit"',
