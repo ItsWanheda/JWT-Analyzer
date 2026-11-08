@@ -12,7 +12,9 @@ All notable changes to this project will be documented in this file.
 - Add an operator-facing release checklist and a separate 2.0.0 release-notes draft covering the six M7 gates, artifact verification, independent security-review evidence, production upgrade, rollback, and explicit maintainer authorization.
 - Add an 18-combination editable/wheel/sdist smoke matrix across Linux, Windows, macOS and CPython 3.9–3.14.
 - Add a supply-chain workflow for dependency auditing, CycloneDX SBOM, same-run repeat-build digest comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations. Artifacts are retained as workflow artifacts; no PyPI or Docker publication occurs.
-- Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue. M6-05 and all M7 gates remain open until the corrected CI evidence and independent review are complete.
+- Correct the M6 browser E2E fixture's RUF005 tuple-concatenation lint issue.
+- Replace the service dependency's vulnerable Starlette <1.0 ceiling with FastAPI >=0.149 and Starlette >=1.3.1 on Python 3.10+, while retaining core CLI/API support for Python 3.9; service tests now run on Python 3.10–3.14.
+- M6-05 and all M7 gates remain open until the corrected CI evidence, clean dependency audit and independent review are complete.
 
 ### M6 dashboard and plugin ecosystem (integrated; final gate validation pending)
 

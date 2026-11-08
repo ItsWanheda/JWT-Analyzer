@@ -121,7 +121,7 @@ Issues:
 
 ### M7 — Release candidate and 2.0.0 gate
 
-**M7 preparation on feat/m7-release-candidate:** expand the migration guide with exact v1.2.x command/API/config/report mappings; add an 18-combination Linux/Windows/macOS × Python 3.9–3.14 editable/wheel/sdist smoke matrix; add dependency audit, CycloneDX SBOM, repeat-build comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations. Add an operator/release checklist and independent-review record. These are candidate gates only: CI evidence, reviewer sign-off and maintainer authorization remain pending. No version bump, tag, or package publication is included.
+**M7 preparation on feat/m7-release-candidate:** expand the migration guide with exact v1.2.x command/API/config/report mappings; add an 18-combination Linux/Windows/macOS × Python 3.9–3.14 editable/wheel/sdist smoke matrix; add dependency audit, CycloneDX SBOM, repeat-build comparison, build record, SHA-256 manifest, and GitHub provenance/SBOM attestations. The dependency audit exposed an explicit Starlette <1.0 pin resolving to vulnerable 0.52.1; the M7 fix moves the optional service to FastAPI >=0.149 / Starlette >=1.3.1 on Python 3.10+, while preserving Python 3.9 core support. Add an operator/release checklist and independent-review record. These are candidate gates only: CI evidence, reviewer sign-off and maintainer authorization remain pending. No version bump, tag, or package publication is included.
 
 Issues:
 - [ ] **M7-01 — Migration guide**: command/API/config/report changes from 1.2.x; before/after examples and removal table.

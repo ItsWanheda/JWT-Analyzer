@@ -214,7 +214,7 @@ Legacy environment variables JWT_ANALYZER_TIMEOUT, JWT_ANALYZER_LOG_LEVEL, and J
 
 - The v2 public API uses the jwt_analyzer namespace. Imports from core.*, utils.*, the repository-root config.Config, and direct main.py imports are implementation details, not the v2 compatibility promise.
 - JSON, HTML, and SARIF reports share the normalized Assessment model. Redaction is enabled by default; sensitive values require explicit opt-in.
-- The optional HTTP service and dashboard are installed with the service extra. The service is loopback-first and has explicit Host, bearer-authentication, request-size, rate, concurrency, and request-lifetime controls. Remote mode requires deliberate operator configuration and a TLS-terminating proxy or private access-controlled network.
+- The optional HTTP service and dashboard are installed with the service extra and require CPython 3.10–3.14. The core CLI/API continue to support Python 3.9–3.14. Python 3.9 deliberately does not install the service framework dependencies because the patched Starlette line requires Python 3.10 or newer; the service refuses to start there rather than falling back to the vulnerable pre-1.0 framework line. The service is loopback-first and has explicit Host, bearer-authentication, request-size, rate, concurrency, and request-lifetime controls. Remote mode requires deliberate operator configuration and a TLS-terminating proxy or private access-controlled network.
 - The v2 plugin contract uses the jwt_analyzer.plugins.v2 entry-point group and explicit operator enablement. Plugins execute as trusted in-process Python code; they are not sandboxed. The legacy directory-based plugin loader is disabled. Audit every plugin package before enabling it.
 
 ### Removal and compatibility table
