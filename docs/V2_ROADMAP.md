@@ -92,7 +92,7 @@ Issues:
 
 ### M5 — Optional HTTP service
 
-**Implementation on `feat/m5-secure-http-service`:** the optional FastAPI/Uvicorn service now has strict typed request contracts and a generated local OpenAPI document; liveness/readiness endpoints; loopback-first CLI startup; constant-time bearer authentication; exact Host allowlists; bounded body size, request duration, rate and assessment concurrency; safe error envelopes; request IDs and body-free structured logs; and an explicit inline-key-only verification contract that rejects remote JWK references. The implementation is under validation; the milestone remains open until the expanded Python 3.9–3.14 service matrix passes. See [HTTP service documentation](HTTP_SERVICE.md).
+**Implementation on `feat/m5-secure-http-service`, corrected and validated on `feat/m6-dashboard-plugin-ecosystem`:** the optional FastAPI/Uvicorn service has strict typed request contracts and a generated local OpenAPI document; liveness/readiness endpoints; loopback-first CLI startup; constant-time bearer authentication; exact Host allowlists; bounded body size, request duration, rate and assessment concurrency; safe error envelopes; request IDs and body-free structured logs; and an explicit inline-key-only verification contract that rejects remote JWK references. The M5 quality and Python 3.9–3.14 service gates now pass. See [HTTP service documentation](HTTP_SERVICE.md).
 
 Issues:
 - [x] **M5-01 — Versioned service contract**: optional install extra; typed, strict request bodies; versioned health/assessment routes; local OpenAPI document and response/error schemas.
