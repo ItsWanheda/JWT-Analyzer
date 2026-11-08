@@ -1,6 +1,5 @@
 """Dashboard, export endpoint, and accessibility/security regressions for M6."""
 
-import json
 
 import pytest
 
