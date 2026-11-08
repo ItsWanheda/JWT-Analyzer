@@ -82,7 +82,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -222,6 +222,6 @@ jobs:
       - name: Install editable package and smoke-test tooling
         run: |
           python -m pip install --upgrade pip hatchling
-          python -m pip install -e ".[dev,service]"
+          python -m pip install -e ".[dev]"
       - name: Build and validate editable, wheel, and sdist installs
         run: python scripts/m7_install_smoke.py

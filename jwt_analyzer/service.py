@@ -15,11 +15,21 @@ import json
 import logging
 import os
 import secrets
+import sys
 import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from threading import Lock
 from typing import Any, Optional
+
+
+if sys.version_info < (3, 10):  # pragma: no cover - platform compatibility guard
+    raise RuntimeError(
+        "The optional HTTP service requires Python 3.10 or newer to use "
+        "security-patched FastAPI/Starlette releases. The core CLI and Python API "
+        "continue to support Python 3.9."
+    )
+
 
 try:
     from fastapi import Depends, FastAPI, Header, HTTPException, Request
