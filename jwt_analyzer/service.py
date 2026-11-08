@@ -177,6 +177,8 @@ _DASHBOARD_HTML = """<!doctype html>
       <section aria-labelledby="inspect-heading">
         <h2 id="inspect-heading">1. Inspect a token</h2>
         <form id="inspect-form" method="post">
+          <label for="jwt-file">Load JWT from a local file <small>Read locally in this browser; the file is not uploaded until you submit the inspection request.</small></label>
+          <input id="jwt-file" type="file" accept=".jwt,.txt,text/plain">
           <label for="jwt">Compact JWT</label>
           <textarea id="jwt" required maxlength="1048576" autocomplete="off" spellcheck="false" placeholder="Paste a compact JWT"></textarea>
           <button id="inspect-submit" type="submit">Inspect token</button>
@@ -187,6 +189,8 @@ _DASHBOARD_HTML = """<!doctype html>
       <section aria-labelledby="verify-heading">
         <h2 id="verify-heading">2. Verify a signature</h2>
         <form id="verify-form" method="post">
+          <label for="verify-jwt-file">Load JWT from a local file <small>Read locally in this browser; the file is not uploaded until you submit verification.</small></label>
+          <input id="verify-jwt-file" type="file" accept=".jwt,.txt,text/plain">
           <label for="verify-jwt">Compact JWT</label>
           <textarea id="verify-jwt" required maxlength="1048576" autocomplete="off" spellcheck="false" placeholder="Paste the JWT to verify"></textarea>
           <label for="public-key">Inline public key (PEM or one public JWK)</label>
@@ -252,6 +256,31 @@ _DASHBOARD_HTML = """<!doctype html>
         if (apiToken.value) headers.Authorization = "Bearer " + apiToken.value;
         return headers;
       }
+
+      function attachLocalFile(fileInputId, textAreaId) {
+        byId(fileInputId).addEventListener("change", async () => {
+          const input = byId(fileInputId);
+          const file = input.files && input.files[0];
+          if (!file) return;
+          if (file.size > 1048576) {
+            status.textContent = "Selected file exceeds the 1 MiB JWT limit.";
+            input.value = "";
+            return;
+          }
+          try {
+            const contents = await file.text();
+            if (contents.length > 1048576) throw new Error("file_too_large");
+            byId(textAreaId).value = contents.trim();
+            status.textContent = "File read locally. Submit the form to send the token for assessment.";
+          } catch (_) {
+            status.textContent = "Could not read the selected JWT file.";
+            input.value = "";
+          }
+        });
+      }
+
+      attachLocalFile("jwt-file", "jwt");
+      attachLocalFile("verify-jwt-file", "verify-jwt");
 
       async function postJson(path, payload) {
         const response = await fetch(path, {
