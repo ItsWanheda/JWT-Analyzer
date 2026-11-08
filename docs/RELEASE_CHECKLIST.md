@@ -2,6 +2,8 @@
 
 > **Status: candidate preparation only.** The repository remains on 2.0.0.dev0. This checklist does not authorize a release, tag, PyPI upload, Docker push, or production cutover.
 
+Read the [2.0.0 release-notes draft](RELEASE_NOTES_2.0.0.md) together with the [v1.2.x migration guide](MIGRATING_TO_V2.md). The notes remain a draft until reviewed and approved.
+
 ## Release identity
 
 | Item | Expected value |

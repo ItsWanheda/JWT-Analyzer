@@ -148,7 +148,7 @@ M2 hardens the inputs and expensive operations used by the verifier:
 - HMAC wordlist testing supports HS256/384/512 and streams candidates through a bounded worker pool: at most **32 workers**, **1,000,000 candidates**, and **4 KiB per candidate**; the timeout is capped at **one hour**. Cancellation is cooperative: a cryptographic call already executing cannot be safely force-killed.
 - Findings distinguish confirmed local observations from heuristic indicators and unknown server-side behavior. A suspicious `kid` or declared `alg=none` is not proof that a remote verifier accepts an attack.
 
-See [JWKS retrieval security](docs/JWKS_SECURITY.md), [finding semantics](docs/SECURITY_FINDING_SEMANTICS.md), and the [v2 migration guide](docs/MIGRATING_TO_V2.md) for the detailed boundaries and operational caveats.
+See [JWKS retrieval security](docs/JWKS_SECURITY.md), [finding semantics](docs/SECURITY_FINDING_SEMANTICS.md), and the [v2 migration guide](docs/MIGRATING_TO_V2.md · docs/RELEASE_NOTES_2.0.0.md) for the detailed boundaries and operational caveats.
 
 ### Optional HTTP API and dashboard
 
